@@ -6,7 +6,7 @@ Ziel des Projekts ist es, den Roboterarm mithilfe inverser Kinematik gleichmäß
 
 Eine weitere zentrale Anforderung ist der Einsatz einer Servokarte mit PCA9685-Chip. Dadurch können die sechs Servos mithilfe verfügbarer Bibliotheken in Echtzeit angesteuert werden.
 
-## Technischer Hintergrund
+## Technisches Konzept
 
 ### Einführung in Inverse Kinematik
 
@@ -69,6 +69,78 @@ Die mechanische Konstruktion des Arms weist folgende Abweichungen vom idealen Mo
 * Roll und das Zentrum des Greifers haben einen festen Offset (Achsen) zueinander.
 
 Weitere Offsets werden im aktuellen Modell zunächst vernachlässigt.
+
+## SW Architektur
+
+Die Softwarearchitektur dieses Projekts soll so aufgebaut sein, dass fachliche Logik, mathematische Modellierung und hardwarenahe Ansteuerung klar voneinander getrennt sind. Dadurch bleibt das System übersichtlich, testbar und später erweiterbar, auch wenn sich einzelne Algorithmen oder Hardwarekomponenten ändern.
+
+### Architekturziele
+
+Die Architektur verfolgt insbesondere folgende Ziele:
+
+* Trennung zwischen fachlicher Beschreibung des Roboters und konkreter Hardwareansteuerung
+* Austauschbarkeit der IK-Lösungsverfahren
+* klare Datenflüsse zwischen Zielvorgabe, Modellberechnung und Aktoransteuerung
+* Berücksichtigung mechanischer Randbedingungen wie Gelenkgrenzen und Offsets
+* Erweiterbarkeit für spätere Funktionen wie Bahnplanung, Kalibrierung oder alternative Greifer
+
+### Logische Schichten
+
+Eine sinnvolle logische Zerlegung besteht aus mehreren Schichten mit klar abgegrenzten Verantwortlichkeiten.
+
+#### Bedien- und Anwendungsschicht
+
+Diese Schicht nimmt Sollvorgaben entgegen und stellt die Schnittstelle zur Benutzerinteraktion oder zu höheren Programmlogiken dar. Hier wird beschrieben, wohin sich der Greifer bewegen soll oder welche Folge von Bewegungen auszuführen ist. Die Anwendungsschicht arbeitet dabei ausschließlich mit fachlichen Größen wie Zielposition, Orientierung und Greiferöffnung.
+
+#### Kinematik- und Modellschicht
+
+In dieser Schicht wird das mathematische Modell des Roboterarms beschrieben. Sie enthält die geometrischen Eigenschaften des idealen Arms, die Segmentlängen, die Lage der Gelenke sowie später mögliche Korrekturen für reale mechanische Abweichungen. Zudem bildet sie die Grundlage für Vorwärtskinematik und inverse Kinematik.
+
+#### Planungs- und Prüfschicht
+
+Zwischen Zielvorgabe und direkter Aktoransteuerung ist eine Prüfung der Bewegung zweckmäßig. In dieser Schicht wird bewertet, ob ein Ziel grundsätzlich erreichbar ist, ob Gelenkgrenzen eingehalten werden und ob die berechnete Lösung mechanisch plausibel ist. Später können hier auch Strategien für Zwischenpunkte, Geschwindigkeitsprofile oder Kollisionsprüfungen eingeordnet werden.
+
+#### Hardwareabstraktionsschicht
+
+Diese Schicht setzt abstrakte Gelenksollwerte in konkrete Ansteuersignale für die Servos um. Dazu gehören insbesondere die Umrechnung von Winkeln in hardwaregeeignete Stellgrößen, die Berücksichtigung servoindividueller Kalibrierwerte sowie die Kommunikation mit der Servokarte. Die mathematische Logik der Kinematik soll von diesen Details unabhängig bleiben.
+
+### Zentrale Datenmodelle
+
+Unabhängig von der späteren Implementierung bietet sich eine Trennung der wichtigsten fachlichen Datenstrukturen an.
+
+#### Zielbeschreibung des Endeffektors
+
+Die Zielbeschreibung enthält die gewünschte Position des Greifers im Raum, seine Orientierung sowie die Greiferöffnung. Dieses Modell repräsentiert die Eingabe aus Sicht der Anwendung und beschreibt, was erreicht werden soll, jedoch nicht, wie dies auf Gelenkebene umgesetzt wird.
+
+#### Gelenkzustand
+
+Der Gelenkzustand beschreibt die aktuelle oder berechnete Konfiguration des Roboterarms im Gelenkraum. Dazu gehören die Winkel aller relevanten Achsen sowie die Öffnung des Greifers. Dieses Modell ist die zentrale Schnittstelle zwischen Kinematik und Hardwareansteuerung.
+
+#### Robotermodell
+
+Das Robotermodell enthält die geometrischen und mechanischen Eigenschaften des Arms. Dazu gehören Segmentlängen, Gelenkdefinitionen, Vorzeichenkonventionen, Offsets und zulässige Bewegungsbereiche. Es bildet damit die gemeinsame Grundlage für Berechnung, Validierung und spätere Kalibrierung.
+
+### Verarbeitungsablauf
+
+Ein typischer Ablauf innerhalb der Softwarearchitektur kann unabhängig von einer konkreten Implementierung wie folgt beschrieben werden:
+
+1. Eine Anwendung formuliert einen Sollzustand für den Endeffektor.
+2. Dieser Sollzustand wird anhand des Robotermodells auf Erreichbarkeit und Randbedingungen geprüft.
+3. Ein IK-Verfahren berechnet daraus eine passende Gelenkkonfiguration.
+4. Die berechnete Lösung wird erneut gegen Gelenkgrenzen und mechanische Offsets validiert.
+5. Die gültigen Sollwerte werden in hardwarenahe Stellgrößen umgerechnet und an die Servoansteuerung übergeben.
+
+### Erweiterbarkeit
+
+Die Architektur soll bewusst offen für spätere Erweiterungen bleiben. Dazu gehören insbesondere:
+
+* Austausch oder Vergleich verschiedener IK-Verfahren wie analytische Lösungen, CCD oder FABRIK
+* Einführung von Kalibrierungsdaten für den realen Roboterarm
+* Unterstützung für Bewegungsprofile anstelle sprunghafter Sollwertänderungen
+* Protokollierung und Diagnose von Zielvorgaben, Berechnungsergebnissen und Servozuständen
+* Erweiterung um Sicherheitsmechanismen, beispielsweise zur Begrenzung kritischer Bewegungen
+
+Durch diese Struktur kann die Software schrittweise weiterentwickelt werden, ohne dass fachliche Modellierung, numerische Verfahren und hardwarenahe Steuerung unnötig stark miteinander gekoppelt werden.
 
 ## Anhang
 
