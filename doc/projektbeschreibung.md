@@ -327,6 +327,43 @@ Durch diese Struktur kann die Software schrittweise weiterentwickelt werden, ohn
 
 #### Blockschaltbild
 
+Das folgende Blockschaltbild zeigt die grobe Struktur der Softwarearchitektur sowie die wichtigsten fachlichen Datenflüsse zwischen Anwendung, Orchestrierung, Berechnung, Prüfung und Hardwareansteuerung.
+
+```mermaid
+flowchart LR
+    A[Run Engine]
+    B[Orchestrator]
+    C[Kinematikkomponente]
+    D[Prüfkomponente]
+    E[Kalibrationskomponente]
+    F[Hardwareabstraktionsschicht]
+    G[Hardwaretreiber]
+    H[Servokarte PCA9685]
+    I[Servoantriebe]
+    J[Robotermodell]
+    K[Kalibrationsdaten]
+    L[Bewegungsrandbedingungen]
+    M[RGB-LED]
+
+    A -->|Ablaufschritt| B
+    B -->|Zielbeschreibung| C
+    B -->|Zielbeschreibung / Gelenksollzustand| D
+    C -->|Gelenksollzustand| B
+    C -->|Gelenksollzustand| D
+    D -->|Bewegungsergebnis| B
+    B -->|freigegebener Gelenksollzustand| E
+    E -->|hardwarebezogene Stellwerte| F
+    F -->|Ausgabesignale| G
+    G -->|PWM-Signale| H
+    H -->|Ansteuerung| I
+
+    C -.->|Modellparameter| J
+    D -.->|Modellparameter| J
+    E -.->|Kalibrationsparameter| K
+    D -.->|Grenzwerte| L
+    A -->|optionale Statussignale| M
+```
+
 #### Komponentendiagramm
 
 #### Ablaufdiagramm
