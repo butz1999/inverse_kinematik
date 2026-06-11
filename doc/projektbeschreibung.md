@@ -162,6 +162,38 @@ Zwischen Zielvorgabe und direkter Aktoransteuerung ist eine Prüfung und Freigab
 
 Diese Schicht setzt freigegebene Gelenksollwerte in konkrete Ansteuersignale für die Servos um. Dazu gehören insbesondere die Umrechnung von Winkeln in hardwaregeeignete Stellgrößen, die Berücksichtigung servoindividueller Kalibrierwerte sowie die Kommunikation mit der Servokarte. Ebenso ist diese Schicht der geeignete Ort, um letzte hardwarenahe Schutzmechanismen wie Signalbegrenzungen, sichere Startpositionen oder die Begrenzung gleichzeitiger Servoaktivitäten zu verankern. Die mathematische Logik der Kinematik soll von diesen Details unabhängig bleiben.
 
+### Komponenten und Verantwortlichkeiten
+
+Innerhalb der beschriebenen Schichten kann die Architektur weiter in logisch getrennte Komponenten unterteilt werden. Diese Unterteilung dient dazu, die Verantwortlichkeiten des Systems präziser zu beschreiben, ohne bereits eine konkrete Implementierungsform festzulegen.
+
+#### Orchestrator
+
+Der Orchestrator ist die zentrale Ablaufkomponente der Softwarearchitektur. Er nimmt Bewegungsanforderungen aus der Anwendungsschicht entgegen und steuert deren Verarbeitung durch die übrigen Komponenten. Dabei hält er selbst möglichst wenig fachliche Detaillogik, sondern koordiniert den Ablauf, sammelt Ergebnisse und trifft die abschließende Entscheidung über Freigabe oder Ablehnung einer Bewegung.
+
+Zu den Aufgaben des Orchestrators gehören insbesondere:
+
+* Entgegennahme und Verwaltung von Bewegungsanforderungen
+* Aufruf von Erreichbarkeitsprüfung, IK-Berechnung und Freigabeprüfung
+* Zusammenführung von Teilergebnissen zu einem einheitlichen Bewegungsergebnis
+* Rückgabe von Freigaben, Ablehnungen oder Fehlermeldungen an die Anwendung
+* Übergabe freigegebener Stellwerte an die Hardwareabstraktion
+
+#### Kinematikkomponente
+
+Die Kinematikkomponente stellt die mathematischen Berechnungsverfahren des Systems bereit. Dazu gehören insbesondere die inverse Kinematik zur Berechnung von Gelenksollwerten aus einem Endeffektorziel sowie gegebenenfalls die Vorwärtskinematik zur Analyse oder Plausibilisierung von Gelenkkonfigurationen. Sie arbeitet auf Basis des Robotermodells und bleibt von hardwarebezogenen Details unabhängig.
+
+#### Prüfkomponente
+
+Die Prüfkomponente bewertet Bewegungsanforderungen und berechnete Gelenksollzustände unter fachlichen Randbedingungen. Sie führt insbesondere die Erreichbarkeitsprüfung, die Prüfung von Gelenkgrenzen sowie die Bewertung der praktischen Ausführbarkeit durch. Ihre Aufgabe besteht nicht in der Berechnung einer Bewegung, sondern in deren fachlicher Beurteilung.
+
+#### Kalibrationskomponente
+
+Die Kalibrationskomponente beschreibt die Abbildung zwischen idealisierten Gelenkwinkeln und realen hardwarebezogenen Stellgrößen. Sie nutzt die hinterlegten Kalibrationsdaten, um Sollwerte in eine Form zu überführen, die von der Hardwareabstraktion verarbeitet werden kann. Gleichzeitig sorgt sie dafür, dass Montageabweichungen und servoindividuelle Besonderheiten nicht in die mathematische Kinematiklogik eindringen.
+
+#### Hardwaretreiber
+
+Die Hardwareabstraktionsschicht kann konzeptionell in einen allgemeinen Abstraktionsanteil und einen konkreten Hardwaretreiber unterteilt werden. Der Treiber ist für die tatsächliche Kommunikation mit der Servokarte verantwortlich und setzt vorbereitete Stellwerte in die entsprechenden Ausgabesignale um. Dadurch bleibt die darüberliegende Architektur unabhängig von einer konkreten Ansteuerbibliothek oder Kommunikationsschnittstelle.
+
 ### Zentrale Datenmodelle
 
 Unabhängig von der späteren Implementierung bietet sich eine Trennung der wichtigsten fachlichen Datenstrukturen an.
@@ -189,6 +221,30 @@ Für die Ausführbarkeit von Bewegungen ist ein weiteres Modell für dynamische 
 #### Bewegungsergebnis
 
 Da die Architektur als Steuerung ohne sensorische Rückmeldung ausgelegt ist, ist ein explizites Ergebnis der Bewegungsanforderung sinnvoll. Dieses Modell beschreibt, ob ein Ziel freigegeben, verworfen oder nur eingeschränkt weiterverarbeitet wird. Zusätzlich kann es Begründungen enthalten, etwa Nichterreichbarkeit, Verletzung von Gelenkgrenzen oder Überschreitung dynamischer Randbedingungen.
+
+### Schnittstellen und Datenflüsse
+
+Die Qualität der Architektur hängt nicht nur von der Trennung der Komponenten, sondern auch von klar definierten Übergaben zwischen ihnen ab. Deshalb ist es sinnvoll, die wesentlichen Schnittstellen auf fachlicher Ebene zu beschreiben.
+
+#### Schnittstelle zwischen Anwendung und Orchestrator
+
+Die Anwendung übergibt dem Orchestrator eine Zielbeschreibung des Endeffektors. Diese Schnittstelle ist bewusst fachlich formuliert und enthält keine hardwarebezogenen Angaben. Als Ergebnis erhält die Anwendung ein Bewegungsergebnis, aus dem hervorgeht, ob die Anforderung freigegeben oder abgelehnt wurde.
+
+#### Schnittstelle zwischen Orchestrator und Kinematik
+
+Der Orchestrator übergibt der Kinematikkomponente eine gültige Zielbeschreibung sowie den Bezug auf das Robotermodell. Die Kinematik liefert daraufhin einen Gelenksollzustand oder meldet zurück, dass unter den gegebenen Annahmen keine geeignete Lösung berechnet werden konnte.
+
+#### Schnittstelle zwischen Orchestrator und Prüfkomponente
+
+Die Prüfkomponente erhält entweder eine Zielbeschreibung oder einen berechneten Gelenksollzustand zusammen mit den zugehörigen Randbedingungen. Sie liefert ein fachliches Prüfergebnis zurück, etwa erreichbar, nicht erreichbar, ausführbar oder nicht freigegeben. Dadurch bleibt die Bewertungslogik von der eigentlichen Bewegungsberechnung getrennt.
+
+#### Schnittstelle zwischen Orchestrator, Kalibration und Hardwareabstraktion
+
+Nach der fachlichen Freigabe übergibt der Orchestrator den Gelenksollzustand an die Kalibrations- und Hardwareabstraktionsseite. Dort werden die idealisierten Sollwerte zunächst in hardwarenahe Stellwerte umgerechnet und anschließend an den Hardwaretreiber weitergereicht. Erst an diesem Punkt erfolgt der Übergang von der fachlichen Beschreibung zur konkreten Servo-Ansteuerung.
+
+#### Fehler- und Rückgabepfade
+
+Da die Architektur ohne sensorische Rückmeldung arbeitet, kommt den Rückgabepfaden besondere Bedeutung zu. Jede beteiligte Komponente sollte deshalb nicht nur erfolgreiche Ergebnisse, sondern auch klar interpretierbare Ablehnungs- und Fehlerzustände an den Orchestrator zurückgeben. Dieser bündelt die Resultate und stellt sie der Anwendung in konsistenter Form zur Verfügung. Auf diese Weise bleibt die Verantwortung für die Ablaufsteuerung zentralisiert, auch wenn die fachlichen Bewertungen in verschiedenen Komponenten stattfinden.
 
 ### Verarbeitungsablauf
 
