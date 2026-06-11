@@ -380,9 +380,8 @@ flowchart LR
         B2[Bewegungsanforderung]
         B3[Bewegungsergebnis]
 
-        B1 --> B2
-        B2 --> B3
-        B3 --> B1
+        B2 -->|wird verarbeitet durch| B1
+        B1 -->|liefert| B3
     end
 ```
 
