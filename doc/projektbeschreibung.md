@@ -327,44 +327,91 @@ Durch diese Struktur kann die Software schrittweise weiterentwickelt werden, ohn
 
 #### Blockschaltbild
 
-Das folgende Blockschaltbild zeigt die grobe Struktur der Softwarearchitektur sowie die wichtigsten fachlichen Datenflüsse zwischen Anwendung, Orchestrierung, Berechnung, Prüfung und Hardwareansteuerung.
+Das folgende High-Level-Diagramm zeigt die grobe Struktur der Softwarearchitektur mit den vier Hauptbereichen Applikation, Ablaufsteuerung, Robotik und Hardware. Ziel dieser Darstellung ist eine gut lesbare Übersicht über die zentralen fachlichen Zusammenhänge.
 
 ```mermaid
 flowchart LR
-    A[Run Engine]
-    B[Orchestrator]
-    C[Kinematikkomponente]
-    D[Prüfkomponente]
-    E[Kalibrationskomponente]
-    F[Hardwareabstraktionsschicht]
-    G[Hardwaretreiber]
-    H[Servokarte PCA9685]
-    I[Servoantriebe]
-    J[Robotermodell]
-    K[Kalibrationsdaten]
-    L[Bewegungsrandbedingungen]
-    M[RGB-LED]
+    A[Applikation]
+    B[Ablaufsteuerung]
+    C[Robotik]
+    D[Hardware]
 
-    A -->|Ablaufschritt| B
-    B -->|Zielbeschreibung| C
-    B -->|Zielbeschreibung / Gelenksollzustand| D
-    C -->|Gelenksollzustand| B
-    C -->|Gelenksollzustand| D
-    D -->|Bewegungsergebnis| B
-    B -->|freigegebener Gelenksollzustand| E
-    E -->|hardwarebezogene Stellwerte| F
-    F -->|Ausgabesignale| G
-    G -->|PWM-Signale| H
-    H -->|Ansteuerung| I
-
-    C -.->|Modellparameter| J
-    D -.->|Modellparameter| J
-    E -.->|Kalibrationsparameter| K
-    D -.->|Grenzwerte| L
-    A -->|optionale Statussignale| M
+    A -->|Programmdefinition / Bedienung| B
+    B -->|Bewegungsanforderungen| C
+    C -->|Bewegungsergebnisse / Sollwerte| B
+    B -->|freigegebene Stellwerte| D
+    D -->|Status / Fehler| B
+    B -->|Statusinformationen| A
 ```
 
 #### Komponentendiagramm
+
+Die folgenden Komponentendiagramme verfeinern die vier Hauptbereiche des High-Level-Diagramms jeweils separat. Dadurch werden die internen Bausteine und ihre Beziehungen innerhalb eines Bereichs besser lesbar, auch wenn die Querverbindungen zwischen den Hauptkomponenten hier bewusst nicht im Mittelpunkt stehen.
+
+#### Applikation
+
+```mermaid
+flowchart LR
+    A1[Run Engine]
+    A2[Ablaufdefinition]
+    A3[Ablaufschritt]
+    A4[Ablaufzustand]
+    A5[LED-Aktionen]
+
+    A2 --> A3
+    A2 --> A4
+    A2 --> A5
+    A4 -.-> A1
+    A1 --> A3
+```
+
+#### Ablaufsteuerung
+
+```mermaid
+flowchart LR
+    B1[Orchestrator]
+    B2[Bewegungsanforderung]
+    B3[Bewegungsergebnis]
+
+    B1 --> B2
+    B2 --> B3
+    B3 --> B1
+```
+
+#### Robotik
+
+```mermaid
+flowchart LR
+    C1[Kinematik]
+    C2[Prüfung und Freigabe]
+    C3[Robotermodell]
+    C4[Kalibrationsdaten]
+    C5[Bewegungsrandbedingungen]
+    C6[Gelenksollzustand]
+
+    C3 -.-> C1
+    C3 -.-> C2
+    C5 -.-> C2
+    C1 --> C6
+    C6 --> C2
+    C4 -.-> C6
+```
+
+#### Hardware
+
+```mermaid
+flowchart LR
+    D1[Hardwareabstraktion]
+    D2[Hardwaretreiber]
+    D3[PCA9685]
+    D4[Servoantriebe]
+    D5[RGB-LED]
+
+    D1 --> D2
+    D2 --> D3
+    D3 --> D4
+    D1 --> D5
+```
 
 #### Ablaufdiagramm
 
