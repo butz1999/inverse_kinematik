@@ -139,6 +139,7 @@ Die Run Engine beschreibt damit keinen einzelnen Zielpunkt, sondern einen vollst
 * einen Sollzustand des Endeffektors
 * eine optionale Warte- oder Haltezeit
 * optionale Zusatzaktionen wie Statussignale über die RGB-LED
+* optionale Roboter-Aktionen, die nicht allein durch eine kartesische Zielvorgabe beschrieben werden
 
 Konzeptionell kann ein solcher Ablauf als generische Liste von Ablaufschritten verstanden werden. Die konkrete Herkunft dieser Liste bleibt zunächst offen. Sie kann beispielsweise fest im Programm hinterlegt, zur Compile-Zeit generiert oder später durch eine andere Konfigurationsquelle bereitgestellt werden. Da auf der Zielhardware möglicherweise keine Speicherkarte vorhanden ist, wird bewusst keine persistente Dateistruktur vorausgesetzt.
 
@@ -167,7 +168,7 @@ Eine sinnvolle logische Zerlegung besteht aus mehreren Schichten mit klar abgegr
 
 #### Bedien- und Anwendungsschicht
 
-Diese Schicht nimmt Sollvorgaben entgegen und stellt die Schnittstelle zur Benutzerinteraktion oder zu höheren Programmlogiken dar. In der ersten Ausbaustufe wird sie insbesondere durch eine Run Engine geprägt, welche vordefinierte Bewegungsabläufe verwaltet und schrittweise an die darunterliegende Steuerung übergibt. Die Anwendungsschicht arbeitet dabei ausschließlich mit fachlichen Größen wie Zielposition, Orientierung, Greiferöffnung, Wartezeiten und optionalen Statusaktionen.
+Diese Schicht nimmt Sollvorgaben entgegen und stellt die Schnittstelle zur Benutzerinteraktion oder zu höheren Programmlogiken dar. In der ersten Ausbaustufe wird sie insbesondere durch eine Run Engine geprägt, welche vordefinierte Bewegungsabläufe verwaltet und schrittweise an die darunterliegende Steuerung übergibt. Die Anwendungsschicht arbeitet dabei ausschließlich mit fachlichen Größen wie Zielposition, Orientierung, Greiferöffnung, Wartezeiten, optionalen Statusaktionen und optionalen Roboter-Aktionen.
 
 #### Orchestrierungs- und Steuerungsschicht
 
@@ -212,6 +213,7 @@ Zu den Aufgaben der Run Engine gehören insbesondere:
 * sequentielle Übergabe von Sollpositionen an den Orchestrator
 * Berücksichtigung von Haltezeiten zwischen zwei Bewegungsschritten
 * Auslösung einfacher Begleitaktionen wie LED-Signalen
+* Auslösung einfacher Roboter-Aktionen außerhalb einer reinen kartesischen Zielbeschreibung
 * definierte Behandlung von Freigaben, Ablehnungen oder Abbruchbedingungen innerhalb eines Ablaufs
 
 #### Kinematikkomponente
@@ -240,7 +242,7 @@ Die Zielbeschreibung enthält die gewünschte Position des Greifers im Raum, sei
 
 #### Ablaufschritt
 
-Ein Ablaufschritt beschreibt eine einzelne Anweisung innerhalb eines Bewegungsprogramms. Er enthält mindestens eine Zielbeschreibung des Endeffektors und kann zusätzlich eine Haltezeit oder optionale Begleitaktionen umfassen. Dadurch bildet er die kleinste fachliche Einheit, welche von der Run Engine an den Orchestrator übergeben wird.
+Ein Ablaufschritt beschreibt eine einzelne Anweisung innerhalb eines Bewegungsprogramms. Er enthält mindestens eine Zielbeschreibung des Endeffektors und kann zusätzlich eine Haltezeit, optionale Begleitaktionen oder optionale Roboter-Aktionen umfassen. Unter Roboter-Aktionen werden dabei diskrete, fachlich benennbare Aktionen verstanden, die nicht ausschließlich über eine kartesische Zielbeschreibung modelliert werden, beispielsweise das gezielte Öffnen oder Schließen des Greifers. Dadurch bildet der Ablaufschritt die kleinste fachliche Einheit, welche von der Run Engine an den Orchestrator übergeben wird.
 
 #### Ablaufdefinition
 
@@ -352,65 +354,75 @@ Die folgenden Komponentendiagramme verfeinern die vier Hauptbereiche des High-Le
 
 ```mermaid
 flowchart LR
-    A1[Run Engine]
-    A2[Ablaufdefinition]
-    A3[Ablaufschritt]
-    A4[Ablaufzustand]
-    A5[LED-Aktionen]
+    subgraph APP["<<component>> Applikation"]
+        A1[Run Engine]
+        A2[Ablaufdefinition]
+        A3[Ablaufschritt]
+        A4[Ablaufzustand]
+        A5[LED-Aktionen]
+        A6[Roboter-Aktion]
 
-    A2 --> A3
-    A2 --> A4
-    A2 --> A5
-    A4 -.-> A1
-    A1 --> A3
+        A2 -->|enthaelt| A3
+        A1 -->|kennt| A2
+        A1 -->|verarbeitet| A3
+        A1 -->|führt| A4
+        A3 -->|kann auslösen| A5
+        A3 -->|kann auslösen| A6
+    end
 ```
 
 #### Ablaufsteuerung
 
 ```mermaid
 flowchart LR
-    B1[Orchestrator]
-    B2[Bewegungsanforderung]
-    B3[Bewegungsergebnis]
+    subgraph CTRL["<<component>> Ablaufsteuerung"]
+        B1[Orchestrator]
+        B2[Bewegungsanforderung]
+        B3[Bewegungsergebnis]
 
-    B1 --> B2
-    B2 --> B3
-    B3 --> B1
+        B1 --> B2
+        B2 --> B3
+        B3 --> B1
+    end
 ```
 
 #### Robotik
 
 ```mermaid
 flowchart LR
-    C1[Kinematik]
-    C2[Prüfung und Freigabe]
-    C3[Robotermodell]
-    C4[Kalibrationsdaten]
-    C5[Bewegungsrandbedingungen]
-    C6[Gelenksollzustand]
+    subgraph ROB["<<component>> Robotik"]
+        C1[Kinematik]
+        C2[Prüfung und Freigabe]
+        C3[Robotermodell]
+        C4[Kalibrationsdaten]
+        C5[Bewegungsrandbedingungen]
+        C6[Gelenksollzustand]
 
-    C3 -.-> C1
-    C3 -.-> C2
-    C5 -.-> C2
-    C1 --> C6
-    C6 --> C2
-    C4 -.-> C6
+        C3 -.-> C1
+        C3 -.-> C2
+        C5 -.-> C2
+        C1 --> C6
+        C6 --> C2
+        C4 -.-> C6
+    end
 ```
 
 #### Hardware
 
 ```mermaid
 flowchart LR
-    D1[Hardwareabstraktion]
-    D2[Hardwaretreiber]
-    D3[PCA9685]
-    D4[Servoantriebe]
-    D5[RGB-LED]
+    subgraph HW["<<component>> Hardware"]
+        D1[Hardwareabstraktion]
+        D2[Hardwaretreiber]
+        D3[PCA9685]
+        D4[Servoantriebe]
+        D5[RGB-LED]
 
-    D1 --> D2
-    D2 --> D3
-    D3 --> D4
-    D1 --> D5
+        D1 --> D2
+        D2 --> D3
+        D3 --> D4
+        D1 --> D5
+    end
 ```
 
 #### Ablaufdiagramm
