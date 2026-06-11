@@ -134,6 +134,7 @@ Die Architektur verfolgt insbesondere folgende Ziele:
 * Austauschbarkeit der IK-Lösungsverfahren
 * klare Datenflüsse zwischen Zielvorgabe, Modellberechnung und Aktoransteuerung
 * Berücksichtigung mechanischer Randbedingungen wie Gelenkgrenzen und Offsets
+* Berücksichtigung dynamischer und physikalischer Randbedingungen bei der Bewegungsausführung
 * Erweiterbarkeit für spätere Funktionen wie Bahnplanung, Kalibrierung oder alternative Greifer
 
 ### Logische Schichten
@@ -150,11 +151,11 @@ In dieser Schicht wird das mathematische Modell des Roboterarms beschrieben. Sie
 
 #### Planungs- und Prüfschicht
 
-Zwischen Zielvorgabe und direkter Aktoransteuerung ist eine Prüfung der Bewegung zweckmäßig. In dieser Schicht wird bewertet, ob ein Ziel grundsätzlich erreichbar ist, ob Gelenkgrenzen eingehalten werden und ob die berechnete Lösung mechanisch plausibel ist. Später können hier auch Strategien für Zwischenpunkte, Geschwindigkeitsprofile oder Kollisionsprüfungen eingeordnet werden.
+Zwischen Zielvorgabe und direkter Aktoransteuerung ist eine Prüfung der Bewegung zweckmäßig. In dieser Schicht wird bewertet, ob ein Ziel grundsätzlich erreichbar ist, ob Gelenkgrenzen eingehalten werden und ob die berechnete Lösung mechanisch plausibel ist. Darüber hinaus kann hier zwischen prinzipieller Erreichbarkeit und praktischer Ausführbarkeit unterschieden werden, beispielsweise im Hinblick auf Geschwindigkeitsgrenzen, Beschleunigungen oder Lastsituationen. Später können hier auch Strategien für Zwischenpunkte, Geschwindigkeitsprofile oder Kollisionsprüfungen eingeordnet werden.
 
 #### Hardwareabstraktionsschicht
 
-Diese Schicht setzt abstrakte Gelenksollwerte in konkrete Ansteuersignale für die Servos um. Dazu gehören insbesondere die Umrechnung von Winkeln in hardwaregeeignete Stellgrößen, die Berücksichtigung servoindividueller Kalibrierwerte sowie die Kommunikation mit der Servokarte. Die mathematische Logik der Kinematik soll von diesen Details unabhängig bleiben.
+Diese Schicht setzt abstrakte Gelenksollwerte in konkrete Ansteuersignale für die Servos um. Dazu gehören insbesondere die Umrechnung von Winkeln in hardwaregeeignete Stellgrößen, die Berücksichtigung servoindividueller Kalibrierwerte sowie die Kommunikation mit der Servokarte. Ebenso ist diese Schicht der geeignete Ort, um hardwarenahe Schutzmechanismen wie Signalbegrenzungen, sichere Startpositionen oder die Begrenzung gleichzeitiger Servoaktivitäten zu verankern. Die mathematische Logik der Kinematik soll von diesen Details unabhängig bleiben.
 
 ### Zentrale Datenmodelle
 
@@ -172,15 +173,24 @@ Der Gelenkzustand beschreibt die aktuelle oder berechnete Konfiguration des Robo
 
 Das Robotermodell enthält die geometrischen und mechanischen Eigenschaften des Arms. Dazu gehören Segmentlängen, Gelenkdefinitionen, Vorzeichenkonventionen, Offsets und zulässige Bewegungsbereiche. Es bildet damit die gemeinsame Grundlage für Berechnung, Validierung und spätere Kalibrierung.
 
+#### Kalibrationsdaten
+
+Zusätzlich zu den idealisierten Modellparametern sind Kalibrationsdaten erforderlich, welche die Abbildung zwischen fachlichen Gelenkwinkeln und realer Servoansteuerung beschreiben. Dazu gehören beispielsweise Nullpunktkorrekturen, Minimal- und Maximalwerte, Drehrichtungen und achsspezifische Offsets. Dieses Modell ergänzt das Robotermodell um reale hardwarebezogene Eigenschaften.
+
+#### Bewegungsrandbedingungen
+
+Für die Ausführbarkeit von Bewegungen ist ein weiteres Modell für dynamische und physikalische Randbedingungen sinnvoll. Dieses umfasst beispielsweise zulässige Geschwindigkeiten, Beschleunigungen, Lastgrenzen oder weitere sicherheitsrelevante Begrenzungen. Auf diese Weise können Positionsberechnung und Bewegungsausführung konzeptionell voneinander getrennt bleiben.
+
 ### Verarbeitungsablauf
 
 Ein typischer Ablauf innerhalb der Softwarearchitektur kann unabhängig von einer konkreten Implementierung wie folgt beschrieben werden:
 
 1. Eine Anwendung formuliert einen Sollzustand für den Endeffektor.
-2. Dieser Sollzustand wird anhand des Robotermodells auf Erreichbarkeit und Randbedingungen geprüft.
+2. Dieser Sollzustand wird anhand des Robotermodells auf Erreichbarkeit und grundsätzliche Randbedingungen geprüft.
 3. Ein IK-Verfahren berechnet daraus eine passende Gelenkkonfiguration.
-4. Die berechnete Lösung wird erneut gegen Gelenkgrenzen und mechanische Offsets validiert.
-5. Die gültigen Sollwerte werden in hardwarenahe Stellgrößen umgerechnet und an die Servoansteuerung übergeben.
+4. Die berechnete Lösung wird gegen Gelenkgrenzen, mechanische Offsets und Kalibrationsdaten validiert.
+5. Zusätzlich wird geprüft, ob die Bewegung unter den geltenden dynamischen und physikalischen Randbedingungen sinnvoll ausführbar ist.
+6. Die gültigen Sollwerte werden in hardwarenahe Stellgrößen umgerechnet und an die Servoansteuerung übergeben.
 
 ### Erweiterbarkeit
 
@@ -190,6 +200,7 @@ Die Architektur soll bewusst offen für spätere Erweiterungen bleiben. Dazu geh
 * Einführung von Kalibrierungsdaten für den realen Roboterarm
 * Unterstützung für Bewegungsprofile anstelle sprunghafter Sollwertänderungen
 * Protokollierung und Diagnose von Zielvorgaben, Berechnungsergebnissen und Servozuständen
+* Ergänzung um Modelle für Ausführbarkeit, Lastgrenzen und dynamische Begrenzungen
 * Erweiterung um Sicherheitsmechanismen, beispielsweise zur Begrenzung kritischer Bewegungen
 
 Durch diese Struktur kann die Software schrittweise weiterentwickelt werden, ohne dass fachliche Modellierung, numerische Verfahren und hardwarenahe Steuerung unnötig stark miteinander gekoppelt werden.
