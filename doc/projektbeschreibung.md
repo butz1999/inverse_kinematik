@@ -397,12 +397,12 @@ flowchart LR
         C5[Bewegungsrandbedingungen]
         C6[Gelenksollzustand]
 
-        C3 -.-> C1
-        C3 -.-> C2
-        C5 -.-> C2
-        C1 --> C6
-        C6 --> C2
-        C4 -.-> C6
+        C1 -.->|verwendet| C3
+        C2 -.->|verwendet| C3
+        C2 -.->|berücksichtigt| C5
+        C1 -->|berechnet| C6
+        C6 -->|wird geprüft durch| C2
+        C6 -.->|wird kalibriert mit| C4
     end
 ```
 
@@ -417,10 +417,10 @@ flowchart LR
         D4[Servoantriebe]
         D5[RGB-LED]
 
-        D1 --> D2
-        D2 --> D3
-        D3 --> D4
-        D1 --> D5
+        D1 -->|nutzt| D2
+        D2 -->|steuert an| D3
+        D3 -->|erzeugt Signale für| D4
+        D1 -->|steuert| D5
     end
 ```
 
