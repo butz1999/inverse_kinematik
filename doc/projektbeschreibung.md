@@ -6,6 +6,14 @@ Ziel des Projekts ist es, den Roboterarm mithilfe inverser Kinematik gleichmäß
 
 Eine weitere zentrale Anforderung ist der Einsatz einer Servokarte mit PCA9685-Chip. Dadurch können die sechs Servos mithilfe verfügbarer Bibliotheken in Echtzeit angesteuert werden.
 
+## Anforderungen und Spezifikationen
+
+### Funktionale Anforderungen
+
+### Nichtfunktionale Anforderungen
+
+### Randbedingungen und Annahmen
+
 ## Technisches Konzept
 
 ### Einführung in Inverse Kinematik
@@ -314,6 +322,24 @@ Die Architektur soll bewusst offen für spätere Erweiterungen bleiben. Dazu geh
 * Erweiterung um Sicherheitsmechanismen, beispielsweise zur Begrenzung kritischer Bewegungen
 
 Durch diese Struktur kann die Software schrittweise weiterentwickelt werden, ohne dass fachliche Modellierung, numerische Verfahren und hardwarenahe Steuerung unnötig stark miteinander gekoppelt werden.
+
+### Architekturdiagramme
+
+#### Blockschaltbild
+
+#### Komponentendiagramm
+
+#### Ablaufdiagramm
+
+## SW Design
+
+### Entwurfsgrundsätze
+
+### Statische Struktur
+
+### Dynamisches Verhalten
+
+### Erweiterungsperspektiven
 
 ## Anhang
 
