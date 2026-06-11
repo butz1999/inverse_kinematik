@@ -136,6 +136,7 @@ Die Architektur verfolgt insbesondere folgende Ziele:
 * Berücksichtigung mechanischer Randbedingungen wie Gelenkgrenzen und Offsets
 * Berücksichtigung dynamischer und physikalischer Randbedingungen bei der Bewegungsausführung
 * Erweiterbarkeit für spätere Funktionen wie Bahnplanung, Kalibrierung oder alternative Greifer
+* klare Trennung zwischen fachlicher Berechnung, Orchestrierung, Bewegungsfreigabe und hardwarenaher Ausgabe
 
 ### Logische Schichten
 
@@ -145,17 +146,21 @@ Eine sinnvolle logische Zerlegung besteht aus mehreren Schichten mit klar abgegr
 
 Diese Schicht nimmt Sollvorgaben entgegen und stellt die Schnittstelle zur Benutzerinteraktion oder zu höheren Programmlogiken dar. Hier wird beschrieben, wohin sich der Greifer bewegen soll oder welche Folge von Bewegungen auszuführen ist. Die Anwendungsschicht arbeitet dabei ausschließlich mit fachlichen Größen wie Zielposition, Orientierung und Greiferöffnung.
 
+#### Orchestrierungs- und Steuerungsschicht
+
+Da es sich um eine Steuerung ohne sensorische Rückkopplung handelt, ist eine zentrale Orchestrierungsinstanz erforderlich, welche den gesamten Ablauf von der Zielvorgabe bis zur Stellwertausgabe verantwortet. Diese Instanz kann als Orchestrator verstanden werden. Die Schicht ruft Prüf- und Berechnungskomponenten in der richtigen Reihenfolge auf, koordiniert die fachlichen Verarbeitungsschritte und entscheidet, ob eine Bewegung freigegeben, verworfen oder mit einer Fehlermeldung an die Anwendung zurückgegeben wird.
+
 #### Kinematik- und Modellschicht
 
 In dieser Schicht wird das mathematische Modell des Roboterarms beschrieben. Sie enthält die geometrischen Eigenschaften des idealen Arms, die Segmentlängen, die Lage der Gelenke sowie später mögliche Korrekturen für reale mechanische Abweichungen. Zudem bildet sie die Grundlage für Vorwärtskinematik und inverse Kinematik.
 
-#### Planungs- und Prüfschicht
+#### Prüf- und Freigabeschicht
 
-Zwischen Zielvorgabe und direkter Aktoransteuerung ist eine Prüfung der Bewegung zweckmäßig. In dieser Schicht wird bewertet, ob ein Ziel grundsätzlich erreichbar ist, ob Gelenkgrenzen eingehalten werden und ob die berechnete Lösung mechanisch plausibel ist. Darüber hinaus kann hier zwischen prinzipieller Erreichbarkeit und praktischer Ausführbarkeit unterschieden werden, beispielsweise im Hinblick auf Geschwindigkeitsgrenzen, Beschleunigungen oder Lastsituationen. Später können hier auch Strategien für Zwischenpunkte, Geschwindigkeitsprofile oder Kollisionsprüfungen eingeordnet werden.
+Zwischen Zielvorgabe und direkter Aktoransteuerung ist eine Prüfung und Freigabe der Bewegung zweckmäßig. In dieser Schicht wird bewertet, ob ein Ziel grundsätzlich erreichbar ist, ob Gelenkgrenzen eingehalten werden und ob die berechnete Lösung mechanisch plausibel ist. Darüber hinaus wird hier zwischen prinzipieller Erreichbarkeit und praktischer Ausführbarkeit unterschieden, beispielsweise im Hinblick auf Geschwindigkeitsgrenzen, Beschleunigungen oder Lastsituationen. Die Schicht hat damit die Aufgabe, Bewegungen fachlich zu bewerten und nur solche Sollwerte zur Ausgabe freizugeben, die unter den definierten Randbedingungen zulässig sind.
 
 #### Hardwareabstraktionsschicht
 
-Diese Schicht setzt abstrakte Gelenksollwerte in konkrete Ansteuersignale für die Servos um. Dazu gehören insbesondere die Umrechnung von Winkeln in hardwaregeeignete Stellgrößen, die Berücksichtigung servoindividueller Kalibrierwerte sowie die Kommunikation mit der Servokarte. Ebenso ist diese Schicht der geeignete Ort, um hardwarenahe Schutzmechanismen wie Signalbegrenzungen, sichere Startpositionen oder die Begrenzung gleichzeitiger Servoaktivitäten zu verankern. Die mathematische Logik der Kinematik soll von diesen Details unabhängig bleiben.
+Diese Schicht setzt freigegebene Gelenksollwerte in konkrete Ansteuersignale für die Servos um. Dazu gehören insbesondere die Umrechnung von Winkeln in hardwaregeeignete Stellgrößen, die Berücksichtigung servoindividueller Kalibrierwerte sowie die Kommunikation mit der Servokarte. Ebenso ist diese Schicht der geeignete Ort, um letzte hardwarenahe Schutzmechanismen wie Signalbegrenzungen, sichere Startpositionen oder die Begrenzung gleichzeitiger Servoaktivitäten zu verankern. Die mathematische Logik der Kinematik soll von diesen Details unabhängig bleiben.
 
 ### Zentrale Datenmodelle
 
@@ -165,9 +170,9 @@ Unabhängig von der späteren Implementierung bietet sich eine Trennung der wich
 
 Die Zielbeschreibung enthält die gewünschte Position des Greifers im Raum, seine Orientierung sowie die Greiferöffnung. Dieses Modell repräsentiert die Eingabe aus Sicht der Anwendung und beschreibt, was erreicht werden soll, jedoch nicht, wie dies auf Gelenkebene umgesetzt wird.
 
-#### Gelenkzustand
+#### Gelenksollzustand
 
-Der Gelenkzustand beschreibt die aktuelle oder berechnete Konfiguration des Roboterarms im Gelenkraum. Dazu gehören die Winkel aller relevanten Achsen sowie die Öffnung des Greifers. Dieses Modell ist die zentrale Schnittstelle zwischen Kinematik und Hardwareansteuerung.
+Der Gelenksollzustand beschreibt die berechnete Konfiguration des Roboterarms im Gelenkraum. Dazu gehören die Winkel aller relevanten Achsen sowie die Öffnung des Greifers. Dieses Modell ist die zentrale Schnittstelle zwischen Kinematik, Freigabe und Hardwareansteuerung.
 
 #### Robotermodell
 
@@ -181,16 +186,22 @@ Zusätzlich zu den idealisierten Modellparametern sind Kalibrationsdaten erforde
 
 Für die Ausführbarkeit von Bewegungen ist ein weiteres Modell für dynamische und physikalische Randbedingungen sinnvoll. Dieses umfasst beispielsweise zulässige Geschwindigkeiten, Beschleunigungen, Lastgrenzen oder weitere sicherheitsrelevante Begrenzungen. Auf diese Weise können Positionsberechnung und Bewegungsausführung konzeptionell voneinander getrennt bleiben.
 
+#### Bewegungsergebnis
+
+Da die Architektur als Steuerung ohne sensorische Rückmeldung ausgelegt ist, ist ein explizites Ergebnis der Bewegungsanforderung sinnvoll. Dieses Modell beschreibt, ob ein Ziel freigegeben, verworfen oder nur eingeschränkt weiterverarbeitet wird. Zusätzlich kann es Begründungen enthalten, etwa Nichterreichbarkeit, Verletzung von Gelenkgrenzen oder Überschreitung dynamischer Randbedingungen.
+
 ### Verarbeitungsablauf
 
 Ein typischer Ablauf innerhalb der Softwarearchitektur kann unabhängig von einer konkreten Implementierung wie folgt beschrieben werden:
 
 1. Eine Anwendung formuliert einen Sollzustand für den Endeffektor.
-2. Dieser Sollzustand wird anhand des Robotermodells auf Erreichbarkeit und grundsätzliche Randbedingungen geprüft.
-3. Ein IK-Verfahren berechnet daraus eine passende Gelenkkonfiguration.
-4. Die berechnete Lösung wird gegen Gelenkgrenzen, mechanische Offsets und Kalibrationsdaten validiert.
-5. Zusätzlich wird geprüft, ob die Bewegung unter den geltenden dynamischen und physikalischen Randbedingungen sinnvoll ausführbar ist.
-6. Die gültigen Sollwerte werden in hardwarenahe Stellgrößen umgerechnet und an die Servoansteuerung übergeben.
+2. Die Orchestrierungs- und Steuerungsschicht übergibt diese Vorgabe zur fachlichen Verarbeitung an die nachgelagerten Komponenten.
+3. Der Sollzustand wird anhand des Robotermodells auf Erreichbarkeit und grundsätzliche Randbedingungen geprüft.
+4. Ein IK-Verfahren berechnet daraus eine passende Gelenkkonfiguration.
+5. Die berechnete Lösung wird gegen Gelenkgrenzen, mechanische Offsets und Kalibrationsdaten validiert.
+6. Zusätzlich wird geprüft, ob die Bewegung unter den geltenden dynamischen und physikalischen Randbedingungen sinnvoll ausführbar ist.
+7. Das Ergebnis dieser Prüfung wird als Bewegungsfreigabe oder Ablehnung an den Orchestrator zurückgegeben.
+8. Nur freigegebene Sollwerte werden in hardwarenahe Stellgrößen umgerechnet und an die Servoansteuerung übergeben.
 
 ### Erweiterbarkeit
 
@@ -201,6 +212,7 @@ Die Architektur soll bewusst offen für spätere Erweiterungen bleiben. Dazu geh
 * Unterstützung für Bewegungsprofile anstelle sprunghafter Sollwertänderungen
 * Protokollierung und Diagnose von Zielvorgaben, Berechnungsergebnissen und Servozuständen
 * Ergänzung um Modelle für Ausführbarkeit, Lastgrenzen und dynamische Begrenzungen
+* Ausbau des Orchestrators um komplexere Bewegungsabläufe oder Befehlsfolgen
 * Erweiterung um Sicherheitsmechanismen, beispielsweise zur Begrenzung kritischer Bewegungen
 
 Durch diese Struktur kann die Software schrittweise weiterentwickelt werden, ohne dass fachliche Modellierung, numerische Verfahren und hardwarenahe Steuerung unnötig stark miteinander gekoppelt werden.
