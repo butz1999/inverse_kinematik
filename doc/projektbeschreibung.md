@@ -346,71 +346,65 @@ flowchart LR
 
 #### Komponentendiagramm
 
-Die folgenden Komponentendiagramme verfeinern die vier Hauptbereiche des High-Level-Diagramms jeweils separat. Dadurch werden die internen Bausteine und ihre Beziehungen innerhalb eines Bereichs besser lesbar, auch wenn die Querverbindungen zwischen den Hauptkomponenten hier bewusst nicht im Mittelpunkt stehen.
-
-#### Applikation
+Das folgende Komponentendiagramm verfeinert die vier Hauptbereiche des High-Level-Diagramms. Die internen Bausteine werden dabei den Bereichen Applikation, Ablaufsteuerung, Robotik und Hardware zugeordnet, sodass die Struktur detaillierter, aber weiterhin hierarchisch nachvollziehbar bleibt.
 
 ```mermaid
 flowchart LR
-    A1[Run Engine]
-    A2[Ablaufdefinition]
-    A3[Ablaufschritt]
-    A4[Ablaufzustand]
-    A5[LED-Aktionen]
+    subgraph A[Applikation]
+        A1[Run Engine]
+        A2[Ablaufdefinition]
+        A3[Ablaufschritt]
+        A4[Ablaufzustand]
+        A5[LED-Aktionen]
+    end
+
+    subgraph B[Ablaufsteuerung]
+        B1[Orchestrator]
+        B2[Bewegungsanforderung]
+        B3[Bewegungsergebnis]
+    end
+
+    subgraph C[Robotik]
+        C1[Kinematik]
+        C2[Prüfung und Freigabe]
+        C3[Robotermodell]
+        C4[Kalibrationsdaten]
+        C5[Bewegungsrandbedingungen]
+        C6[Gelenksollzustand]
+    end
+
+    subgraph D[Hardware]
+        D1[Hardwareabstraktion]
+        D2[Hardwaretreiber]
+        D3[PCA9685]
+        D4[Servoantriebe]
+        D5[RGB-LED]
+    end
 
     A2 --> A3
     A2 --> A4
     A2 --> A5
+    A3 -->|Ablaufschritt| B2
     A4 -.-> A1
-    A1 --> A3
-```
+    A1 -->|Ablaufschritt| B1
 
-#### Ablaufsteuerung
-
-```mermaid
-flowchart LR
-    B1[Orchestrator]
-    B2[Bewegungsanforderung]
-    B3[Bewegungsergebnis]
-
-    B1 --> B2
-    B2 --> B3
-    B3 --> B1
-```
-
-#### Robotik
-
-```mermaid
-flowchart LR
-    C1[Kinematik]
-    C2[Prüfung und Freigabe]
-    C3[Robotermodell]
-    C4[Kalibrationsdaten]
-    C5[Bewegungsrandbedingungen]
-    C6[Gelenksollzustand]
-
-    C3 -.-> C1
-    C3 -.-> C2
-    C5 -.-> C2
-    C1 --> C6
+    B1 -->|Bewegungsanforderung| C1
+    B1 -->|Bewegungsanforderung| C2
+    C1 -->|Gelenksollzustand| C6
     C6 --> C2
-    C4 -.-> C6
-```
-
-#### Hardware
-
-```mermaid
-flowchart LR
-    D1[Hardwareabstraktion]
-    D2[Hardwaretreiber]
-    D3[PCA9685]
-    D4[Servoantriebe]
-    D5[RGB-LED]
+    C2 -->|Bewegungsergebnis| B3
+    C2 -->|freigegebener Gelenksollzustand| D1
 
     D1 --> D2
     D2 --> D3
     D3 --> D4
-    D1 --> D5
+    A5 --> D5
+
+    C3 -.-> C1
+    C3 -.-> C2
+    C4 -.-> D1
+    C5 -.-> C2
+    B3 --> A1
 ```
 
 #### Ablaufdiagramm
