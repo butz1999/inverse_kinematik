@@ -122,6 +122,20 @@ Aus technischer Sicht ist daher zwischen Erreichbarkeit und Ausführbarkeit zu u
 
 Diese Randbedingungen sind insbesondere für spätere Erweiterungen der Steuerung von Bedeutung. Dazu zählen beispielsweise Bewegungsprofile mit begrenzter Geschwindigkeit und Beschleunigung, die Überwachung kritischer Lastsituationen oder die Begrenzung gleichzeitiger Servoaktivitäten. Bereits im technischen Konzept sollte daher berücksichtigt werden, dass die reine Positionsberechnung allein nicht ausreicht, um ein robustes Gesamtsystem zu erhalten.
 
+### Ablaufsteuerung durch eine Run Engine
+
+Da zunächst keine grafische Benutzeroberfläche vorgesehen ist, soll die Anwendungsschicht in einer ersten Ausbaustufe durch eine einfache, programmierbare Ablaufkomponente beschrieben werden. Diese Komponente wird im Folgenden als Run Engine bezeichnet. Ihre Aufgabe besteht darin, eine definierte Folge von Bewegungsanweisungen auszuführen und diese nacheinander an die Steuerungslogik zu übergeben.
+
+Die Run Engine beschreibt damit keinen einzelnen Zielpunkt, sondern einen vollständigen Ablauf aus einer oder mehreren Bewegungsstationen. Jede Station kann insbesondere enthalten:
+
+* einen Sollzustand des Endeffektors
+* eine optionale Warte- oder Haltezeit
+* optionale Zusatzaktionen wie Statussignale über die RGB-LED
+
+Konzeptionell kann ein solcher Ablauf als generische Liste von Ablaufschritten verstanden werden. Die konkrete Herkunft dieser Liste bleibt zunächst offen. Sie kann beispielsweise fest im Programm hinterlegt, zur Compile-Zeit generiert oder später durch eine andere Konfigurationsquelle bereitgestellt werden. Da auf der Zielhardware möglicherweise keine Speicherkarte vorhanden ist, wird bewusst keine persistente Dateistruktur vorausgesetzt.
+
+Die Run Engine erweitert damit die Anwendungsebene um eine einfache Form der Bewegungsprogrammierung. Anstatt ausschließlich einzelne Zielpositionen ad hoc zu übergeben, kann ein vollständiger Bewegungsablauf beschrieben, gestartet und in definierter Reihenfolge abgearbeitet werden. Dies ist insbesondere für wiederkehrende Demonstrationsabläufe, einfache Pick-and-Place-Sequenzen oder Testprogramme sinnvoll.
+
 ## SW Architektur
 
 Die Softwarearchitektur dieses Projekts soll so aufgebaut sein, dass fachliche Logik, mathematische Modellierung und hardwarenahe Ansteuerung klar voneinander getrennt sind. Dadurch bleibt das System übersichtlich, testbar und später erweiterbar, auch wenn sich einzelne Algorithmen oder Hardwarekomponenten ändern.
@@ -132,11 +146,12 @@ Die Architektur verfolgt insbesondere folgende Ziele:
 
 * Trennung zwischen fachlicher Beschreibung des Roboters und konkreter Hardwareansteuerung
 * Austauschbarkeit der IK-Lösungsverfahren
-* klare Datenflüsse zwischen Zielvorgabe, Modellberechnung und Aktoransteuerung
+* klare Datenflüsse zwischen Ablaufdefinition, Zielvorgabe, Modellberechnung und Aktoransteuerung
 * Berücksichtigung mechanischer Randbedingungen wie Gelenkgrenzen und Offsets
 * Berücksichtigung dynamischer und physikalischer Randbedingungen bei der Bewegungsausführung
 * Erweiterbarkeit für spätere Funktionen wie Bahnplanung, Kalibrierung oder alternative Greifer
 * klare Trennung zwischen fachlicher Berechnung, Orchestrierung, Bewegungsfreigabe und hardwarenaher Ausgabe
+* Unterstützung sequenzieller Bewegungsabläufe durch eine einfache Anwendungskomponente
 
 ### Logische Schichten
 
@@ -144,7 +159,7 @@ Eine sinnvolle logische Zerlegung besteht aus mehreren Schichten mit klar abgegr
 
 #### Bedien- und Anwendungsschicht
 
-Diese Schicht nimmt Sollvorgaben entgegen und stellt die Schnittstelle zur Benutzerinteraktion oder zu höheren Programmlogiken dar. Hier wird beschrieben, wohin sich der Greifer bewegen soll oder welche Folge von Bewegungen auszuführen ist. Die Anwendungsschicht arbeitet dabei ausschließlich mit fachlichen Größen wie Zielposition, Orientierung und Greiferöffnung.
+Diese Schicht nimmt Sollvorgaben entgegen und stellt die Schnittstelle zur Benutzerinteraktion oder zu höheren Programmlogiken dar. In der ersten Ausbaustufe wird sie insbesondere durch eine Run Engine geprägt, welche vordefinierte Bewegungsabläufe verwaltet und schrittweise an die darunterliegende Steuerung übergibt. Die Anwendungsschicht arbeitet dabei ausschließlich mit fachlichen Größen wie Zielposition, Orientierung, Greiferöffnung, Wartezeiten und optionalen Statusaktionen.
 
 #### Orchestrierungs- und Steuerungsschicht
 
@@ -168,15 +183,28 @@ Innerhalb der beschriebenen Schichten kann die Architektur weiter in logisch get
 
 #### Orchestrator
 
-Der Orchestrator ist die zentrale Ablaufkomponente der Softwarearchitektur. Er nimmt Bewegungsanforderungen aus der Anwendungsschicht entgegen und steuert deren Verarbeitung durch die übrigen Komponenten. Dabei hält er selbst möglichst wenig fachliche Detaillogik, sondern koordiniert den Ablauf, sammelt Ergebnisse und trifft die abschließende Entscheidung über Freigabe oder Ablehnung einer Bewegung.
+Der Orchestrator ist die zentrale Ablaufkomponente der Softwarearchitektur. Er nimmt Bewegungsanforderungen aus der Anwendungsschicht entgegen und steuert deren Verarbeitung durch die übrigen Komponenten. Dabei hält er selbst möglichst wenig fachliche Detaillogik, sondern koordiniert den Ablauf, sammelt Ergebnisse und trifft die abschließende Entscheidung über Freigabe oder Ablehnung einer Bewegung. Im Zusammenspiel mit der Run Engine verarbeitet er nicht nur Einzelziele, sondern auch geordnete Folgen mehrerer Ablaufschritte.
 
 Zu den Aufgaben des Orchestrators gehören insbesondere:
 
 * Entgegennahme und Verwaltung von Bewegungsanforderungen
+* Entgegennahme einzelner Ablaufschritte aus der Run Engine
 * Aufruf von Erreichbarkeitsprüfung, IK-Berechnung und Freigabeprüfung
 * Zusammenführung von Teilergebnissen zu einem einheitlichen Bewegungsergebnis
 * Rückgabe von Freigaben, Ablehnungen oder Fehlermeldungen an die Anwendung
 * Übergabe freigegebener Stellwerte an die Hardwareabstraktion
+
+#### Run Engine
+
+Die Run Engine ist die zentrale Anwendungskomponente für die Ausführung vordefinierter Bewegungsabläufe. Sie verwaltet eine Folge von Ablaufschritten und übergibt diese nacheinander an den Orchestrator. Dadurch trennt sie die Beschreibung eines Bewegungsprogramms von dessen fachlicher Prüfung und technischer Ausführung.
+
+Zu den Aufgaben der Run Engine gehören insbesondere:
+
+* Verwaltung eines Ablaufs aus einem oder mehreren Schritten
+* sequentielle Übergabe von Sollpositionen an den Orchestrator
+* Berücksichtigung von Haltezeiten zwischen zwei Bewegungsschritten
+* Auslösung einfacher Begleitaktionen wie LED-Signalen
+* definierte Behandlung von Freigaben, Ablehnungen oder Abbruchbedingungen innerhalb eines Ablaufs
 
 #### Kinematikkomponente
 
@@ -202,6 +230,14 @@ Unabhängig von der späteren Implementierung bietet sich eine Trennung der wich
 
 Die Zielbeschreibung enthält die gewünschte Position des Greifers im Raum, seine Orientierung sowie die Greiferöffnung. Dieses Modell repräsentiert die Eingabe aus Sicht der Anwendung und beschreibt, was erreicht werden soll, jedoch nicht, wie dies auf Gelenkebene umgesetzt wird.
 
+#### Ablaufschritt
+
+Ein Ablaufschritt beschreibt eine einzelne Anweisung innerhalb eines Bewegungsprogramms. Er enthält mindestens eine Zielbeschreibung des Endeffektors und kann zusätzlich eine Haltezeit oder optionale Begleitaktionen umfassen. Dadurch bildet er die kleinste fachliche Einheit, welche von der Run Engine an den Orchestrator übergeben wird.
+
+#### Ablaufdefinition
+
+Die Ablaufdefinition beschreibt eine geordnete Liste von einem oder mehreren Ablaufschritten. Sie repräsentiert damit das eigentliche Bewegungsprogramm, das von der Run Engine verarbeitet wird. Die konkrete Speicherform bleibt bewusst offen, damit das Konzept unabhängig von Dateisystem, Speicherkarte oder externer Konfigurationsquelle bleibt.
+
 #### Gelenksollzustand
 
 Der Gelenksollzustand beschreibt die berechnete Konfiguration des Roboterarms im Gelenkraum. Dazu gehören die Winkel aller relevanten Achsen sowie die Öffnung des Greifers. Dieses Modell ist die zentrale Schnittstelle zwischen Kinematik, Freigabe und Hardwareansteuerung.
@@ -222,13 +258,17 @@ Für die Ausführbarkeit von Bewegungen ist ein weiteres Modell für dynamische 
 
 Da die Architektur als Steuerung ohne sensorische Rückmeldung ausgelegt ist, ist ein explizites Ergebnis der Bewegungsanforderung sinnvoll. Dieses Modell beschreibt, ob ein Ziel freigegeben, verworfen oder nur eingeschränkt weiterverarbeitet wird. Zusätzlich kann es Begründungen enthalten, etwa Nichterreichbarkeit, Verletzung von Gelenkgrenzen oder Überschreitung dynamischer Randbedingungen.
 
+#### Ablaufzustand
+
+Für die Abarbeitung eines mehrschrittigen Programms ist zusätzlich ein Ablaufzustand sinnvoll. Dieser beschreibt beispielsweise, welcher Schritt aktuell bearbeitet wird, ob sich der Ablauf in einer Wartephase befindet und ob ein Programm erfolgreich beendet, angehalten oder abgebrochen wurde. Damit kann die Run Engine ihren internen Fortschritt verwalten, ohne hardwarebezogene Details kennen zu müssen.
+
 ### Schnittstellen und Datenflüsse
 
 Die Qualität der Architektur hängt nicht nur von der Trennung der Komponenten, sondern auch von klar definierten Übergaben zwischen ihnen ab. Deshalb ist es sinnvoll, die wesentlichen Schnittstellen auf fachlicher Ebene zu beschreiben.
 
 #### Schnittstelle zwischen Anwendung und Orchestrator
 
-Die Anwendung übergibt dem Orchestrator eine Zielbeschreibung des Endeffektors. Diese Schnittstelle ist bewusst fachlich formuliert und enthält keine hardwarebezogenen Angaben. Als Ergebnis erhält die Anwendung ein Bewegungsergebnis, aus dem hervorgeht, ob die Anforderung freigegeben oder abgelehnt wurde.
+Die Anwendung übergibt dem Orchestrator in der einfachsten Form eine Zielbeschreibung des Endeffektors. Im vorgesehenen Betriebsmodell erfolgt diese Übergabe typischerweise durch die Run Engine, welche einzelne Ablaufschritte aus einer Ablaufdefinition nacheinander bereitstellt. Diese Schnittstelle ist bewusst fachlich formuliert und enthält keine hardwarebezogenen Angaben. Als Ergebnis erhält die Anwendung beziehungsweise die Run Engine ein Bewegungsergebnis, aus dem hervorgeht, ob die Anforderung freigegeben oder abgelehnt wurde.
 
 #### Schnittstelle zwischen Orchestrator und Kinematik
 
@@ -244,20 +284,21 @@ Nach der fachlichen Freigabe übergibt der Orchestrator den Gelenksollzustand an
 
 #### Fehler- und Rückgabepfade
 
-Da die Architektur ohne sensorische Rückmeldung arbeitet, kommt den Rückgabepfaden besondere Bedeutung zu. Jede beteiligte Komponente sollte deshalb nicht nur erfolgreiche Ergebnisse, sondern auch klar interpretierbare Ablehnungs- und Fehlerzustände an den Orchestrator zurückgeben. Dieser bündelt die Resultate und stellt sie der Anwendung in konsistenter Form zur Verfügung. Auf diese Weise bleibt die Verantwortung für die Ablaufsteuerung zentralisiert, auch wenn die fachlichen Bewertungen in verschiedenen Komponenten stattfinden.
+Da die Architektur ohne sensorische Rückmeldung arbeitet, kommt den Rückgabepfaden besondere Bedeutung zu. Jede beteiligte Komponente sollte deshalb nicht nur erfolgreiche Ergebnisse, sondern auch klar interpretierbare Ablehnungs- und Fehlerzustände an den Orchestrator zurückgeben. Dieser bündelt die Resultate und stellt sie der Anwendung beziehungsweise der Run Engine in konsistenter Form zur Verfügung. Auf diese Weise bleibt die Verantwortung für die Ablaufsteuerung zentralisiert, auch wenn die fachlichen Bewertungen in verschiedenen Komponenten stattfinden.
 
 ### Verarbeitungsablauf
 
 Ein typischer Ablauf innerhalb der Softwarearchitektur kann unabhängig von einer konkreten Implementierung wie folgt beschrieben werden:
 
-1. Eine Anwendung formuliert einen Sollzustand für den Endeffektor.
-2. Die Orchestrierungs- und Steuerungsschicht übergibt diese Vorgabe zur fachlichen Verarbeitung an die nachgelagerten Komponenten.
-3. Der Sollzustand wird anhand des Robotermodells auf Erreichbarkeit und grundsätzliche Randbedingungen geprüft.
+1. Die Run Engine lädt oder verwaltet eine Ablaufdefinition aus einem oder mehreren Ablaufschritten.
+2. Die Run Engine übergibt den nächsten Ablaufschritt an den Orchestrator.
+3. Der darin enthaltene Sollzustand wird anhand des Robotermodells auf Erreichbarkeit und grundsätzliche Randbedingungen geprüft.
 4. Ein IK-Verfahren berechnet daraus eine passende Gelenkkonfiguration.
 5. Die berechnete Lösung wird gegen Gelenkgrenzen, mechanische Offsets und Kalibrationsdaten validiert.
 6. Zusätzlich wird geprüft, ob die Bewegung unter den geltenden dynamischen und physikalischen Randbedingungen sinnvoll ausführbar ist.
-7. Das Ergebnis dieser Prüfung wird als Bewegungsfreigabe oder Ablehnung an den Orchestrator zurückgegeben.
+7. Das Ergebnis dieser Prüfung wird als Bewegungsfreigabe oder Ablehnung an den Orchestrator und von dort an die Run Engine zurückgegeben.
 8. Nur freigegebene Sollwerte werden in hardwarenahe Stellgrößen umgerechnet und an die Servoansteuerung übergeben.
+9. Nach Abschluss eines Schritts verarbeitet die Run Engine gegebenenfalls Wartezeiten oder Begleitaktionen und fährt anschließend mit dem nächsten Ablaufschritt fort.
 
 ### Erweiterbarkeit
 
@@ -269,6 +310,7 @@ Die Architektur soll bewusst offen für spätere Erweiterungen bleiben. Dazu geh
 * Protokollierung und Diagnose von Zielvorgaben, Berechnungsergebnissen und Servozuständen
 * Ergänzung um Modelle für Ausführbarkeit, Lastgrenzen und dynamische Begrenzungen
 * Ausbau des Orchestrators um komplexere Bewegungsabläufe oder Befehlsfolgen
+* Erweiterung der Run Engine um zusätzliche Schrittarten oder alternative Konfigurationsquellen
 * Erweiterung um Sicherheitsmechanismen, beispielsweise zur Begrenzung kritischer Bewegungen
 
 Durch diese Struktur kann die Software schrittweise weiterentwickelt werden, ohne dass fachliche Modellierung, numerische Verfahren und hardwarenahe Steuerung unnötig stark miteinander gekoppelt werden.
