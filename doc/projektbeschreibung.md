@@ -6,13 +6,11 @@ Ziel des Projekts ist es, den Roboterarm mithilfe inverser Kinematik gleichmäß
 
 Eine weitere zentrale Anforderung ist der Einsatz einer Servokarte mit PCA9685-Chip. Dadurch können die sechs Servos mithilfe verfügbarer Bibliotheken in Echtzeit angesteuert werden.
 
-## Anforderungen und Spezifikationen
+## Inhaltsverzeichnis
 
-### Funktionale Anforderungen
+[[_TOC_]]
 
-### Nichtfunktionale Anforderungen
 
-### Randbedingungen und Annahmen
 
 ## Technisches Konzept
 
@@ -435,6 +433,38 @@ flowchart LR
 ### Dynamisches Verhalten
 
 ### Erweiterungsperspektiven
+
+## Entwicklungshilfsmittel (Off-the-shelf software)
+
+* Platform IO
+* Unit-test Framework
+* SBOM
+
+## Methoden
+
+* Test driven development
+* Unit tests
+
+## Anforderungen
+
+### Funktionale Anforderungen
+
+### Nichtfunktionale Anforderungen
+
+### Randbedingungen und Annahmen
+
+
+## Spezifikationen
+
+## Test Konzept
+
+* Unit tests
+* Unit test coverage >75%
+* Hardware in the Loop?
+
+## Test Plan
+
+## Test Report
 
 ## Anhang
 
