@@ -595,31 +595,236 @@ Der Treiber kennt dabei nicht:
 
 ## Initialisierung und Laufzeitmodell
 
-In diesem Kapitel sollte beschrieben werden:
+Dieses Kapitel beschreibt, wie die Software von einer definierten Ausgangslage in einen konsistenten Betriebszustand überführt wird und wie sich daraus der reguläre Laufzeitfluss ergibt. Dabei ist besonders wichtig, dass das System in der ersten Ausbaustufe keine sensorische Rückmeldung über die reale Armstellung besitzt. Die Initialisierung basiert daher auf einer fachlich definierten Annahme über den mechanischen Ausgangszustand und nicht auf einer physisch verifizierten Referenzfahrt.
 
-* wie die Software startet und welche Initialisierungsreihenfolge vorgesehen ist
-* wie die angenommene Home Position beziehungsweise Init Position in die Software übernommen wird
-* wie aus Initialisierung, RobotModelOffset, HardwareCalibration und Ablaufsteuerung ein konsistenter Laufzeitfluss entsteht
-* wie mit Reset, Neustart oder unklarem physischem Zustand umgegangen werden soll
+### Initialisierung
+
+Für den Start des Systems wird zwischen `Home Position` und `Init Position` unterschieden:
+
+* `Home Position` beschreibt die mechanische Ausgangslage des Arms im stromlosen Zustand
+* `Init Position` beschreibt den angenommenen logischen Anfangszustand der Software nach dem Einschalten
+
+Für die erste Ausbaustufe gilt dabei folgende Betriebsannahme:
+
+* der Arm wird vor dem Einschalten manuell in die definierte `Home Position` gebracht
+* nach dem Start übernimmt die Software daraus die projektweit festgelegte `Init Position`
+* diese `Init Position` entspricht den fachlichen Nullwerten der Servoachsen
+* erst nach erfolgreicher Initialisierung werden reguläre Bewegungsanforderungen freigegeben
+
+Die Initialisierung selbst sollte in einer festen Reihenfolge erfolgen:
+
+1. Start der Basissoftware auf dem ESP32 und Aufbau der elementaren Laufzeitumgebung.
+2. Laden oder Erzeugen statischer Konfigurationsdaten wie `RobotModelOffset` und `HardwareCalibration`.
+3. Initialisieren der hardwarebezogenen Komponenten wie `Hardware Abstraction` und `Hardware Driver`.
+4. Setzen des internen Softwarezustands auf die angenommene `Init Position`.
+5. Initialisieren von `Orchestrator`, `Run Engine` und `SequenceState`.
+6. Übergang in einen betriebsbereiten Zustand, in dem Bewegungsanforderungen verarbeitet werden dürfen.
+
+Wesentlich ist dabei, dass die Software nicht versucht, aus einem unbekannten physischen Zustand eine implizite Korrektur abzuleiten. Nach Reset, Neustart oder Spannungsunterbruch wird deshalb erneut dieselbe Initialisierungsannahme benötigt. Wenn nicht sichergestellt ist, dass sich der Arm wieder in der definierten `Home Position` befindet, darf die normale Ablaufsteuerung fachlich nicht als konsistent betrachtet werden.
+
+### Laufzeitmodell
+
+Im regulären Betrieb wird eine Bewegungsanforderung schrittweise von der Anwendungsebene bis zur Hardwareausgabe verarbeitet. Der Laufzeitfluss bleibt dabei bewusst streng gerichtet, damit die fachlichen und technischen Zustandswechsel nachvollziehbar bleiben.
+
+Ein typischer Ablauf ist wie folgt aufgebaut:
+
+1. Die `Run Engine` wählt anhand des aktuellen `SequenceState` den nächsten auszuführenden Schritt aus.
+2. Aus diesem Schritt wird ein `MotionRequest` mit einer fachlichen `TargetPose` erzeugt.
+3. Der `Orchestrator` stößt die Vorprüfung dieser `TargetPose` über `Validation` an.
+4. Bei positiver Vorprüfung wird die Zielbeschreibung mithilfe von `RobotModelOffset` in eine `OffsetTargetPose` überführt.
+5. `Kinematics` berechnet daraus einen `JointState` oder meldet zurück, dass keine geeignete Lösung gefunden wurde.
+6. Der berechnete `JointState` wird durch `Validation` fachlich geprüft und freigegeben oder abgelehnt.
+7. Ein freigegebener `JointState` wird in der `Hardware Abstraction` mithilfe der `HardwareCalibration` in einen `JointPwmState` überführt.
+8. Der `Hardware Driver` gibt diesen `JointPwmState` an die reale Hardware aus und liefert einen technischen Status zurück.
+9. Der `Orchestrator` verdichtet die fachlichen und technischen Teilergebnisse zu einem `MotionResult`.
+10. Die `Run Engine` verarbeitet dieses `MotionResult` und entscheidet über Fortsetzung, Wartephase, Abbruch oder Übergang zum nächsten Schritt.
+
+Aus Sicht des Laufzeitmodells hat jede Hauptkomponente dabei eine klar abgegrenzte Rolle:
+
+* `Run Engine` verwaltet den Ablauf und dessen Fortschritt
+* `Orchestrator` koordiniert die Verarbeitungsschritte und Rückgabepfade
+* `Validation` bewertet fachliche Zulässigkeit und Freigabe
+* `Kinematics` berechnet den Gelenkraumzustand
+* `Hardware Abstraction` überführt fachliche Sollwerte in hardwarenahe Stellwerte
+* `Hardware Driver` setzt die Ausgabe technisch um
+
+Da keine Positionsrückführung vorhanden ist, beschreibt ein erfolgreiches `MotionResult` in der ersten Ausbaustufe keinen physisch bestätigten Zielerfolg. Es beschreibt vielmehr, dass die Anforderung fachlich akzeptiert, rechnerisch verarbeitet und hardwareseitig ohne gemeldeten technischen Fehler ausgegeben wurde.
+
+Für Reset, Neustart oder unklaren physischen Zustand folgt daraus dieselbe Konsequenz wie bei der Initialisierung: Der Softwarezustand darf nicht stillschweigend als gültiges Abbild des realen Arms weiterverwendet werden. In solchen Fällen ist erneut von der definierten `Home Position` und der dazugehörigen `Init Position` auszugehen oder der Betrieb bleibt gesperrt, bis diese Annahme wieder hergestellt ist.
 
 ## Kalibration und Hardwareabbildung
 
-In diesem Kapitel sollte beschrieben werden:
+Dieses Kapitel beschreibt, wie fachliche Zustände des Roboters in hardwarenahe Stellwerte überführt werden. Dabei wird bewusst zwischen modellbezogenen Korrekturen auf der Robotikseite und der eigentlichen Aktorabbildung auf der Hardwareseite unterschieden. Diese Trennung ist wichtig, damit Kinematik, Validierung und Hardwareansteuerung nicht dieselben Korrekturen mehrfach oder widersprüchlich anwenden.
 
-* wie `RobotModelOffset` und `HardwareCalibration` voneinander abgegrenzt werden
-* wie fachliche Sollwerte in hardwarenahe Stellwerte überführt werden
-* welche Kalibrationsparameter pro Aktor benötigt werden
-* wie Drehrichtung, PWM-Minimum, PWM-Maximum und Offsets abgebildet werden
-* welche Grenzen in der Hardware Abstraction durchgesetzt werden sollen
+### Abgrenzung der beiden Kalibrationsebenen
+
+Für die erste Ausbaustufe werden zwei Kalibrationsebenen unterschieden:
+
+* `RobotModelOffset` beschreibt modellbezogene Korrekturen des realen Arms gegenüber dem idealisierten Robotermodell
+* `HardwareCalibration` beschreibt die Abbildung eines fachlichen `JointState` auf konkrete PWM-bezogene Ausgabewerte
+
+`RobotModelOffset` wirkt damit auf der Seite der fachlichen Bewegungsbeschreibung. Diese Korrekturen betreffen insbesondere Geometrie, bekannte Montageabweichungen und modellrelevante Offsets, die schon vor der eigentlichen IK-Berechnung oder in unmittelbarer Nähe dazu berücksichtigt werden müssen.
+
+`HardwareCalibration` wirkt dagegen erst nach der fachlichen Freigabe eines `JointState`. Sie ist Teil der hardwarenahen Abbildung und beschreibt, wie die idealisierten Gelenk- und Greiferwerte in reale Aktorstellwerte umgesetzt werden.
+
+Damit gilt für die Verantwortlichkeiten:
+
+* `Kinematics` und `Validation` arbeiten mit `TargetPose`, `OffsetTargetPose`, `JointState` und `RobotModelOffset`
+* `Hardware Abstraction` arbeitet mit `JointState`, `HardwareCalibration` und `JointPwmState`
+* der `Hardware Driver` arbeitet ausschließlich mit dem bereits vorbereiteten `JointPwmState`
+
+### Abbildung von fachlichen Sollwerten auf Hardwarewerte
+
+Die hardwarenahe Abbildung beginnt erst dann, wenn ein `JointState` fachlich akzeptiert und zur Ausgabe freigegeben wurde. Ab diesem Punkt übernimmt die `Hardware Abstraction` die Umrechnung in konkrete hardwaregeeignete Werte.
+
+Der logische Abbildungsweg ist dabei wie folgt:
+
+1. Der `Orchestrator` übergibt einen freigegebenen `JointState` an die `Hardware Abstraction`.
+2. Für jede Achse wird der zugehörige Kalibrationseintrag aus `HardwareCalibration` ausgewählt.
+3. Der fachliche Sollwert in `[°]` beziehungsweise `[%]` wird auf den zulässigen kalibrierten Arbeitsbereich begrenzt.
+4. Eine eventuell invertierte Drehrichtung wird berücksichtigt.
+5. Der begrenzte Fachwert wird auf den PWM-Bereich der Achse abgebildet.
+6. Aus allen resultierenden Achswerten wird ein vollständiger `JointPwmState` erzeugt.
+7. Erst dieser `JointPwmState` wird an den `Hardware Driver` übergeben.
+
+Diese Struktur stellt sicher, dass die darüberliegenden Softwarebausteine keine Kenntnis über PWM-Bereiche, Kanalzuordnungen oder servoindividuelle Drehrichtungen benötigen.
+
+### Kalibrationsparameter pro Aktor
+
+Für Rotationsachsen wie `d`, `s`, `e`, `hp` und `hr` werden pro Achse mindestens folgende Kalibrationsparameter benötigt:
+
+* fachlicher Nullbezug `zero_deg`
+* minimal zulässiger Fachwert `min_deg`
+* maximal zulässiger Fachwert `max_deg`
+* minimal zulässiger PWM-Wert `pwm_min`
+* maximal zulässiger PWM-Wert `pwm_max`
+* Drehrichtung `inverted`
+
+Für den Greifer `g` wird ein separates Prozentmodell verwendet. Dafür werden mindestens benötigt:
+
+* minimal zulässiger Öffnungswert `min_pct`
+* maximal zulässiger Öffnungswert `max_pct`
+* minimal zulässiger PWM-Wert `pwm_min`
+* maximal zulässiger PWM-Wert `pwm_max`
+
+Die konkrete Kanalzuordnung der Aktoren zum PCA9685 gehört konzeptionell ebenfalls zur Hardwareseite. Sie kann entweder Teil der `HardwareCalibration` sein oder als separate, aber eng benachbarte Konfiguration der `Hardware Abstraction` geführt werden. Für die erste Ausbaustufe ist wichtig, dass diese Zuordnung nicht in `Kinematics` oder `Orchestrator` eingestreut wird.
+
+### Umgang mit Drehrichtung, Grenzen und PWM-Abbildung
+
+Die Kalibrationsabbildung soll in der ersten Ausbaustufe bewusst einfach und deterministisch bleiben. Für jede Achse wird deshalb von einer im Wesentlichen linearen Abbildung zwischen fachlichem Sollbereich und PWM-Bereich ausgegangen.
+
+Dabei gelten folgende Regeln:
+
+* fachliche Grenzwerte werden vor der PWM-Erzeugung geprüft und nötigenfalls begrenzt
+* die Drehrichtung wird über den Kalibrationsparameter `inverted` abgebildet und nicht durch verstreute Sonderfälle im Aufrufcode
+* `zero_deg` beschreibt den Bezug zwischen fachlicher Nullstellung und mechanisch kalibrierter Servomitte
+* die PWM-Erzeugung erfolgt erst nach Anwendung aller fachlich relevanten Begrenzungen
+* die Ausgabe an den Treiber erfolgt ausschließlich über vollständig gebildete `JointPwmState`-Objekte
+
+Damit bleibt die Hardwareabbildung nachvollziehbar und testbar. Spätere Erweiterungen wie nichtlineare Kennlinien, achsspezifische Totzonen oder mehrere Betriebsprofile können auf dieser Struktur aufbauen, ohne den fachlichen Datenfluss zu verändern.
+
+### Durchsetzung von Grenzen in der Hardware Abstraction
+
+Die `Hardware Abstraction` ist die letzte Softwareschicht vor der realen Ausgabe. Sie muss deshalb alle hardwarenahen Grenzen konsequent durchsetzen, auch wenn darüberliegende Komponenten bereits fachliche Prüfungen vorgenommen haben.
+
+Insbesondere sollte die `Hardware Abstraction` mindestens folgende Schutzfunktionen übernehmen:
+
+* Begrenzung auf kalibrierte Minimal- und Maximalwerte je Achse
+* Verhinderung der Ausgabe unvollständiger oder unplausibler `JointPwmState`
+* Erkennung fehlender oder widersprüchlicher Kalibrationsdaten
+* Ablehnung von Ansteuerungen ausserhalb des zulässigen PWM-Bereichs
+* saubere Rückmeldung technischer Fehler an den `Orchestrator`
+
+Diese zusätzliche Schutzebene ist sinnvoll, weil `Validation` fachliche Zulässigkeit bewertet, während die `Hardware Abstraction` die konkrete technische Ausführbarkeit sicherstellen muss. Erst das Zusammenspiel beider Ebenen ergibt eine robuste und nachvollziehbare Aktoransteuerung.
 
 ## Fehlerbehandlung und Rückmeldungen
 
-In diesem Kapitel sollte beschrieben werden:
+Dieses Kapitel beschreibt, wie fachliche Ablehnungen, algorithmische Misserfolge und technische Fehler in der Software unterschieden und an die Anwendung zurückgemeldet werden. Da keine sensorische Rückmeldung über die reale Zielerreichung vorhanden ist, kommt den Rückgabemodellen eine zentrale Bedeutung zu. Fehler und Ablehnungen werden daher nicht nur als Sonderfälle betrachtet, sondern als reguläre und auswertbare Verarbeitungsergebnisse modelliert.
 
-* welche Fehlerzustände fachlich und technisch unterschieden werden
-* wie `Motion Result` strukturiert ist
-* wie nicht erreichbare Ziele, ungültige Zustände und Hardwarefehler behandelt werden
-* welche Fehler nur gemeldet und welche direkt zur Bewegungsablehnung führen
+### Arten von Rückmeldungen
+
+Für die erste Ausbaustufe sollten mindestens vier Arten von Rückmeldungen unterschieden werden:
+
+* fachlich gültige und erfolgreich weiterverarbeitete Anforderungen
+* fachlich abgelehnte Anforderungen
+* rechnerisch nicht lösbare oder nicht erreichbare Anforderungen
+* technische Fehler während Initialisierung oder Ausgabe
+
+Diese Trennung ist wichtig, weil nicht jede fehlgeschlagene Bewegung dieselbe Bedeutung hat. Eine ungültige `TargetPose`, ein nicht konvergierender IK-Solver und ein I2C-Fehler am `PCA9685` sind drei unterschiedliche Situationen und sollten deshalb auch unterschiedlich behandelt und protokolliert werden.
+
+### Struktur von MotionResult
+
+`MotionResult` ist das zentrale Rückgabemodell des `Orchestrator` an die `Run Engine` beziehungsweise Anwendung. Es sollte in der ersten Ausbaustufe mindestens folgende Aussagen transportieren:
+
+* ob die Bewegungsanforderung fachlich akzeptiert oder abgelehnt wurde
+* ob ein berechneter `JointState` vorliegt
+* ob die Anforderung nicht erreichbar oder algorithmisch nicht erfolgreich lösbar war
+* ob ein technischer Fehler aufgetreten ist
+* welcher Begründungs- oder Fehlercode zur Einordnung zurückgegeben wird
+
+Die bereits vorgesehene Struktur mit `MotionStatus`, optionalem `JointState` und `ResultCode` passt dafür gut. Inhaltlich sollte sie so verwendet werden, dass `MotionStatus` die grobe fachliche Klasse beschreibt, während `ResultCode` die konkrete Ursache differenziert.
+
+Ein zweckmässiges Verständnis wäre zum Beispiel:
+
+* `MotionStatus` beschreibt Zustände wie akzeptiert, abgelehnt, nicht erreichbar, technisch fehlgeschlagen oder vollständig ausgegeben
+* `ResultCode` beschreibt die genauere Ursache wie ungültige Zielpose, Verletzung von Gelenkgrenzen, Iterationslimit erreicht, fehlende Kalibrationsdaten oder Treiberfehler
+
+Damit bleibt das Ergebnis für die aufrufende Ebene einfach auswertbar, ohne auf präzisere Diagnosen verzichten zu müssen.
+
+### Fachliche Ablehnungen und Nichterreichbarkeit
+
+Fachliche Ablehnungen entstehen dann, wenn eine Bewegungsanforderung zwar formal verarbeitet werden kann, unter den geltenden Regeln aber nicht freigegeben wird. Dazu gehören insbesondere:
+
+* ungültige oder unplausible `TargetPose`
+* Verletzung von Gelenkgrenzen im berechneten `JointState`
+* Verletzung definierter Bewegungsrandbedingungen
+* Widersprüche zwischen Modellannahmen und freizugebendem Zustand
+
+Davon zu unterscheiden ist die Nichterreichbarkeit oder rechnerische Nichtlösbarkeit. Diese liegt beispielsweise vor, wenn:
+
+* `Kinematics` keine Lösung für die angeforderte Pose findet
+* ein iteratives Verfahren wie `CCD` oder `FABRIK` innerhalb seiner Grenzen nicht konvergiert
+* eine Zielbeschreibung rechnerisch ausserhalb des bearbeitbaren Arbeitsraums liegt
+
+Beide Fälle führen in der ersten Ausbaustufe dazu, dass keine Weitergabe an die `Hardware Abstraction` erfolgt. Der Unterschied ist jedoch für Diagnose, Tests und spätere Strategien wichtig und sollte deshalb im `ResultCode` erhalten bleiben.
+
+### Technische Fehler und Hardwarefehler
+
+Technische Fehler betreffen nicht die fachliche Gültigkeit einer Bewegung, sondern die Fähigkeit des Systems, diese Bewegung software- und hardwarenah korrekt auszugeben. Dazu gehören insbesondere:
+
+* fehlende oder widersprüchliche `HardwareCalibration`
+* unplausible oder unvollständige `JointPwmState`
+* Fehler in der Initialisierung von `Hardware Driver` oder `Hardware Abstraction`
+* Kommunikationsprobleme mit dem PCA9685 oder anderen hardwarenahen Schnittstellen
+
+Treten solche Fehler auf, soll die betroffene Bewegungsanforderung nicht als fachlich erfolgreich behandelt werden. Stattdessen gibt die Hardwareseite einen `HardwareResult` mit technischem Fehlerstatus an den `Orchestrator` zurück, und dieser überführt den Zustand in ein entsprechendes `MotionResult`.
+
+### Reaktionsregeln im Laufzeitmodell
+
+Für die erste Ausbaustufe bietet sich folgende Reaktionslogik an:
+
+* fachlich abgelehnte Anforderungen werden nicht ausgegeben und als reguläres `MotionResult` zurückgemeldet
+* nicht erreichbare oder nicht gelöste Anforderungen werden nicht ausgegeben und ebenfalls als reguläres `MotionResult` zurückgemeldet
+* technische Fehler bei Initialisierung oder Ausgabe führen zu einer technischen Fehlerrückmeldung und sollen den weiteren Ablauf mindestens anhalten
+* nur freigegebene und hardwareseitig erfolgreich verarbeitete Anforderungen dürfen als erfolgreich abgearbeitet gelten
+
+Für die `Run Engine` bedeutet das:
+
+* bei fachlicher Ablehnung kann ein einzelner Schritt verworfen oder der Ablauf angehalten werden
+* bei Nichterreichbarkeit kann der Schritt abgelehnt und der Ablauf abhängig von der gewählten Strategie beendet oder übersprungen werden
+* bei technischen Fehlern soll der Ablauf nicht stillschweigend fortgesetzt werden
+
+Welche dieser Entscheidungen später konfigurierbar werden, kann offen bleiben. Wichtig ist zunächst, dass die Software diese Fehlerklassen eindeutig unterscheidet und nicht als unspezifischen Misserfolg zusammenfasst.
+
+### Grenzen der Rückmeldung ohne Sensorik
+
+Auch ein erfolgreiches `MotionResult` bestätigt in diesem Projekt nicht, dass die reale Pose physisch vermessen oder verifiziert erreicht wurde. Es bestätigt nur, dass:
+
+* die Anforderung fachlich akzeptiert wurde
+* gegebenenfalls eine rechnerische Lösung vorlag
+* die hardwarenahe Ausgabe ohne gemeldeten technischen Fehler erfolgt ist
+
+Damit bleibt die Rückmeldung fachlich ehrlich und konsistent mit der gewählten Systemgrenze ohne Positionssensorik.
 
 ## Teststruktur
 
@@ -630,14 +835,93 @@ In diesem Kapitel sollte beschrieben werden:
 * wie `Unity` in die Softwarestruktur eingebunden wird
 * welche Kernkomponenten zuerst mit Tests abgesichert werden sollen
 
-## Benennung und Konventionen
+## Konventionen
 
-In diesem Kapitel sollte beschrieben werden:
+Dieses Kapitel hält nur die Konventionen fest, die für einen konsistenten Start der Implementierung zwingend notwendig sind. Ziel ist nicht ein vollständiges Stilhandbuch, sondern ein kleines Set verbindlicher Regeln, damit Datenmodelle, Module und hardwarenahe Abbildung von Anfang an einheitlich benannt und interpretiert werden.
 
-* welche Regeln für Dateinamen, Typnamen und Modulnamen gelten
-* wie Task-Space- und Joint-Space-Größen konsistent benannt werden
-* wie mit Einheiten, Winkeln, Prozentwerten und Grenzwerten umgegangen wird
-* welche Begriffe aus der Dokumentation direkt in Codebezeichner übernommen werden sollen
+### Namespaces
+
+Für die erste Ausbaustufe soll die Namespace-Struktur direkt aus der Komponentenstruktur unter `src/` abgeleitet werden. Damit bleibt sichtbar, aus welchem fachlichen Bereich ein Typ oder eine Funktion stammt.
+
+Dafür gelten folgende Regeln:
+
+* jeder grössere Komponentenordner unter `src/` erhält einen gleichnamigen Namespace in `lowercase`
+* zentrale Namespaces der ersten Ausbaustufe sind `application`, `orchestration`, `robotics`, `hardware` und `common`
+* öffentliche Typen, Funktionen und Hilfsstrukturen einer Komponente liegen grundsätzlich im zugehörigen Komponenten-Namespace
+* verschachtelte Namespaces sollen nur eingeführt werden, wenn innerhalb einer Komponente eine echte fachliche Unterstruktur entsteht
+
+Dadurch bleibt beispielsweise sofort erkennbar, ob ein Typ zur Robotik, zur Ablaufsteuerung oder zur Hardwareseite gehört. Gleichzeitig wird vermieden, dass fachlich unterschiedliche Begriffe in einem globalen Namensraum vermischt werden.
+
+### Typ- und Modulnamen
+
+Für fachliche Typen und zentrale Softwarebausteine werden sprechende, code-nahe Bezeichner verwendet, die direkt an die Dokumentation anschließen. Für die erste Ausbaustufe genügen dabei folgende Regeln:
+
+* Typnamen werden in `UpperCamelCase` geschrieben, zum Beispiel `TargetPose`, `JointState`, `MotionRequest`, `MotionResult`, `RobotModelOffset` und `HardwareCalibration`
+* Komponentenordner unter `src/` werden in `lowercase` geführt und entsprechen nach Möglichkeit dem jeweiligen Namespace, zum Beispiel `application`, `orchestration`, `robotics`, `hardware` und `common`
+* Klassen, Strukturen und öffentliche Typen eines Komponentenordners liegen im gleichnamigen Namespace
+* Begriffe aus der Dokumentation sollen möglichst direkt übernommen werden, solange sie als C++-Bezeichner praktikabel bleiben
+
+Damit bleibt die Zuordnung zwischen Dokumentation, Verzeichnisstruktur und Implementierung einfach nachvollziehbar.
+
+### Benennung von Zuständen und Fachgrößen
+
+Für Zustandsmodelle gilt die bereits eingeführte fachliche Trennung zwischen Task Space und Joint Space. Diese soll auch im Code konsequent sichtbar bleiben:
+
+* kartesische Zielzustände werden als `TargetPose` bezeichnet
+* Gelenkraumzustände werden als `JointState` bezeichnet
+* PWM-bezogene Ausgabewerte werden als `JointPwmState` bezeichnet
+* modellbezogene Korrekturen werden als `RobotModelOffset` bezeichnet
+* hardwarenahe Abbildungsdaten werden als `HardwareCalibration` bezeichnet
+
+Kurzbezeichner der Achsen bleiben dabei konsistent zur restlichen Dokumentation:
+
+* `d`, `s`, `e`, `hp`, `hr`, `g`
+
+Damit werden Namenskollisionen zwischen Task Space und Joint Space vermieden, insbesondere bei Pitch und Roll.
+
+### Felder, Einheiten und Suffixe
+
+Für numerische Felder soll die Einheit direkt im Namen sichtbar sein. Das ist für dieses Projekt wichtiger als besonders kurze Bezeichner.
+
+Für die erste Ausbaustufe gelten deshalb folgende Regeln:
+
+* Winkel im Gelenkraum oder Task Space erhalten das Suffix `_deg`
+* kartesische Längen erhalten das Suffix `_mm`
+* Greiferwerte in Prozent erhalten das Suffix `_pct`
+* PWM-Werte erhalten das Suffix `_pwm`
+* boolesche Zustände werden als fachliche Aussagen formuliert, zum Beispiel `has_wait` oder `inverted`
+
+Beispiele dafür sind bereits in den Datenmodellen verankert:
+
+* `x_mm`, `y_mm`, `z_mm`
+* `p_deg`, `r_deg`
+* `d_deg`, `s_deg`, `e_deg`, `hp_deg`, `hr_deg`
+* `g_pct`
+* `d_pwm`, `s_pwm`, `e_pwm`, `hp_pwm`, `hr_pwm`, `g_pwm`
+
+Diese Regel soll verhindern, dass Einheiten nur implizit aus Kommentaren oder Kontext erschlossen werden müssen.
+
+### Dateinamen und Ablage
+
+Für die erste Implementationsstufe reichen wenige klare Regeln:
+
+* Header- und Implementierungsdateien einer Komponente liegen im selben Komponentenordner
+* Dateinamen sollen den Haupttyp oder die Hauptverantwortung der Datei widerspiegeln
+* für zentrale Typen und Module werden nach Möglichkeit dieselben Stammnamen wie in der Dokumentation verwendet
+* generische Sammeldateien wie `utils.cpp` oder `misc.h` sollen vermieden werden, wenn die Verantwortung auch präziser benannt werden kann
+
+Damit bleibt die Codebasis auch bei wachsender Modulzahl gut durchsuchbar.
+
+### Verantwortungsgrenzen in der Benennung
+
+Benennung soll nicht nur schön aussehen, sondern Verantwortlichkeiten sichtbar machen. Deshalb gelten zusätzlich folgende inhaltliche Regeln:
+
+* `Kinematics` und `Validation` arbeiten nicht mit PWM-Bezeichnern
+* `Hardware Abstraction` und `Hardware Driver` arbeiten nicht mit `TargetPose`
+* `RobotModelOffset` beschreibt keine hardwarebezogenen PWM-Grenzen
+* `HardwareCalibration` beschreibt keine geometrischen Modellkorrekturen des Arms
+
+Diese letzte Regel ist besonders wichtig, weil viele spätere Inkonsistenzen nicht aus Syntaxfehlern, sondern aus unscharfen Verantwortungsgrenzen entstehen.
 
 ## Offene Softwarepunkte
 
@@ -651,16 +935,33 @@ In diesem Kapitel sollte beschrieben werden:
 
 ### Glossar und Abkürzungen
 
-In diesem Kapitel sollte beschrieben werden:
-
-* softwarebezogene Begriffe und Abkürzungen
-* zentrale Modulnamen und ihre Bedeutung
-* wiederkehrende technische Kurzformen
+| Begriff / Abkürzung | Beschreibung |
+| --- | --- |
+| HardwareResult | Technisches Rückgabemodell der Hardwareseite an den `Orchestrator`. Es beschreibt, ob eine hardwarenahe Ausgabe technisch erfolgreich verarbeitet wurde oder ein Fehler vorliegt. |
+| JointPwmState | PWM-bezogenes Ausgabemodell mit den vorbereiteten Stellwerten pro Aktor zwischen `Hardware Abstraction` und `Hardware Driver`. |
+| JointStateResult | Fachliches Prüfergebnis zur Bewertung eines berechneten `JointState`. |
+| MotionRequest | Übergabemodell zwischen Anwendung und `Orchestrator` für die Verarbeitung einer einzelnen Bewegungsanforderung. |
+| MotionResult | Zentrales Rückgabemodell des `Orchestrator` an die Anwendung beziehungsweise `Run Engine`. Es beschreibt den fachlichen und technischen Bearbeitungsstatus einer Anforderung. |
+| MotionStatus | Grobe fachliche oder technische Statusklasse innerhalb eines `MotionResult`, beispielsweise akzeptiert, abgelehnt, nicht erreichbar oder technisch fehlgeschlagen. |
+| OffsetTargetPose | Modellkorrigierte Zwischenrepräsentation einer Zielpose nach Anwendung von `RobotModelOffset` und vor der kinematischen Berechnung. |
+| ResultCode | Präzisierende Ursachencodierung innerhalb eines `MotionResult`, beispielsweise für Gelenkgrenzen, Iterationsabbruch oder Hardwarefehler. |
+| RobotModelOffset | Softwareseitiges Datenmodell für modellbezogene Offsets und Korrekturwerte des realen Arms gegenüber dem idealisierten Robotermodell. |
+| Run Engine | Anwendungskomponente zur sequentiellen Ausführung vordefinierter Bewegungsabläufe. |
+| SequenceState | Softwaremodell zur Beschreibung des aktuellen Fortschritts eines mehrschrittigen Ablaufs. |
+| TargetPoseResult | Fachliches Prüfergebnis zur Bewertung einer `TargetPose` vor der kinematischen Verarbeitung. |
 
 ### Dokumentenverweise
 
-In diesem Kapitel sollte beschrieben werden:
+Die folgenden Dokumente werden in der Softwarebeschreibung direkt referenziert oder bilden deren fachliche und technische Grundlage [[1]](#ref-1) [[2]](#ref-2) [[3]](#ref-3) [[4]](#ref-4).
 
-* Verweise auf die Projektbeschreibung
-* Verweise auf die Hardwarebeschreibung
-* spätere Verweise auf Quellcode, Tests oder ergänzende technische Dokumente
+<a id="ref-1"></a>
+[1] Projektbeschreibung. Lokale Ablage: [projektbeschreibung.md](../doc/projektbeschreibung.md)
+
+<a id="ref-2"></a>
+[2] Hardwarebeschreibung. Lokale Ablage: [hardware.md](../hw/hardware.md)
+
+<a id="ref-3"></a>
+[3] PlatformIO-Konfiguration des Projekts. Lokale Ablage: [platformio.ini](../platformio.ini)
+
+<a id="ref-4"></a>
+[4] Google C++ Style Guide. Offizielle Projektseite: https://google.github.io/styleguide/cppguide.html
