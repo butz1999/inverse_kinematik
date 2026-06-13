@@ -98,8 +98,8 @@ Für die Komponentenordner unter `src/` ist in der ersten Ausbaustufe grob folge
 
 * `src/application/` für Run Engine und anwendungsnahe Ablaufsteuerung
 * `src/orchestration/` für Orchestrator und Koordination der Verarbeitungsschritte
-* `src/robotics/` für Kinematik, Validierung, Robot Model, RobotModelCalibration und robotiknahe Datenmodelle
-* `src/hardware/` für Hardware Abstraction, HardwareCalibration, Treiberanbindung und hardwarebezogene Ausgabe
+* `src/robotics/` für Kinematik, Validierung, Robot Model, `RobotModelOffset` und robotiknahe Datenmodelle
+* `src/hardware/` für Hardware Abstraction, `HardwareCalibration`, Treiberanbindung und hardwarebezogene Ausgabe
 * `src/common/` für gemeinsame, modulübergreifend verwendete Datentypen und Hilfsstrukturen
 
 Für den ersten lauffähigen Stand werden mindestens folgende Dateien oder gleichwertige Strukturen erwartet:
@@ -123,10 +123,12 @@ Für die Benennung der zentralen Zustandsmodelle werden bewusst die Begriffe `Ta
 
 Für den Begriff Kalibration wird in diesem Dokument bewusst zwischen zwei Ebenen unterschieden:
 
-* `RobotModelCalibration` beschreibt Kalibrations- und Korrekturwerte, welche das geometrische und fachliche Robotermodell betreffen. Dazu gehören beispielsweise modellrelevante Offsets oder weitere Korrekturen, die `Kinematics` und `Validation` berücksichtigen müssen.
+* `RobotModelOffset` beschreibt modellbezogene Offsets und Korrekturwerte, welche das geometrische und fachliche Robotermodell betreffen. Dazu gehören beispielsweise Schulter-Offsets oder weitere Korrekturen, die `Kinematics` und `Validation` berücksichtigen müssen.
 * `HardwareCalibration` beschreibt die Abbildung von logischen Aktorzuständen auf konkrete hardwarebezogene Stellwerte. Dazu gehören insbesondere Drehrichtung, PWM-Minimum, PWM-Maximum und weitere Parameter, die erst bei der hardwarenahen Ausgabe relevant werden.
 
-Damit wird klar abgegrenzt, dass nicht jede Kalibration dieselbe Bedeutung hat: `RobotModelCalibration` gehört zur Robotik- und Modellseite, `HardwareCalibration` zur Hardware-Abstraction und zur Ansteuerung der realen Aktoren.
+Damit wird klar abgegrenzt, dass nicht jede Korrektur dieselbe Bedeutung hat: `RobotModelOffset` gehört zur Robotik- und Modellseite, `HardwareCalibration` zur Hardware Abstraction und zur Ansteuerung der realen Aktoren.
+
+Im Unterschied zur Projektbeschreibung werden in diesem Softwaredokument für Datenmodelle und spätere C++-Typen bewusst code-nahe Bezeichner ohne Leerzeichen verwendet. Der Architekturbaustein `Robot Model Offset` entspricht hier also dem Datentyp beziehungsweise Modell `RobotModelOffset`.
 
 Das folgende Übersichtsdiagramm zeigt die zentralen Modelle und ihre Beziehungen:
 
@@ -172,7 +174,7 @@ classDiagram
         +uint16 g_pwm
     }
 
-    class RobotModelCalibration {
+    class RobotModelOffset {
         +float shoulder_offset_y_mm
         +float pitch_roll_offset_deg
         +float roll_gripper_offset_mm
@@ -328,20 +330,20 @@ Dieses Modell bildet die Brücke zwischen logischem Gelenkzustand und konkreter 
 * es beschreibt die kanalbezogenen PWM-Sollwerte pro Aktor
 * es ist das naheliegende Übergabemodell zwischen `Hardware Abstraction` und `Hardware Driver`
 
-### RobotModelCalibration
+### RobotModelOffset
 
-`RobotModelCalibration` beschreibt Kalibrations- und Korrekturwerte, welche das fachliche Robotermodell betreffen.
+`RobotModelOffset` beschreibt modellbezogene Offsets und Korrekturwerte, welche das fachliche Robotermodell betreffen.
 
 ```mermaid
 classDiagram
-    class RobotModelCalibration {
+    class RobotModelOffset {
         +float shoulder_offset_y_mm
         +float pitch_roll_offset_deg
         +float roll_gripper_offset_mm
     }
 ```
 
-Diese Werte werden nicht zur direkten PWM-Erzeugung verwendet, sondern zur Korrektur und Präzisierung des mathematischen Modells. Sie gehören damit auf die Robotik-Seite und müssen von `Kinematics`, `Validation` und gegebenenfalls einem `Robot Model` berücksichtigt werden.
+Diese Werte werden nicht zur direkten PWM-Erzeugung verwendet, sondern zur Korrektur und Präzisierung des mathematischen Modells. Sie gehören damit auf die Robotik-Seite und müssen von `Kinematics`, `Validation` und gegebenenfalls einem `Robot Model` berücksichtigt werden. Wird die Korrektur als eigener Verarbeitungsschritt modelliert, entsteht daraus eine `OffsetTargetPose`.
 
 ### HardwareCalibration
 
@@ -386,7 +388,7 @@ classDiagram
     }
 ```
 
-Damit bleibt die Kalibration konsistent mit der fachlichen Entscheidung, dass `g` in Task Space und Joint Space dieselbe Größe beschreibt, während die interne Abbildung auf PWM-Werte dennoch separat dokumentiert wird. `HardwareCalibration` ist damit ausdrücklich von `RobotModelCalibration` abgegrenzt und gehört zur hardwarenahen Abbildung in der `Hardware Abstraction`.
+Damit bleibt die Kalibration konsistent mit der fachlichen Entscheidung, dass `g` in Task Space und Joint Space dieselbe Größe beschreibt, während die interne Abbildung auf PWM-Werte dennoch separat dokumentiert wird. `HardwareCalibration` ist damit ausdrücklich von `RobotModelOffset` abgegrenzt und gehört zur hardwarenahen Abbildung in der `Hardware Abstraction`.
 
 
 ## Schnittstellen der Kernmodule
@@ -403,7 +405,7 @@ flowchart LR
     ORCH[Orchestrator]
     VAL[Validation]
     RMO[Robot Model Offset]
-    HWC[Hardware Calibration]
+    HWC[(Hardware Calibration)]
     IK[Kinematics]
     HAL[Hardware Abstraction]
     DRV[Hardware Driver]
@@ -478,7 +480,7 @@ Eingaben und Ausgaben:
 
 * Eingabe eines `MotionRequest`
 * Übergabe eines `TargetPose` an `Validation`
-* Übergabe eines `TargetPose` an `Kinematics`
+* Übergabe eines `TargetPose` an die Komponente `Robot Model Offset`
 * Übergabe eines `JointState` an `Validation`
 * Übergabe eines `JointState` an `Hardware Abstraction`
 * Rückgabe eines `MotionResult` an die Anwendung
@@ -520,12 +522,12 @@ Eingaben und Ausgaben:
 
 Eingaben und Ausgaben:
 
-* Eingabe eines `TargetPose`
+* Eingabe einer `OffsetTargetPose`
 * Rückgabe eines `JointState`
 
 `Kinematics` kennt dabei:
 
-* Task Space
+* Task Space beziehungsweise modellkorrigierte Zielzustände
 * Joint Space
 * Robotermodell und geometrische Parameter
 
@@ -541,7 +543,8 @@ Eingaben und Ausgaben:
 
 Eingaben und Ausgaben:
 
-* Eingabe eines `JointState` zusammen mit `HardwareCalibration`
+* Eingabe eines `JointState`
+* Anwendung der hinterlegten `HardwareCalibration`
 * interne Erzeugung eines `JointPwmState`
 * Übergabe eines `JointPwmState` an den `Hardware Driver`
 * Rückgabe eines `HardwareResult`
@@ -585,14 +588,14 @@ In diesem Kapitel sollte beschrieben werden:
 
 * wie die Software startet und welche Initialisierungsreihenfolge vorgesehen ist
 * wie die angenommene Home Position beziehungsweise Init Position in die Software übernommen wird
-* wie aus Initialisierung, RobotModelCalibration, HardwareCalibration und Ablaufsteuerung ein konsistenter Laufzeitfluss entsteht
+* wie aus Initialisierung, RobotModelOffset, HardwareCalibration und Ablaufsteuerung ein konsistenter Laufzeitfluss entsteht
 * wie mit Reset, Neustart oder unklarem physischem Zustand umgegangen werden soll
 
 ## Kalibration und Hardwareabbildung
 
 In diesem Kapitel sollte beschrieben werden:
 
-* wie `RobotModelCalibration` und `HardwareCalibration` voneinander abgegrenzt werden
+* wie `RobotModelOffset` und `HardwareCalibration` voneinander abgegrenzt werden
 * wie fachliche Sollwerte in hardwarenahe Stellwerte überführt werden
 * welche Kalibrationsparameter pro Aktor benötigt werden
 * wie Drehrichtung, PWM-Minimum, PWM-Maximum und Offsets abgebildet werden

@@ -291,45 +291,53 @@ Die Kinematikkomponente (`Kinematics`) stellt die mathematischen Berechnungsverf
 
 Die Prüfkomponente (`Validation`) bewertet Bewegungsanforderungen und berechnete Gelenksollzustände unter fachlichen Randbedingungen. Sie führt insbesondere die Erreichbarkeitsprüfung, die Prüfung von Gelenkgrenzen sowie die Bewertung der praktischen Ausführbarkeit durch. Ihre Aufgabe besteht nicht in der Berechnung einer Bewegung, sondern in deren fachlicher Beurteilung.
 
-#### Kalibrationskomponente
+#### Robot Model Offset
 
-Die Kalibrationskomponente (`Calibration`) beschreibt die Abbildung zwischen idealisierten Gelenkwinkeln und realen hardwarebezogenen Stellgrößen. Sie nutzt die hinterlegten Kalibrationsdaten (`Calibration Data`), um Sollwerte in eine Form zu überführen, die von der Hardwareabstraktion (`Hardware Abstraction`) verarbeitet werden kann. Gleichzeitig sorgt sie dafür, dass Montageabweichungen und servoindividuelle Besonderheiten nicht in die mathematische Kinematiklogik eindringen.
+Die Komponente `Robot Model Offset` beschreibt modellbezogene Offsets und Korrekturwerte des realen Roboterarms. Dazu gehören insbesondere Schulter-Offsets sowie weitere Korrekturen, welche die fachliche Zielbeschreibung vor der kinematischen Berechnung an das reale Robotermodell annähern. Konzeptionell kann daraus eine `Offset Target Pose` als modellkorrigierte Zwischenrepräsentation entstehen, welche anschließend von der Kinematik verarbeitet wird.
 
 #### Hardwaretreiber
 
-Die Hardwareabstraktionsschicht (`Hardware`) kann konzeptionell in einen allgemeinen Abstraktionsanteil (`Hardware Abstraction`) und einen konkreten Hardwaretreiber (`Hardware Driver`) unterteilt werden. Der Treiber ist für die tatsächliche Kommunikation mit der Servokarte verantwortlich und setzt vorbereitete Stellwerte in die entsprechenden Ausgabesignale um. Dadurch bleibt die darüberliegende Architektur unabhängig von einer konkreten Ansteuerbibliothek oder Kommunikationsschnittstelle.
+Die Hardwareabstraktionsschicht (`Hardware`) kann konzeptionell in einen allgemeinen Abstraktionsanteil (`Hardware Abstraction`) und einen konkreten Hardwaretreiber (`Hardware Driver`) unterteilt werden. Die `Hardware Abstraction` übernimmt dabei die Anwendung der `Hardware Calibration` auf einen fachlichen Gelenksollzustand und erzeugt daraus eine PWM-bezogene Ausgabedarstellung (`Joint PWM State`). Der Treiber ist für die tatsächliche Kommunikation mit der Servokarte verantwortlich und setzt diese vorbereiteten Werte in die entsprechenden Ausgabesignale um. Dadurch bleibt die darüberliegende Architektur unabhängig von einer konkreten Ansteuerbibliothek oder Kommunikationsschnittstelle.
 
 ### Zentrale Datenmodelle
 
 Unabhängig von der späteren Implementierung bietet sich eine Trennung der wichtigsten fachlichen Datenstrukturen an.
 
-#### Zielbeschreibung des Endeffektors
+#### Zielpose des Endeffektors
 
-Die [Zielbeschreibung des Endeffektors](#target-description) (`Target Description`) enthält die gewünschte Position des Greifers im Raum, seine Orientierung sowie die Greiferöffnung. Dieses Modell repräsentiert die Eingabe aus Sicht der Anwendung und beschreibt, was erreicht werden soll, jedoch nicht, wie dies auf Gelenkebene umgesetzt wird.
+Die [Zielpose des Endeffektors](#target-description) (`Target Pose`) enthält die gewünschte Position des Greifers im Raum, seine Orientierung sowie die Greiferöffnung. Dieses Modell repräsentiert die Eingabe aus Sicht der Anwendung und beschreibt, was erreicht werden soll, jedoch nicht, wie dies auf Gelenkebene umgesetzt wird.
 
 #### Ablaufschritt
 
-Ein [Ablaufschritt](#sequence-step) (`Sequence Step`) beschreibt eine einzelne Anweisung innerhalb eines Bewegungsprogramms. Er enthält mindestens eine [Zielbeschreibung des Endeffektors](#target-description) (`Target Description`) und kann zusätzlich eine Haltezeit, optionale Begleitaktionen oder optionale [Roboter-Aktionen](#robot-action) (`Robot Action`) umfassen. Unter Roboter-Aktionen werden dabei diskrete, fachlich benennbare Aktionen verstanden, die nicht ausschließlich über eine kartesische Zielbeschreibung modelliert werden, beispielsweise das gezielte Öffnen oder Schließen des Greifers. Dadurch bildet der Ablaufschritt die kleinste fachliche Einheit, welche von der [Run Engine](#run-engine) an den Orchestrator übergeben wird.
+Ein [Ablaufschritt](#sequence-step) (`Sequence Step`) beschreibt eine einzelne Anweisung innerhalb eines Bewegungsprogramms. Er enthält mindestens eine [Zielpose des Endeffektors](#target-description) (`Target Pose`) und kann zusätzlich eine Haltezeit, optionale Begleitaktionen oder optionale [Roboter-Aktionen](#robot-action) (`Robot Action`) umfassen. Unter Roboter-Aktionen werden dabei diskrete, fachlich benennbare Aktionen verstanden, die nicht ausschließlich über eine kartesische Zielbeschreibung modelliert werden, beispielsweise das gezielte Öffnen oder Schließen des Greifers. Dadurch bildet der Ablaufschritt die kleinste fachliche Einheit, welche von der [Run Engine](#run-engine) an den Orchestrator übergeben wird.
 
 #### Bewegungsanforderung
 
-Die [Bewegungsanforderung](#motion-request) (`Motion Request`) ist das fachliche Übergabeobjekt zwischen Anwendungsschicht beziehungsweise [Run Engine](#run-engine) und Orchestrator. In der einfachsten Form enthält sie genau einen auszuführenden [Ablaufschritt](#sequence-step) (`Sequence Step`) oder eine daraus abgeleitete [Zielbeschreibung](#target-description) (`Target Description`). Dadurch wird klar zwischen der internen Struktur eines Bewegungsprogramms und der einzelnen fachlichen Anforderung unterschieden, welche der Orchestrator konkret verarbeitet.
+Die [Bewegungsanforderung](#motion-request) (`Motion Request`) ist das fachliche Übergabeobjekt zwischen Anwendungsschicht beziehungsweise [Run Engine](#run-engine) und Orchestrator. In der einfachsten Form enthält sie genau einen auszuführenden [Ablaufschritt](#sequence-step) (`Sequence Step`) oder eine daraus abgeleitete [Zielpose](#target-description) (`Target Pose`). Dadurch wird klar zwischen der internen Struktur eines Bewegungsprogramms und der einzelnen fachlichen Anforderung unterschieden, welche der Orchestrator konkret verarbeitet.
 
 #### Ablaufdefinition
 
 Die [Ablaufdefinition](#sequence-definition) (`Sequence Definition`) beschreibt eine geordnete Liste von einem oder mehreren [Ablaufschritten](#sequence-step) (`Sequence Step`). Sie repräsentiert damit das eigentliche Bewegungsprogramm, das von der [Run Engine](#run-engine) verarbeitet wird. Die konkrete Speicherform bleibt bewusst offen, damit das Konzept unabhängig von Dateisystem, Speicherkarte oder externer Konfigurationsquelle bleibt.
 
-#### Gelenksollzustand
+#### Gelenkzustand
 
-Der [Gelenksollzustand](#joint-target-state) (`Joint Target State`) beschreibt die berechnete Konfiguration des Roboterarms im Gelenkraum. Dazu gehören die Winkel aller relevanten Achsen sowie die Öffnung des Greifers. Dieses Modell ist das Ergebnis der kinematischen Berechnung und die zentrale Schnittstelle zwischen Kinematik, Freigabe und Hardwareansteuerung.
+Der [Gelenkzustand](#joint-target-state) (`Joint State`) beschreibt die berechnete Konfiguration des Roboterarms im Gelenkraum. Dazu gehören die Winkel aller relevanten Achsen sowie die Öffnung des Greifers. Dieses Modell ist das Ergebnis der kinematischen Berechnung und die zentrale Schnittstelle zwischen Kinematik, Freigabe und Hardwareansteuerung.
 
 #### Robotermodell
 
 Das [Robotermodell](#robot-model) (`Robot Model`) enthält die geometrischen und mechanischen Eigenschaften des Arms. Dazu gehören Segmentlängen, Gelenkdefinitionen, Vorzeichenkonventionen, Offsets und zulässige Bewegungsbereiche. Es bildet damit die gemeinsame Grundlage für Berechnung, Validierung und spätere Kalibrierung.
 
-#### Kalibrationsdaten
+#### Robot Model Offset
 
-Zusätzlich zu den idealisierten Modellparametern sind [Kalibrationsdaten](#calibration-data) (`Calibration Data`) erforderlich, welche die Abbildung zwischen fachlichen Gelenkwinkeln und realer Servoansteuerung beschreiben. Dazu gehören beispielsweise Nullpunktkorrekturen, Minimal- und Maximalwerte, Drehrichtungen und achsspezifische Offsets. Dieses Modell ergänzt das [Robotermodell](#robot-model) (`Robot Model`) um reale hardwarebezogene Eigenschaften.
+Zusätzlich zum idealisierten Robotermodell sind modellbezogene Offsets (`Robot Model Offset`) erforderlich, welche bekannte Abweichungen des realen Arms gegenüber dem idealen Modell beschreiben. Dazu gehören insbesondere Schulter-Offsets oder weitere geometrische Korrekturen, die vor der kinematischen Berechnung zu einer `Offset Target Pose` führen können.
+
+#### Hardware Calibration
+
+Für die hardwarenahe Ausgabe sind zusätzlich [Hardware-Kalibrationsdaten](#calibration) (`Hardware Calibration`) erforderlich, welche die Abbildung zwischen fachlichen Gelenkwinkeln beziehungsweise Greiferwerten und realer Servoansteuerung beschreiben. Dazu gehören beispielsweise Nullpunktkorrekturen, Minimal- und Maximalwerte, Drehrichtungen und PWM-bezogene Aktorgrenzen.
+
+#### Joint PWM State
+
+Für die Übergabe von der `Hardware Abstraction` an den `Hardware Driver` ist ein PWM-bezogenes Ausgabemodell (`Joint PWM State`) sinnvoll. Dieses Modell enthält die vorbereiteten PWM-Sollwerte pro Aktor und trennt damit die fachliche Gelenkbeschreibung sauber von der konkreten Hardwareausgabe.
 
 #### Bewegungsrandbedingungen
 
@@ -353,15 +361,15 @@ Die Anwendung übergibt dem Orchestrator in der einfachsten Form eine Bewegungsa
 
 #### Schnittstelle zwischen Orchestrator und Kinematik
 
-Der Orchestrator übergibt der Kinematikkomponente eine gültige Zielbeschreibung sowie den Bezug auf das Robotermodell. Die Kinematik liefert daraufhin einen Gelenksollzustand oder meldet zurück, dass unter den gegebenen Annahmen keine geeignete Lösung berechnet werden konnte.
+Der Orchestrator übergibt der Kinematikseite eine gültige Zielpose. Diese kann zunächst mithilfe des `Robot Model Offset` in eine modellkorrigierte Zwischenrepräsentation (`Offset Target Pose`) überführt werden. Die Kinematik liefert daraufhin einen Gelenkzustand oder meldet zurück, dass unter den gegebenen Annahmen keine geeignete Lösung berechnet werden konnte.
 
 #### Schnittstelle zwischen Orchestrator und Prüfkomponente
 
-Die Prüfkomponente erhält entweder eine Zielbeschreibung oder einen berechneten Gelenksollzustand zusammen mit den zugehörigen Randbedingungen. Sie liefert ein fachliches Prüfergebnis zurück, etwa erreichbar, nicht erreichbar, ausführbar oder nicht freigegeben. Dadurch bleibt die Bewertungslogik von der eigentlichen Bewegungsberechnung getrennt.
+Die Prüfkomponente erhält entweder eine Zielpose oder einen berechneten Gelenkzustand zusammen mit den zugehörigen Randbedingungen. Sie liefert ein fachliches Prüfergebnis zurück, etwa als `Target Pose Result` oder `Joint State Result`. Dadurch bleibt die Bewertungslogik von der eigentlichen Bewegungsberechnung getrennt.
 
 #### Schnittstelle zwischen Orchestrator, Kalibration und Hardwareabstraktion
 
-Nach der fachlichen Freigabe übergibt der Orchestrator den Gelenksollzustand an die Kalibrations- und Hardwareabstraktionsseite. Dort werden die idealisierten Sollwerte zunächst in hardwarenahe Stellwerte umgerechnet und anschließend an den Hardwaretreiber weitergereicht. Erst an diesem Punkt erfolgt der Übergang von der fachlichen Beschreibung zur konkreten Servo-Ansteuerung.
+Nach der fachlichen Freigabe übergibt der Orchestrator den Gelenkzustand an die Hardwareabstraktionsseite. Dort werden die idealisierten Sollwerte mithilfe der `Hardware Calibration` in einen `Joint PWM State` überführt und anschließend an den `Hardware Driver` weitergereicht. Erst an diesem Punkt erfolgt der Übergang von der fachlichen Beschreibung zur konkreten Servo-Ansteuerung.
 
 #### Fehler- und Rückgabepfade
 
@@ -437,7 +445,7 @@ Der Baustein `Common` wird in diesem High-Level-Diagramm bewusst nicht separat d
 
 #### Komponentendiagramm
 
-Die folgenden Komponentendiagramme verfeinern die vier Hauptbereiche des High-Level-Diagramms jeweils separat. Dabei orientieren sie sich an den in der statischen Struktur beschriebenen Softwarebausteinen `Application`, `Orchestration`, `Kinematics`, `Robot Model`, `Validation`, `Calibration`, `Hardware` und `Common`. Die Bezeichnungen innerhalb der Diagramme sind bewusst englisch gehalten und in einer schreibweisenahen Form gewählt, damit sie näher an späteren Modul-, Typ- oder Verzeichnisnamen bleiben. Dadurch werden die internen Bausteine und ihre Beziehungen innerhalb eines Bereichs besser lesbar, auch wenn die Querverbindungen zwischen den Hauptkomponenten hier bewusst nicht im Mittelpunkt stehen.
+Die folgenden Komponentendiagramme verfeinern die vier Hauptbereiche des High-Level-Diagramms jeweils separat. Dabei orientieren sie sich an den in der statischen Struktur beschriebenen Softwarebausteinen `Application`, `Orchestration`, `Kinematics`, `Robot Model`, `Robot Model Offset`, `Validation`, `Hardware`, `Common` und `Hardware Calibration`. Die Bezeichnungen innerhalb der Diagramme sind bewusst englisch gehalten und in einer schreibweisenahen Form gewählt, damit sie näher an späteren Modul-, Typ- oder Verzeichnisnamen bleiben. Dadurch werden die internen Bausteine und ihre Beziehungen innerhalb eines Bereichs besser lesbar, auch wenn die Querverbindungen zwischen den Hauptkomponenten hier bewusst nicht im Mittelpunkt stehen.
 
 #### Applikation
 
@@ -450,7 +458,7 @@ flowchart LR
         A4[Sequence State]
         A5[LED Action]
         A6[Robot Action]
-        A7[Target Description]
+        A7[Target Pose]
 
         A2 -->|contains| A3
         A1 -->|uses| A2
@@ -486,22 +494,22 @@ flowchart LR
         C1[Kinematics]
         C2[Validation]
         C3[Robot Model]
-        C4[Calibration Data]
+        C4[Robot Model Offset]
         C5[Motion Constraints]
-        C6[Joint Target State]
-        C7[Calibration]
+        C6[Joint State]
+        C7[Offset Target Pose]
         C8[Math Utilities]
         C9[Segment Lengths,\nOffsets,\nJoint Limits]
 
         C1 -.->|uses| C3
+        C1 -.->|receives| C7
         C1 -.->|uses| C8
         C2 -.->|uses| C3
         C2 -.->|considers| C5
         C3 -->|contains| C9
+        C4 -->|produces| C7
         C1 -->|computes| C6
         C6 -->|is checked by| C2
-        C7 -.->|uses| C4
-        C6 -->|is passed to| C7
     end
 ```
 
@@ -514,16 +522,18 @@ flowchart LR
         D2[Hardware Driver]
         D3[PCA9685]
         D4[Servo Actuators]
-        D5[RGB-LED]
-        D6[Servo Output]
+        D5[Hardware Calibration]
+        D6[Joint PWM State]
         D7[Serial Output]
+        D8[RGB-LED]
 
         D1 -->|uses| D6
         D1 -->|uses| D7
-        D6 -->|uses| D2
+        D1 -.->|uses| D5
+        D6 -->|is passed to| D2
         D2 -->|controls| D3
         D3 -->|generates signals for| D4
-        D1 -->|controls| D5
+        D1 -->|controls| D8
     end
 ```
 
@@ -532,15 +542,19 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph COM["<<component>> Common"]
-        E1[Target Description]
+        E1[Target Pose]
         E2[Motion Request]
-        E3[Joint Target State]
+        E3[Joint State]
         E4[Motion Result]
         E5[Sequence State]
+        E6[Target Pose Result]
+        E7[Joint State Result]
 
         E2 -->|contains or references| E1
         E4 -->|refers to| E2
         E4 -->|may contain| E3
+        E6 -->|refers to| E1
+        E7 -->|refers to| E3
     end
 ```
 
@@ -550,17 +564,25 @@ Das folgende Ablaufdiagramm beschreibt den typischen fachlichen und technischen 
 
 ```mermaid
 flowchart TD
-    A[Run Engine waehlt naechsten Ablaufschritt] --> B[Orchestrator erzeugt Bewegungsanforderung]
-    B --> C[Validation of reachability and constraints]
-    C -->|not reachable or invalid| D[Motion Result: rejected or not reachable]
-    C -->|valid| E[IK computes Joint Target State]
-    E --> F[Validation of joint limits, offsets and feasibility]
-    F -->|not approved| D
-    F -->|approved| G[Calibration and conversion to actuator values]
-    G --> H[Hardware Abstraction forwards values to driver]
-    H --> I[Output status to Orchestrator]
-    I --> J[Motion Result to Run Engine]
-    J --> K[Run Engine handles wait, actions or next step]
+    A[Run Engine
+    Selects next Step] --> B[Orchestrator
+    Generates Move Request]
+    B --> C[Target Pose Validation]
+    C -->|invalid Pose| D[Motion Result rejected]
+    C -->|valid| E[Apply Robot Model Offset]
+    E --> F[Offset Target Pose]
+    F --> G[Kinematics
+    Computes Joint State]
+    G --> H[Validation
+    Validates Joint State]
+    H -->|not approved| D
+    H -->|approved| I[Hardware Abstraction
+    Applies Hardware Calibration]
+    I --> J[Joint PWM State to Hardware Driver]
+    J --> K[Status to Orchestrator]
+    K --> L[Motion Result to Run Engine]
+    L --> M[Run Engine handles wait]
+    M --> A
 ```
 
 ## SW Design
@@ -590,15 +612,15 @@ Eine zweckmäßige Struktur besteht aus den folgenden Bausteinen:
 * `Application`: enthält die Run Engine, die Ablaufdefinitionen sowie einfache anwendungsnahe Aktionen
 * `Orchestration`: enthält den Orchestrator und die Verarbeitung einzelner Bewegungsanforderungen
 * `Kinematics`: enthält Vorwärts- und inverse Kinematik sowie mathematische Hilfsfunktionen
-* `Robot Model`: enthält Segmentlängen, Offsets, Gelenkgrenzen und weitere Modellparameter
+* `Robot Model`: enthält Segmentlängen, Gelenkgrenzen und weitere idealisierte Modellparameter
+* `Robot Model Offset`: enthält modellbezogene Offsets und Korrekturwerte des realen Arms
 * `Validation`: enthält Erreichbarkeitsprüfungen, Freigabelogik und Ausführbarkeitsregeln
-* `Calibration`: enthält die Abbildung von fachlichen Gelenkwinkeln auf reale Stellwerte
-* `Hardware`: kapselt PCA9685, Servoausgabe, LED-Ansteuerung und weitere gerätenahe Funktionen
+* `Hardware`: kapselt Hardware Abstraction, Hardware Driver, Hardware Calibration, Joint PWM State, PCA9685, Servoausgabe, LED-Ansteuerung und weitere gerätenahe Funktionen
 * `Common`: enthält gemeinsam genutzte Datentypen, Ergebnisobjekte und Hilfsstrukturen
 
 Zwischen diesen Bausteinen sollen gerichtete Abhängigkeiten gelten. Die Anwendung hängt von der Orchestrierung ab, die Orchestrierung von fachlichen Modellen und Berechnungskomponenten, und erst die hardwarenahen Bausteine kennen die konkrete Ausgabetechnik. Umgekehrte Abhängigkeiten sollen vermieden werden.
 
-Besonders wichtig ist dabei, dass Modelle wie Zielbeschreibung, Bewegungsanforderung, Gelenksollzustand und Bewegungsergebnis nicht implizit in mehreren Komponenten unterschiedlich interpretiert werden. Sie bilden die verbindenden Vertragsobjekte zwischen den Bausteinen.
+Besonders wichtig ist dabei, dass Modelle wie Zielpose, Bewegungsanforderung, Gelenkzustand, Joint PWM State und Bewegungsergebnis nicht implizit in mehreren Komponenten unterschiedlich interpretiert werden. Sie bilden die verbindenden Vertragsobjekte zwischen den Bausteinen.
 
 ### Dynamisches Verhalten
 
@@ -608,11 +630,12 @@ Ein typischer Laufzeitablauf ist wie folgt aufgebaut:
 
 * Die Run Engine hält einen internen Ablaufzustand und wählt den nächsten Ablaufschritt aus.
 * Aus diesem Schritt wird eine Bewegungsanforderung an den Orchestrator übergeben.
-* Der Orchestrator stößt zunächst eine fachliche Vorprüfung an.
-* Nur bei positiver Vorprüfung wird ein IK-Verfahren zur Berechnung des Gelenksollzustands ausgeführt.
-* Der berechnete Gelenksollzustand wird anschließend validiert und gegebenenfalls zur Ausgabe freigegeben.
-* Nach der Kalibration werden die resultierenden Stellwerte an die Hardwareabstraktion übergeben.
-* Die Hardwareabstraktion meldet an den Orchestrator zurück, ob die Ausgabe erfolgreich abgearbeitet wurde oder ein technischer Fehler vorliegt.
+* Der Orchestrator stößt zunächst eine fachliche Vorprüfung der Zielpose an.
+* Nur bei positiver Vorprüfung wird über den `Robot Model Offset` eine modellkorrigierte Zwischenrepräsentation (`Offset Target Pose`) für die Kinematik erzeugt.
+* Die Kinematik berechnet daraus einen `Joint State`.
+* Der berechnete Gelenkzustand wird fachlich validiert.
+* Die `Hardware Abstraction` überführt den freigegebenen Gelenkzustand mithilfe der `Hardware Calibration` in einen `Joint PWM State`.
+* Der `Hardware Driver` gibt diese Werte an die Hardware aus und meldet einen technischen Status zurück.
 * Der Orchestrator verdichtet diese Informationen zu einem Bewegungsergebnis, das an die Run Engine zurückgegeben wird.
 * Die Run Engine entscheidet anhand dieses Ergebnisses über Fortsetzung, Warten, Wiederholen oder Abbruch des Ablaufs.
 
@@ -793,11 +816,11 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 
 | Begriff / Abkürzung | Beschreibung |
 | --- | --- |
-| <a id="application"></a>Application | Softwarebaustein der Anwendungsebene. Er umfasst im Projekt insbesondere `Run Engine`, `Sequence Definition`, `Sequence Step`, `Sequence State`, `LED Action`, `Robot Action` und `Target Description`. |
+| <a id="application"></a>Application | Softwarebaustein der Anwendungsebene. Er umfasst im Projekt insbesondere `Run Engine`, `Sequence Definition`, `Sequence Step`, `Sequence State`, `LED Action`, `Robot Action` und `Target Pose`. |
 | CCD | Cyclic Coordinate Descent. Iteratives Verfahren zur Lösung inverser Kinematik, bei dem Gelenke nacheinander so angepasst werden, dass sich der Endeffektor schrittweise an ein Ziel annähert. |
 | <a id="common"></a>Common | Gemeinsamer Softwarebaustein für fachliche Datenmodelle, die von mehreren anderen Komponenten verwendet werden. |
-| <a id="calibration"></a>Calibration | Softwarebaustein zur Umrechnung fachlicher Gelenksollwerte in hardwarenahe Stellwerte unter Berücksichtigung von Kalibrationsdaten. |
-| <a id="calibration-data"></a>Calibration Data | Datenmodell mit Nullpunkten, Grenzwerten, Drehrichtungen und weiteren Parametern für die Achskalibration. |
+| <a id="calibration"></a>Hardware Calibration | Datenmodell zur Abbildung fachlicher Gelenk- und Greiferwerte auf hardwarenahe Stellwerte unter Berücksichtigung von Nullpunkten, Drehrichtungen und PWM-Grenzen. |
+| <a id="calibration-data"></a>Robot Model Offset | Modellbezogene Offsets und Korrekturwerte, welche das reale Robotermodell gegenüber dem idealisierten Modell beschreiben. |
 | Endeffektor | Das funktionale Ende des Roboterarms. Im vorliegenden Projekt besteht der Endeffektor aus Handgelenk und Greifer. |
 | ESP32 | Mikrocontroller-Plattform, auf der die Steuerungssoftware des Projekts ausgeführt wird. |
 | FABRIK | Forward And Backward Reaching Inverse Kinematics. Iteratives IK-Verfahren, bei dem Segmentpunkte abwechselnd vom Ziel und von der Basis aus neu positioniert werden. |
@@ -807,20 +830,23 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 | <a id="home-position"></a>Home Position | Definierte Ausgangslage des Roboterarms, die aus dem stromlosen Zustand reproduzierbar erreicht werden kann und als fachliche Referenz für Initialisierung und Aufstartverhalten dient. |
 | IK | Inverse Kinematik. Berechnung von Gelenkwinkeln aus einer gewünschten Position und Orientierung des Endeffektors. |
 | Joint Space | Darstellung des Roboterzustands im Gelenkraum. Beschrieben werden dabei die Winkel `d`, `s`, `e`, `hp`, `hr` sowie die Greiferöffnung `g`. |
-| <a id="joint-target-state"></a>Joint Target State | Datenmodell der berechneten Gelenkkonfiguration, bestehend aus den relevanten Gelenkwinkeln und der Greiferöffnung. |
-| Kalibration | Zuordnung zwischen idealisierten fachlichen Sollwerten und realen hardwarebezogenen Stellwerten eines Servoantriebs. |
+| Joint PWM State | PWM-bezogenes Ausgabemodell mit den vorbereiteten Stellwerten pro Aktor zwischen `Hardware Abstraction` und `Hardware Driver`. |
+| Joint State Result | Fachliches Prüfergebnis zur Bewertung eines berechneten `Joint State`. |
+| <a id="joint-target-state"></a>Joint State | Datenmodell der berechneten Gelenkkonfiguration, bestehend aus den relevanten Gelenkwinkeln und der Greiferöffnung. |
+| Kalibration | Sammelbegriff für modellbezogene Offsets des realen Arms sowie die hardwarenahe Abbildung von fachlichen Sollwerten auf PWM-bezogene Aktorwerte. |
 | <a id="kinematics"></a>Kinematics | Softwarebaustein für Vorwärts- und inverse Kinematik sowie zugehörige mathematische Hilfsfunktionen. |
 | Math Utilities | Hilfsfunktionen für mathematische Operationen, die in Kinematik und verwandten Berechnungen verwendet werden. |
 | <a id="motion-constraints"></a>Motion Constraints | Datenmodell für dynamische und physikalische Randbedingungen einer Bewegung, etwa Geschwindigkeiten, Lastgrenzen oder Beschleunigungen. |
 | <a id="motion-request"></a>Motion Request | Fachliches Übergabeobjekt zwischen Anwendungsschicht und Orchestrator für die Verarbeitung einer einzelnen Bewegungsanforderung. |
 | <a id="motion-result"></a>Motion Result | Ergebnisobjekt, das den fachlichen und technischen Bearbeitungsstatus einer Bewegungsanforderung beschreibt. |
 | <a id="orchestration"></a>Orchestration | Softwarebaustein zur Koordination von Bewegungsanforderungen, Prüfungen, Berechnungen und Rückgabepfaden. |
+| Offset Target Pose | Modellkorrigierte Zwischenrepräsentation einer Zielpose nach Anwendung des `Robot Model Offset` und vor der kinematischen Berechnung. |
 | PCA9685 | PWM-Treiberbaustein, der zur Ansteuerung mehrerer Servokanäle verwendet wird. |
 | Pitch | Neigung des Endeffektors beziehungsweise des Handgelenks. Im Task Space wird diese Größe mit `p` bezeichnet, im Joint Space als Handgelenk-Pitch mit `hp`. |
 | <a id="robot-action"></a>Robot Action | Fachlich benennbare Roboteraktion innerhalb eines Ablaufschritts, die nicht ausschließlich durch eine kartesische Zielbeschreibung beschrieben wird. |
 | <a id="robot-model"></a>Robot Model | Daten- und Softwarebaustein zur Beschreibung der Geometrie, Offsets, Segmentlängen und Gelenkgrenzen des Roboterarms. |
 | Roll | Rotation um die Längsachse des Endeffektors beziehungsweise des Handgelenks. Im Task Space wird diese Größe mit `r` bezeichnet, im Joint Space als Handgelenk-Roll mit `hr`. |
-| Robotics | Sammelbegriff für die fachlichen Bausteine `Kinematics`, `Validation`, `Robot Model`, `Calibration` und verwandte Datenmodelle. |
+| Robotics | Sammelbegriff für die fachlichen Bausteine `Kinematics`, `Validation`, `Robot Model`, `Robot Model Offset` und verwandte Datenmodelle. |
 | <a id="run-engine"></a>Run Engine | Anwendungskomponente zur sequentiellen Ausführung vordefinierter Bewegungsabläufe. |
 | SBOM | Software Bill of Materials. Strukturierte Auflistung eingesetzter Softwarekomponenten und Abhängigkeiten. |
 | <a id="sequence-definition"></a>Sequence Definition | Datenmodell oder Baustein zur Beschreibung eines vollständigen Bewegungsablaufs aus mehreren Schritten. |
@@ -830,7 +856,8 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 | Servo Output | Hardwarenaher Ausgabebaustein zur Erzeugung oder Übergabe von Stellwerten für Servoantriebe. |
 | Sollzustand | Gewünschter Zielzustand eines Systems. Im vorliegenden Projekt beschreibt der Sollzustand des Endeffektors insbesondere Position, Orientierung und Greiferöffnung. |
 | Task Space | Darstellung des Roboterzustands im Welt- beziehungsweise Arbeitskoordinatensystem. Im Dokument wird der Endeffektorzustand dort durch `(x, y, z, p, r, g)` beschrieben. |
-| <a id="target-description"></a>Target Description | Fachliches Datenmodell zur Beschreibung von Position, Orientierung und Greiferöffnung des Endeffektors. |
+| <a id="target-description"></a>Target Pose | Fachliches Datenmodell zur Beschreibung von Position, Orientierung und Greiferöffnung des Endeffektors. |
+| Target Pose Result | Fachliches Prüfergebnis zur Bewertung einer `Target Pose` vor der kinematischen Verarbeitung. |
 | Unity | Leichtgewichtiges Unit-Test-Framework, das für native und eingebettete Tests im Projekt vorgesehen ist. |
 | Validation | Softwarebaustein zur fachlichen Bewertung von Erreichbarkeit, Gelenkgrenzen und Ausführbarkeit einer Bewegung. |
 | VSCode | Visual Studio Code. Entwicklungsumgebung, die im Projekt in Verbindung mit Platform IO eingesetzt werden kann. |
