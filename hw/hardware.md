@@ -89,8 +89,8 @@ Die mechanisch betätigten Achsen werden wie folgt bezeichnet:
 * `d`: Drehtellerachse
 * `s`: Schulterachse
 * `e`: Ellenbogenachse
-* `h`: Handgelenk-Pitch
-* `r`: Handgelenk-Roll
+* `hp`: Handgelenk-Pitch
+* `hr`: Handgelenk-Roll
 * `g`: Greiferöffnung
 
 Für die Hardwarebetrachtung sind dabei insbesondere relevant:
@@ -111,8 +111,8 @@ Für die erste Hardwarebeschreibung wird folgende fachliche Zuordnung verwendet:
 | Servo 1 | `d` | Drehtellerachse | `-180° .. 90°` |
 | Servo 2 | `s` | Schulterachse | `-90° .. 90°` |
 | Servo 3 | `e` | Ellenbogenachse | `-100° .. 100°` |
-| Servo 4 | `h` | Handgelenk-Pitch | `0° .. 135°` |
-| Servo 5 | `r` | Handgelenk-Roll | `-180° .. 180°` |
+| Servo 4 | `hp` | Handgelenk-Pitch | `0° .. 135°` |
+| Servo 5 | `hr` | Handgelenk-Roll | `-180° .. 180°` |
 | Servo 6 | `g` | Greiferöffnung | `0% .. 100%` |
 
 Für alle sechs Aktoren sind aus aktueller Sicht insbesondere relevant:
@@ -176,6 +176,8 @@ Der derzeit grösste Unsicherheitsfaktor ist das verwendete `230V -> 5V`-Schaltn
 
 Dieses Kapitel beschreibt die konkrete Verdrahtung der Hardwarekomponenten.
 
+Für die formale Erfassung der elektrischen Verschaltung sollen Schaltplan und gegebenenfalls spätere Layout-Arbeiten in `KiCad` erstellt werden. Dadurch bleibt die Hardwaredokumentation auch bei wachsender Verdrahtungstiefe strukturiert, nachvollziehbar und versionierbar.
+
 Für die erste Ausbaustufe wird von folgender grundlegender Verschaltung ausgegangen:
 
 * das `230V -> 5V`-Schaltnetzteil versorgt die `5V`-Ebene des Systems
@@ -222,72 +224,93 @@ Für die erste Ausbaustufe ergibt sich damit folgende Hauptsignalkette:
 
 Da das System ohne sensorische Rückmeldung arbeitet, ist das Startverhalten fachlich und sicherheitstechnisch besonders wichtig.
 
-Zu beschreiben sind insbesondere:
+Für die erste Ausbaustufe gilt folgende Betriebsannahme:
 
-* definierte Ausgangslage des Arms vor dem Einschalten
-* Bezug zur Home Position
-* Reihenfolge der Inbetriebnahme
-* Verhalten beim Aktivieren der Servos
-* Massnahmen zur Reduktion ruckartiger Bewegungen
+* vor dem Einschalten wird der Arm manuell in eine definierte Startlage gebracht
+* diese Startlage ist so gewählt, dass der Greifer mit leichter Krümmung vertikal vor dem Drehteller steht
+* diese mechanische Ausgangslage entspricht der im Projekt verwendeten Home Position im stromlosen Zustand
+* die logische Initialposition entspricht der fachlichen 0-Position aller Servoachsen
 
-## Kalibrationsrelevante Hardwareaspekte
+Für die sichere Inbetriebnahme wird zusätzlich folgendes Vorgehen festgelegt:
+
+* die Achsen werden vom Greifer aus rückwärts angesteckt
+* nach jedem angesteckten Aktor wird der jeweilige Fahrbereich kontrolliert
+* erst nach dieser schrittweisen Prüfung wird der vollständige Arm in Betrieb genommen
+
+Damit wird die elektrische Zuordnung von Servo, Achse und Bewegungsrichtung schrittweise überprüft, bevor alle Aktoren gleichzeitig aktiv sind.
+
+Offen bleibt bewusst, wie die Software selbst erkennt oder nachweist, dass sich das System tatsächlich in dieser Initiallage befindet. Für die erste Ausbaustufe wird dieser Zustand nicht durch Sensorik oder Referenzfahrt verifiziert, sondern als manuell hergestellte Betriebsannahme behandelt.
+
+## Kalibration
 
 Dieses Kapitel beschreibt alle hardwarebezogenen Punkte, welche für die Kalibration relevant sind.
 
-Dazu gehören insbesondere:
+Während der Inbetriebnahme werden nicht nur elektrische Verbindungen geprüft, sondern auch die mechanischen Zusammenhänge der einzelnen Achsen ermittelt. Dazu gehören insbesondere die fachliche 0-Position jeder Achse sowie die Zuordnung zwischen mechanischem Winkel und tatsächlich ausgeführter Bewegung.
 
-* Nullstellung je Achse
-* mechanische Offsets
-* Drehrichtung je Servo
-* PWM-Minimal- und Maximalwerte
-* achsspezifische Besonderheiten
+Aus dieser schrittweisen Kalibration ergeben sich pro Achse insbesondere:
 
-## Mess-, Test- und Diagnosepunkte
+* die mechanisch sinnvolle 0-Position
+* die Zuordnung zwischen logischem Winkelwert und realer Achsstellung
+* die Drehrichtung des Servos bezogen auf das fachliche Modell
+* minimale und maximale PWM-Werte für die zulässige Ansteuerung
+* achsspezifische Besonderheiten wie Offsets oder asymmetrische Fahrbereiche
 
-Dieses Kapitel soll später die praktische Inbetriebnahme und Fehlersuche unterstützen.
-
-Mögliche Inhalte sind:
-
-* Messpunkte für Spannungen
-* serielle Diagnose
-* Einzeltest von Servokanälen
-* Sichtprüfung mechanischer Freigängigkeit
-* Beobachtung von Erwärmung und Stromaufnahme
+Die Kalibration ist damit ein praktischer Bestandteil der Inbetriebnahme und bildet die Grundlage dafür, dass die in der Software verwendeten Gelenkwinkel konsistent auf reale Servo-Stellwerte abgebildet werden können.
 
 ## Sicherheits- und Risikobetrachtung
 
-Die Hardware birgt insbesondere durch bewegte Aktoren und elektrische Lasten verschiedene Risiken.
+Für die erste Ausbaustufe wird die Sicherheitsbetrachtung bewusst auf die mechanisch relevanten Bewegungsgrenzen des Arms fokussiert.
 
-Zu betrachten sind insbesondere:
+Unkontrollierte Bewegungen beim Start werden dabei nicht separat betrachtet. Stattdessen soll die definierte Init Position sicherstellen, dass beim Aufstarten keine kritischen Kollisionen mit der eigenen Struktur oder der Umgebung entstehen.
 
-* unkontrollierte Bewegungen beim Start
-* mechanische Anschläge und Quetschstellen
-* thermische Belastung der Servos
-* Überstrom oder Spannungsabfall
-* Fehlverdrahtung
+Mechanische Anschläge werden durch die festgelegten maximalen Achsbereiche in `[°]` begrenzt. Falls erforderlich, werden diese Grenzen zusätzlich durch minimale und maximale PWM-Werte abgesichert, die im Rahmen der Kalibration bestimmt werden.
+
+Die softwareseitige Durchsetzung dieser Grenzen ist später Aufgabe des Software HAL. Dadurch soll sichergestellt werden, dass nur zulässige Stellwerte an die Hardwareausgabe weitergegeben werden.
 
 ## Offene Punkte und Annahmen
 
-Dieses Kapitel sammelt bewusst alle noch nicht abschliessend geklärten Hardwarefragen.
+Dieses Kapitel sammelt die zum aktuellen Zeitpunkt noch nicht abschliessend geklärten Hardwarefragen.
 
-Beispiele:
-
-* elektrische Daten und Belastbarkeit des eingesetzten `230V -> 5V`-Netzteils
-* reale Stromaufnahme unter Last
-* belastbare Grenzwerte je Achse
-* tatsächlich nutzbarer Stellbereich der Servos
-* konkrete Pinbelegung des ESP32-S3-Boards für I2C und Diagnose
-* Festlegung der Servo-Kanalzuordnung auf dem PCA9685
-* Umgang mit dem `OE`-Pin des PCA9685
-* Entscheidung, ob der ESP32 über den externen `3.3V`-Wandler oder alternativ über seine eigene Board-Versorgung betrieben werden soll
-* spätere optionale Erweiterung um Sensorik
+* `230V -> 5V`-Netzteil: Hersteller, elektrische Daten und tatsächliche Belastbarkeit sind unbekannt und müssen für den realen Betrieb noch verifiziert werden.
+* Stromaufnahme unter Last: Die reale Last durch mehrere gleichzeitig bewegte Servos ist noch nicht gemessen und muss bei der Inbetriebnahme beobachtet werden.
+* tatsächlich nutzbarer Stellbereich der Servos: Die fachlich definierten Winkelbereiche sind festgelegt, die real sauber nutzbaren Bereiche ergeben sich jedoch erst aus der Kalibration.
+* Pinbelegung des `ESP32`: Die konkreten Pins für `SDA`, `SCL` und serielle Diagnose sind noch festzulegen.
+* Servo-Kanalzuordnung auf dem `PCA9685`: Die feste Zuordnung der Achsen `d`, `s`, `e`, `hp`, `hr`, `g` auf konkrete PWM-Kanäle ist noch offen.
+* Umgang mit `OE`: Es ist noch nicht entschieden, ob der `OE`-Pin des `PCA9685` aktiv von der Software genutzt oder fest beschaltet wird.
+* Versorgung des `ESP32`: Es ist noch festzulegen, ob das Board dauerhaft über den externen `3.3V`-Wandler oder über seine eigene Board-Versorgung betrieben werden soll.
+* Initialzustand aus Sicht der Software: Offen bleibt, wie die Software erkennt oder absichert, dass die manuell eingestellte Startlage tatsächlich zur angenommenen Initialposition passt.
 
 ## Anhang
 
-Der Anhang kann später beispielsweise enthalten:
+### Glossar und Abkürzungen
 
-* Pin-Tabellen
-* Verdrahtungsübersichten
-* Fotos des Aufbaus
-* Verweise auf Datenblätter
-* hardwarebezogenes Glossar
+| Begriff / Abkürzung | Beschreibung |
+| --- | --- |
+| ESP32 | Mikrocontroller-Plattform der Steuerung. Im vorliegenden Projekt wird ein ESP32-S3-Entwicklungsboard verwendet. |
+| GND | Gemeinsamer Massebezug aller elektrischen Baugruppen. |
+| HAL | Hardware Abstraction Layer. Softwareschicht zur gekapselten hardwarenahen Ansteuerung. |
+| Home Position | Definierte Ausgangslage des Roboterarms im stromlosen Zustand, welche vor dem Einschalten manuell hergestellt wird. |
+| I2C | Serielle Busschnittstelle zur Kommunikation zwischen ESP32 und PCA9685. |
+| Init Position | Angenommener logischer Initialzustand der Software nach dem Start. Im Projekt entspricht er den fachlichen Initialwerten der Aktoren. |
+| OE | Output Enable des PCA9685. Signal zur Freigabe oder Sperrung der PWM-Ausgänge. |
+| PCA9685 | 16-Kanal-PWM-Treiberbaustein für die Servo-Ansteuerung. |
+| PWM | Pulsweitenmodulation zur Ausgabe der Stellwerte an die Servoantriebe. |
+| SDA | Datenleitung des I2C-Busses. |
+| SCL | Taktleitung des I2C-Busses. |
+| Servo Driver | PWM-Ausgabemodul auf Basis des PCA9685 zur Ansteuerung der Servos. |
+
+### Dokumentenverweise
+
+Die folgenden Dokumente werden in der Hardwarebeschreibung direkt referenziert oder bilden eine fachliche Grundlage [[1]](#ref-1) [[2]](#ref-2) [[3]](#ref-3) [[4]](#ref-4).
+
+<a id="ref-1"></a>
+[1] Projektbeschreibung. Lokale Ablage: [projektbeschreibung.md](../doc/projektbeschreibung.md)
+
+<a id="ref-2"></a>
+[2] Joy-it: Robot02 Datasheet, Version vom 2019-09-19. Lokale Ablage: [Robot02_Datasheet_2019_09_19.pdf](../doc/datasheet/Robot02_Datasheet_2019_09_19.pdf)
+
+<a id="ref-3"></a>
+[3] Joy-it: COM-Motor02 Datasheet. Lokale Ablage: [COM-Motor02-Datasheet.pdf](../doc/datasheet/COM-Motor02-Datasheet.pdf)
+
+<a id="ref-4"></a>
+[4] NXP Semiconductors: PCA9685 - 16-Channel, 12-bit PWM Fm+ I2C-Bus LED Controller, Product Data Sheet, Rev. 4 - 16 April 2015. Lokale Ablage: [PCA9685_NXP_Datasheet_Rev4_2015-04-16.pdf](../doc/datasheet/PCA9685_NXP_Datasheet_Rev4_2015-04-16.pdf)
