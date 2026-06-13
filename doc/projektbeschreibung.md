@@ -6,12 +6,6 @@ Ziel des Projekts ist es, den Roboterarm mithilfe inverser Kinematik gleichmäß
 
 Eine weitere zentrale Anforderung ist der Einsatz einer Servokarte mit PCA9685-Chip. Dadurch können die sechs Servos mithilfe verfügbarer Bibliotheken in Echtzeit angesteuert werden.
 
-## Inhaltsverzeichnis
-
-[[_TOC_]]
-
-
-
 ## Technisches Konzept
 
 ### Einführung in Inverse Kinematik
@@ -94,6 +88,35 @@ Konzeptionell kann die Kalibration als Transformationsschritt zwischen Gelenkrau
 
 Darüber hinaus bildet die Kalibration eine wichtige Grundlage für die Wiederholgenauigkeit des Systems. Erst wenn die Zuordnung zwischen Modell und realem Roboterarm konsistent ist, können berechnete Zielpositionen verlässlich angefahren und spätere Erweiterungen wie Bahnplanung oder automatisierte Bewegungsfolgen sinnvoll umgesetzt werden.
 
+### Initialisierung und sichere Startlage
+
+Da der Roboterarm in der ersten Ausbaustufe ohne sensorische Rückmeldung betrieben wird, kommt der Initialisierung des Systems besondere Bedeutung zu. Nach dem Einschalten kann die Software die reale mechanische Stellung des Arms nicht eigenständig verifizieren. Deshalb muss ein definierter Zusammenhang zwischen dem angenommenen Softwarezustand und der tatsächlichen physischen Ausgangslage hergestellt werden.
+
+Für den praktischen Betrieb bedeutet dies, dass der Arm vor dem Start der normalen Ablaufsteuerung in eine bekannte und mechanisch unkritische Startlage gebracht werden muss. Diese Startlage dient als Bezugspunkt für Kalibration, Testläufe und wiederholbare Bewegungsprogramme. Sie sollte so gewählt werden, dass alle Gelenke ausreichend Abstand zu mechanischen Anschlägen besitzen und der Greifer keine kritische Kollision mit der Standfläche oder der eigenen Struktur verursacht.
+
+Ein besonderes Risiko beim Systemstart besteht darin, dass Servoantriebe ohne Positionsrückmeldung beim Aktivieren ihrer Ansteuerung abrupt in eine intern angenommene Sollposition springen können. Ursache ist, dass der Regler des Servos zwar eine Zielstellung erhält, die tatsächliche mechanische Ausgangslage des Arms zu diesem Zeitpunkt jedoch unbekannt sein kann. Für das vorliegende Projekt wird dieses Verhalten als systembedingt akzeptiert und nicht durch zusätzliche Sensorik aufgelöst.
+
+Stattdessen wird eine definierte Home Position festgelegt, welche aus dem stromlosen Zustand reproduzierbar von Hand eingenommen werden kann. Diese Position bildet die fachliche Grundlage für das Aufstartverhalten des Systems. Erst nachdem der Arm in diese Ausgangslage gebracht wurde, wird die Software mit den entsprechenden angenommenen Gelenkwerten initialisiert und die normale Ablaufsteuerung freigegeben.
+
+Konzeptionell sind dafür mindestens folgende Schritte sinnvoll:
+
+* Festlegung einer dokumentierten Startkonfiguration des Arms
+* Zuordnung dieser Startkonfiguration zu den angenommenen Gelenkwerten in der Software
+* kontrollierte Aktivierung der Servos ohne abrupte oder unplausible Stellwertsprünge
+* optionales Anfahren einer sicheren Ruheposition vor Beginn eines eigentlichen Bewegungsablaufs
+
+Zur Reduktion ruckartiger Startbewegungen bieten sich insbesondere folgende Maßnahmen an:
+
+* manuelles Platzieren des Arms in einer bekannten Ausgangslage vor dem Aktivieren der Regelung
+* Start mit einer sicheren, zur definierten Home Position passenden Sollkonfiguration
+* schrittweises Heranfahren an die eigentliche Initialposition statt unmittelbarer Sprungvorgabe
+* Begrenzung von Geschwindigkeit und Stellwertänderung bereits während der Initialisierung
+* sequentielle oder gruppierte Aktivierung einzelner Achsen statt gleichzeitiger Freigabe aller Antriebe
+
+Damit bleibt festzuhalten: Ohne Sensorik kann das ruckartige Anspringen nicht mathematisch garantiert vermieden werden. Für das Projekt wird deshalb eine definierte Home Position als Betriebsannahme festgelegt, die aus dem stromlosen Zustand erreichbar ist, sodass das Aufstartverhalten fachlich klar beschrieben und praktisch beherrschbar bleibt.
+
+Da keine Referenzsensorik vorgesehen ist, bleibt diese Initialisierung auf eine manuell vorbereitete oder konstruktiv definierte Ausgangslage angewiesen. Die Projektbeschreibung sollte diesen Umstand explizit berücksichtigen, damit die Grenzen der Wiederholgenauigkeit und der sichere Systemstart von Anfang an fachlich eingeordnet sind.
+
 ### Erreichbarkeitsprüfung
 
 Nicht jeder vorgegebene Sollzustand des Endeffektors kann vom Roboterarm tatsächlich eingenommen werden. Eine Erreichbarkeitsprüfung ist daher notwendig, um bereits vor oder während der IK-Berechnung zu bewerten, ob ein Zielpunkt unter den gegebenen mechanischen und geometrischen Randbedingungen grundsätzlich realisierbar ist.
@@ -110,6 +133,22 @@ Die Erreichbarkeitsprüfung hat damit nicht nur eine mathematische, sondern auch
 Im technischen Konzept kann zwischen einer groben und einer detaillierten Prüfung unterschieden werden. Eine grobe Prüfung bewertet, ob ein Zielpunkt prinzipiell im Arbeitsraum liegt. Eine detaillierte Prüfung berücksichtigt zusätzlich Gelenkgrenzen, Offsets und mögliche Konflikte zwischen Position und Orientierung. Auf diese Weise kann ein Ziel entweder direkt freigegeben, verworfen oder nur in modifizierter Form weiterverarbeitet werden.
 
 Langfristig bildet die Erreichbarkeitsprüfung auch die Grundlage für weitergehende Funktionen wie Bahnplanung, Kollisionsvermeidung oder die Auswahl mehrerer möglicher IK-Lösungen nach zusätzlichen Kriterien, etwa minimaler Gelenkbewegung oder mechanisch günstiger Armhaltung.
+
+### Umgang mit mehreren IK-Lösungen und Singularitäten
+
+Für einzelne Zielzustände des Endeffektors können mehrere mathematisch gültige IK-Lösungen existieren. Typische Beispiele sind unterschiedliche Armhaltungen wie "Ellenbogen-oben" und "Ellenbogen-unten". Für das System ist daher nicht nur relevant, ob eine Lösung existiert, sondern auch, nach welchen Regeln zwischen mehreren zulässigen Konfigurationen gewählt wird.
+
+Für eine erste Ausbaustufe bietet sich eine einfache, deterministische Auswahlstrategie an. Diese kann beispielsweise bevorzugen:
+
+* geringe Änderung gegenüber dem aktuellen oder zuletzt angefahrenen Gelenksollzustand
+* mechanisch günstige Haltungen mit ausreichendem Abstand zu Gelenkgrenzen
+* Konfigurationen mit möglichst geringer Belastung einzelner Achsen
+
+Eine solche Priorisierung erhöht die Vorhersagbarkeit des Systems und reduziert das Risiko unnötiger Sprungwechsel zwischen unterschiedlichen Armhaltungen.
+
+Zusätzlich müssen Singularitäten und numerisch ungünstige Konfigurationen berücksichtigt werden. Dazu zählen beispielsweise fast vollständig gestreckte Armhaltungen, sehr kleine Hebelverhältnisse oder Zielzustände, bei denen kleine Positionsänderungen zu überproportional großen Gelenkänderungen führen. In solchen Fällen kann eine mathematische Lösung zwar formal existieren, praktisch aber nur instabil oder mechanisch ungünstig sein.
+
+Daher sollte das System Konfigurationen dieser Art nicht nur geometrisch bewerten, sondern im Rahmen der Validierung auch auf numerische Plausibilität und Betriebsstabilität prüfen. Im einfachsten Fall können solche Ziele abgelehnt, in ihrer Priorität herabgesetzt oder nur mit einer bevorzugten Ersatzkonfiguration verarbeitet werden.
 
 ### Dynamische und physikalische Randbedingungen
 
@@ -128,6 +167,25 @@ Für das vorliegende System sind insbesondere folgende Randbedingungen relevant:
 Aus technischer Sicht ist daher zwischen Erreichbarkeit und Ausführbarkeit zu unterscheiden. Ein Ziel kann geometrisch erreichbar sein, gleichzeitig aber nur mit zu hoher Geschwindigkeit, zu hoher Last oder in einer mechanisch ungünstigen Armhaltung angesteuert werden. In solchen Fällen ist die Bewegung zwar theoretisch möglich, praktisch jedoch nur eingeschränkt oder gar nicht sinnvoll ausführbar.
 
 Diese Randbedingungen sind insbesondere für spätere Erweiterungen der Steuerung von Bedeutung. Dazu zählen beispielsweise Bewegungsprofile mit begrenzter Geschwindigkeit und Beschleunigung, die Überwachung kritischer Lastsituationen oder die Begrenzung gleichzeitiger Servoaktivitäten. Bereits im technischen Konzept sollte daher berücksichtigt werden, dass die reine Positionsberechnung allein nicht ausreicht, um ein robustes Gesamtsystem zu erhalten.
+
+Sanfte Beschleunigungsprofile sind in diesem Zusammenhang besonders relevant. Werden Sollwerte nur linear oder sprunghaft verändert, entstehen insbesondere am Anfang und Ende einer Bewegung hohe Ruckanteile sowie abrupte Lastwechsel. Für Servoantriebe kleiner Roboterarme kann dies zu sichtbarem Nachschwingen, erhöhter mechanischer Belastung und unruhigem Bewegungsverhalten führen.
+
+Daher ist es sinnvoll, perspektivisch nicht nur Geschwindigkeits- und Beschleunigungsgrenzen, sondern auch den zeitlichen Verlauf der Beschleunigung zu betrachten. S-Kurven-Profile stellen hierfür einen geeigneten Ansatz dar. Im Unterschied zu einfachen trapezförmigen Profilen werden Beschleunigung und Verzögerung dabei weicher ein- und ausgeblendet, sodass Bewegungen ruhiger, materialschonender und besser kontrollierbar ausgeführt werden können.
+
+### Bewegungsübergänge und Interpolation
+
+Zwischen zwei aufeinanderfolgenden Zielzuständen stellt sich die Frage, wie die Bewegung des Arms tatsächlich ausgeführt werden soll. Eine einfache Ansteuerung könnte darin bestehen, neue Gelenksollwerte unmittelbar zu übernehmen. In der Praxis kann dies jedoch zu abrupten Bewegungswechseln, unnötigen Lastspitzen oder mechanisch ungünstigen Übergängen führen.
+
+Deshalb ist es sinnvoll, bereits im technischen Konzept zwischen Zielpunktdefinition und Bewegungsübergang zu unterscheiden. Für die erste Ausbaustufe kann eine einfache Interpolation im Gelenkraum ausreichend sein, bei der Zwischenwerte zwischen zwei Gelenksollzuständen gebildet und schrittweise ausgegeben werden. Dadurch lassen sich Bewegungen weicher gestalten und besser an Geschwindigkeits- oder Beschleunigungsgrenzen anpassen.
+
+Langfristig sind unterschiedliche Strategien denkbar:
+
+* direkte Übernahme diskreter Gelenksollwerte
+* lineare Interpolation im Gelenkraum
+* spätere Erweiterung um kartesische Bahnsegmente oder stärker profilierte Bewegungsmodelle
+* Bewegungsprofile mit sanfter Beschleunigung und Verzögerung, beispielsweise auf Basis von S-Kurven
+
+Die konkrete Ausführung eines Bewegungsübergangs beeinflusst nicht nur die mechanische Belastung, sondern auch die Qualität von Demonstrationsabläufen, die Wiederholbarkeit des Systems und die praktische Nutzbarkeit der Run Engine. Auch wenn in der ersten Ausbaustufe noch keine vollständige Bahnplanung vorgesehen ist, sollte daher festgehalten werden, dass zwischen Zielpunkten eine kontrollierte Übergangslogik erforderlich ist.
 
 ### Ablaufsteuerung durch eine Run Engine
 
@@ -298,6 +356,22 @@ Nach der fachlichen Freigabe übergibt der Orchestrator den Gelenksollzustand an
 #### Fehler- und Rückgabepfade
 
 Da die Architektur ohne sensorische Rückmeldung arbeitet, kommt den Rückgabepfaden besondere Bedeutung zu. Jede beteiligte Komponente sollte deshalb nicht nur erfolgreiche Ergebnisse, sondern auch klar interpretierbare Ablehnungs-, Abschluss- und Fehlerzustände an den Orchestrator zurückgeben. Dieser bündelt die Resultate und stellt sie der Anwendung beziehungsweise der Run Engine in konsistenter Form zur Verfügung. Auf diese Weise bleibt die Verantwortung für die Ablaufsteuerung zentralisiert, auch wenn die fachlichen Bewertungen in verschiedenen Komponenten stattfinden.
+
+### Fehler- und Sicherheitsverhalten
+
+Neben fachlicher Korrektheit muss die Architektur auch beschreiben, wie das System auf Fehler- und Ausnahmesituationen reagiert. Da keine sensorische Rückmeldung vorhanden ist, können nicht alle physischen Fehlzustände erkannt werden. Umso wichtiger ist ein klares Verhalten bei internen Fehlern, Ablehnungen oder technischen Problemen während der Ausgabe.
+
+Zu unterscheiden sind insbesondere:
+
+* fachliche Ablehnungen, etwa bei Nichterreichbarkeit oder Verletzung von Gelenkgrenzen
+* technische Fehler, etwa bei Treiberinitialisierung, Kommunikationsproblemen oder unplausiblen Kalibrationsdaten
+* Ablaufabbrüche, beispielsweise durch Benutzeraktion, Sicherheitsbedingung oder Systemreset
+
+Für diese Fälle sollte die Architektur vorsehen, dass keine unkontrollierte Weiterverarbeitung stattfindet. Stattdessen muss der Orchestrator das Ergebnis eindeutig klassifizieren und an die Anwendung zurückmelden. Je nach Fehlerklasse kann dies bedeuten, dass ein einzelner Schritt abgelehnt, ein ganzer Ablauf angehalten oder das System nur noch in einer sicheren Grundfunktion weiterbetrieben wird.
+
+Darüber hinaus ist ein sicheres Verhalten beim Systemstart und nach Unterbrechungen relevant. Nach Reset, Stromunterbruch oder unvollständig ausgeführter Bewegung darf die Software nicht stillschweigend davon ausgehen, dass der physische Zustand des Arms weiterhin dem zuletzt bekannten internen Modell entspricht. In solchen Situationen ist eine erneute Initialisierung oder eine bewusste Rückkehr in eine definierte Startlage erforderlich.
+
+Das Fehler- und Sicherheitsverhalten ergänzt damit die reine Bewegungslogik um eine betriebliche Schutzschicht. Diese Schutzschicht kann zwar mangels Sensorik keine vollständige funktionale Sicherheit im engeren Sinn herstellen, sie reduziert jedoch das Risiko inkonsistenter Softwarezustände und unkontrollierter Bewegungsfolgen.
 
 ### Verarbeitungsablauf
 
@@ -600,6 +674,7 @@ Die funktionalen Anforderungen beschreiben, welche fachlichen Fähigkeiten das S
 * Das System muss für jede Bewegungsanforderung ein Bewegungsergebnis bereitstellen können.
 * Das System muss Begleitaktionen wie Wartezeiten oder LED-Signale innerhalb eines Ablaufs unterstützen können.
 * Das System muss unerreichbare oder unzulässige Zielzustände erkennen und ablehnen können.
+* Das System muss auf Basis einer definierten Home Position initialisiert werden können.
 
 ### Nichtfunktionale Anforderungen
 
@@ -624,6 +699,22 @@ Die folgenden Randbedingungen und Annahmen prägen den Entwurf des Systems:
 * Als Zielhardware wird ein ESP32 mit PCA9685-basierter Servoansteuerung verwendet.
 * Auf der Zielhardware steht möglicherweise kein komfortables Dateisystem oder keine Speicherkarte zur Verfügung.
 * Bewegungsabläufe werden deshalb zunächst als programmnahe oder zur Build-Zeit bereitgestellte Definitionen betrachtet.
+* Die Home Position muss aus dem stromlosen Zustand reproduzierbar erreichbar sein.
+
+### Abgrenzung des Projektumfangs
+
+Die erste Ausbaustufe des Projekts konzentriert sich bewusst auf ein klar abgegrenztes Kernsystem für Kinematik, Ablaufsteuerung und hardwarenahe Ausgabe. Nicht alle denkbaren Erweiterungen eines Robotersystems sind daher Bestandteil des aktuellen Projektumfangs.
+
+Insbesondere nicht vorgesehen oder nur nachrangig betrachtet sind in dieser Phase:
+
+* sensorbasierte Positionsrückmeldung oder geschlossene Regelkreise
+* automatische Referenzfahrt über Endschalter oder andere Referenzsensoren
+* Kollisionsvermeidung mit externer Umgebung
+* vollständige Bahnplanung im kartesischen Raum
+* autonome Umgebungswahrnehmung oder kamerabasierte Steuerung
+* komplexe Greifstrategien oder objektbezogene Manipulationsplanung
+
+Diese Abgrenzung ist nicht als Ausschluss späterer Erweiterungen zu verstehen, sondern dient dazu, den Projektfokus auf eine tragfähige erste Systemarchitektur und eine beherrschbare Implementierung zu richten.
 
 
 ## Spezifikationen
@@ -632,6 +723,7 @@ Die Spezifikationen konkretisieren die im Konzept beschriebenen Modelle und Anfo
 
 * Format und Wertebereich der Zielbeschreibung `(x, y, z, p, r, g)`
 * Definition des Gelenkraums mit Vorzeichenkonventionen und zulässigen Wertebereichen
+* Definition der Home Position und ihrer zugehörigen angenommenen Gelenkwerte
 * Struktur von Ablaufschritt, Bewegungsanforderung und Bewegungsergebnis
 * mathematische und mechanische Parameter des Robotermodells
 * Kalibrationsparameter pro Achse
@@ -699,6 +791,7 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 | Greiferöffnung | Öffnungszustand des Greifers. Im Dokument wird dieser Wert mit `g` bezeichnet und in Prozent angegeben. |
 | Hardware Abstraction | Softwarebaustein, der freigegebene Sollwerte in konkrete hardwarebezogene Operationen überführt und dabei Treiber und Ausgabekanäle kapselt. |
 | Hardware Driver | Konkrete hardwarenahe Komponente zur Kommunikation mit Ausgabebausteinen wie dem PCA9685. |
+| Home Position | Definierte Ausgangslage des Roboterarms, die aus dem stromlosen Zustand reproduzierbar erreicht werden kann und als fachliche Referenz für Initialisierung und Aufstartverhalten dient. |
 | IK | Inverse Kinematik. Berechnung von Gelenkwinkeln aus einer gewünschten Position und Orientierung des Endeffektors. |
 | Joint Space | Darstellung des Roboterzustands im Gelenkraum. Beschrieben werden dabei die Winkel der einzelnen Rotationsachsen sowie die Greiferöffnung. |
 | Joint Target State | Datenmodell der berechneten Gelenkkonfiguration, bestehend aus den relevanten Gelenkwinkeln und der Greiferöffnung. |
