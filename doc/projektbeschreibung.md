@@ -57,11 +57,11 @@ Für die Modellierung werden folgende Positionen als kartesische 3D-Vektoren ben
 
 #### Definition des Gelenkraumes (joint space)
 Abschließend wird der Gelenkraum definiert. Die Rotationsachsen werden in [°] angegeben, die Greiferöffnung in [%].
-* Drehteller d (-90°..90°), 0° zeigt in Richtung der y-Achse des Welt-Koordinatensystems.
+* Drehteller d (-180°..90°), 0° zeigt in Richtung der y-Achse des Welt-Koordinatensystems.
 * Schulter s (-90°..90°), -90° ist horizontal in Richtung der y-Achse, 0° zeigt vertikal nach oben (Richtung der z-Achse) und 90° kippt die Schulter in Richtung der negativen z-Achse.
-* Ellenbogen e (-90°..90°). Hier ist die 0°-Position, wenn Oberarm und Unterarm in dieselbe Richtung zeigen. -90° kippt nach unten, +90° kippt nach oben.
-* Handgelenk-Pitch h (-90°..90°) analog zur Ellenbogenachse.
-* Handgelenk-Roll rj (-90°..90°): Bei -90° dreht das Handgelenk nach links, bei 90° dreht das Handgelenk nach rechts. Blickrichtung: vom Drehteller nach vorne. Die Bezeichnung `rj` dient der Unterscheidung zur Endeffektorgröße `r` im Weltkoordinatensystem.
+* Ellenbogen e (-100°..100°). Hier ist die 0°-Position, wenn Oberarm und Unterarm in dieselbe Richtung zeigen. -100° kippt nach unten, +100° kippt nach oben.
+* Handgelenk-Pitch hp (0°..135°) analog zur Ellenbogenachse.
+* Handgelenk-Roll hr (-180°..180°): Bei -180° dreht das Handgelenk nach links, bei 180° dreht das Handgelenk nach rechts. Blickrichtung: vom Drehteller nach vorne.
 * Greifer g (0%..100%): 0% entspricht vollständig geschlossen, 100% vollständig geöffnet.
 
 ### Beschreibung des realen Roboterarms
@@ -96,9 +96,13 @@ Da der Roboterarm in der ersten Ausbaustufe ohne sensorische Rückmeldung betrie
 
 Für den praktischen Betrieb bedeutet dies, dass der Arm vor dem Start der normalen Ablaufsteuerung in eine bekannte und mechanisch unkritische [Home Position](#home-position) gebracht werden muss. Diese Startlage dient als Bezugspunkt für Kalibration, Testläufe und wiederholbare Bewegungsprogramme. Sie sollte so gewählt werden, dass alle Gelenke ausreichend Abstand zu mechanischen Anschlägen besitzen und der Greifer keine kritische Kollision mit der Standfläche oder der eigenen Struktur verursacht.
 
+Für das vorliegende Projekt wird diese Startlage konkret wie folgt definiert: Mit leichter Krümmung steht der Greifer vertikal vor dem Drehteller. Diese mechanische Ausgangslage ist vor dem Einschalten manuell herzustellen und bildet die praktische Interpretation der [Home Position](#home-position) im stromlosen Zustand.
+
 Ein besonderes Risiko beim Systemstart besteht darin, dass Servoantriebe ohne Positionsrückmeldung beim Aktivieren ihrer Ansteuerung abrupt in eine intern angenommene Sollposition springen können. Ursache ist, dass der Regler des Servos zwar eine Zielstellung erhält, die tatsächliche mechanische Ausgangslage des Arms zu diesem Zeitpunkt jedoch unbekannt sein kann. Für das vorliegende Projekt wird dieses Verhalten als systembedingt akzeptiert und nicht durch zusätzliche Sensorik aufgelöst.
 
 Stattdessen wird eine definierte [Home Position](#home-position) festgelegt, welche aus dem stromlosen Zustand reproduzierbar von Hand eingenommen werden kann. Diese Position bildet die fachliche Grundlage für das Aufstartverhalten des Systems. Erst nachdem der Arm in diese Ausgangslage gebracht wurde, wird die Software mit den entsprechenden angenommenen Gelenkwerten initialisiert und die normale Ablaufsteuerung freigegeben.
+
+Die logische Initialposition des Systems entspricht dabei der im Projekt beschriebenen Nullkonfiguration der Servoachsen. Für die Initialisierung wird somit angenommen, dass sich alle Servoachsen auf ihrer fachlichen 0-Position befinden, nachdem der Arm in die definierte Startlage gebracht wurde.
 
 Konzeptionell sind dafür mindestens folgende Schritte sinnvoll:
 
@@ -106,6 +110,8 @@ Konzeptionell sind dafür mindestens folgende Schritte sinnvoll:
 * Zuordnung dieser Startkonfiguration zu den angenommenen Gelenkwerten in der Software
 * kontrollierte Aktivierung der Servos ohne abrupte oder unplausible Stellwertsprünge
 * optionales Anfahren einer sicheren Ruheposition vor Beginn eines eigentlichen Bewegungsablaufs
+
+Für die sichere Inbetriebnahme wird zusätzlich festgelegt, dass die Achsen beginnend beim Greifer rückwärts angesteckt und ihr jeweiliger Fahrbereich kontrolliert werden. Dadurch kann die Zuordnung zwischen mechanischer Achse, elektrischer Ansteuerung und logischem Modell schrittweise geprüft werden, bevor der vollständige Arm im Verbund betrieben wird.
 
 Zur Reduktion ruckartiger Startbewegungen bieten sich insbesondere folgende Maßnahmen an:
 
@@ -118,6 +124,8 @@ Zur Reduktion ruckartiger Startbewegungen bieten sich insbesondere folgende Maß
 Damit bleibt festzuhalten: Ohne Sensorik kann das ruckartige Anspringen nicht mathematisch garantiert vermieden werden. Für das Projekt wird deshalb eine definierte [Home Position](#home-position) als Betriebsannahme festgelegt, die aus dem stromlosen Zustand erreichbar ist, sodass das Aufstartverhalten fachlich klar beschrieben und praktisch beherrschbar bleibt.
 
 Da keine Referenzsensorik vorgesehen ist, bleibt diese Initialisierung auf eine manuell vorbereitete oder konstruktiv definierte Ausgangslage angewiesen. Die Projektbeschreibung sollte diesen Umstand explizit berücksichtigen, damit die Grenzen der Wiederholgenauigkeit und der sichere Systemstart von Anfang an fachlich eingeordnet sind.
+
+Offen bleibt dabei bewusst, wie die Software selbständig erkennt oder verifiziert, dass sich das System tatsächlich in diesem Initialzustand befindet. Für die erste Ausbaustufe wird diese Übereinstimmung nicht technisch nachgewiesen, sondern als Betriebsannahme vorausgesetzt.
 
 ### Erreichbarkeitsprüfung
 
@@ -632,12 +640,15 @@ Für die Umsetzung des Projekts werden bewusst etablierte Entwicklungshilfsmitte
 
 * Entwicklungsumgebung: VSCode 
 * VSCode Plugin: PlatformIO
+* Schaltplan- und Layoutwerkzeug: KiCad
 * Unit-test Framework: Unity
 * SBOM: Syft
 
 Als Entwicklungsumgebung bietet sich `VSCode` an. Die Umgebung ist leichtgewichtig, weit verbreitet und lässt sich gut mit eingebetteter Softwareentwicklung verbinden. Für das vorliegende Projekt ist insbesondere die Integration mit `PlatformIO` hilfreich, da Build, Upload, serielle Ausgabe und Testausführung direkt aus einer gemeinsamen Oberfläche angestoßen werden können.
 
 PlatformIO dient als Build-, Konfigurations- und Upload-Umgebung für den ESP32. Dadurch können Abhängigkeiten, Board-Konfigurationen und Build-Schritte reproduzierbar verwaltet werden.
+
+Für die Hardwaredokumentation sowie für spätere Schaltplan- und Layoutarbeiten wird `KiCad` verwendet. Dadurch können elektrische Zusammenhänge strukturiert erfasst, versioniert und bei Bedarf bis auf PCB-Ebene weitergeführt werden.
 
 Ein Unit-Test-Framework wird eingesetzt, um mathematische Logik, Datenmodelle und zentrale Prüfregeln frühzeitig automatisiert abzusichern. Dies ist insbesondere für IK, Kalibration und Validierung von Bedeutung.
 
@@ -790,12 +801,12 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 | Endeffektor | Das funktionale Ende des Roboterarms. Im vorliegenden Projekt besteht der Endeffektor aus Handgelenk und Greifer. |
 | ESP32 | Mikrocontroller-Plattform, auf der die Steuerungssoftware des Projekts ausgeführt wird. |
 | FABRIK | Forward And Backward Reaching Inverse Kinematics. Iteratives IK-Verfahren, bei dem Segmentpunkte abwechselnd vom Ziel und von der Basis aus neu positioniert werden. |
-| Greiferöffnung | Öffnungszustand des Greifers. Im Dokument wird dieser Wert mit `g` bezeichnet und in Prozent angegeben. |
+| Greiferöffnung | Öffnungszustand des Greifers. Im Dokument wird dieser Wert mit `g` bezeichnet und in Prozent angegeben. Im Unterschied zu Pitch und Roll bleibt `g` im Task Space und im Joint Space bewusst dieselbe fachliche Größe. |
 | <a id="hardware-abstraction"></a>Hardware Abstraction | Softwarebaustein, der freigegebene Sollwerte in konkrete hardwarebezogene Operationen überführt und dabei Treiber und Ausgabekanäle kapselt. |
 | <a id="hardware-driver"></a>Hardware Driver | Konkrete hardwarenahe Komponente zur Kommunikation mit Ausgabebausteinen wie dem PCA9685. |
 | <a id="home-position"></a>Home Position | Definierte Ausgangslage des Roboterarms, die aus dem stromlosen Zustand reproduzierbar erreicht werden kann und als fachliche Referenz für Initialisierung und Aufstartverhalten dient. |
 | IK | Inverse Kinematik. Berechnung von Gelenkwinkeln aus einer gewünschten Position und Orientierung des Endeffektors. |
-| Joint Space | Darstellung des Roboterzustands im Gelenkraum. Beschrieben werden dabei die Winkel der einzelnen Rotationsachsen sowie die Greiferöffnung. |
+| Joint Space | Darstellung des Roboterzustands im Gelenkraum. Beschrieben werden dabei die Winkel `d`, `s`, `e`, `hp`, `hr` sowie die Greiferöffnung `g`. |
 | <a id="joint-target-state"></a>Joint Target State | Datenmodell der berechneten Gelenkkonfiguration, bestehend aus den relevanten Gelenkwinkeln und der Greiferöffnung. |
 | Kalibration | Zuordnung zwischen idealisierten fachlichen Sollwerten und realen hardwarebezogenen Stellwerten eines Servoantriebs. |
 | <a id="kinematics"></a>Kinematics | Softwarebaustein für Vorwärts- und inverse Kinematik sowie zugehörige mathematische Hilfsfunktionen. |
@@ -805,10 +816,10 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 | <a id="motion-result"></a>Motion Result | Ergebnisobjekt, das den fachlichen und technischen Bearbeitungsstatus einer Bewegungsanforderung beschreibt. |
 | <a id="orchestration"></a>Orchestration | Softwarebaustein zur Koordination von Bewegungsanforderungen, Prüfungen, Berechnungen und Rückgabepfaden. |
 | PCA9685 | PWM-Treiberbaustein, der zur Ansteuerung mehrerer Servokanäle verwendet wird. |
-| Pitch | Neigung des Endeffektors beziehungsweise des Handgelenks. Im Dokument wird diese Größe im Weltkoordinatensystem mit `p` bezeichnet. |
+| Pitch | Neigung des Endeffektors beziehungsweise des Handgelenks. Im Task Space wird diese Größe mit `p` bezeichnet, im Joint Space als Handgelenk-Pitch mit `hp`. |
 | <a id="robot-action"></a>Robot Action | Fachlich benennbare Roboteraktion innerhalb eines Ablaufschritts, die nicht ausschließlich durch eine kartesische Zielbeschreibung beschrieben wird. |
 | <a id="robot-model"></a>Robot Model | Daten- und Softwarebaustein zur Beschreibung der Geometrie, Offsets, Segmentlängen und Gelenkgrenzen des Roboterarms. |
-| Roll | Rotation des Endeffektors um seine Längsachse. Im Dokument wird diese Größe im Weltkoordinatensystem mit `r` bezeichnet. |
+| Roll | Rotation um die Längsachse des Endeffektors beziehungsweise des Handgelenks. Im Task Space wird diese Größe mit `r` bezeichnet, im Joint Space als Handgelenk-Roll mit `hr`. |
 | Robotics | Sammelbegriff für die fachlichen Bausteine `Kinematics`, `Validation`, `Robot Model`, `Calibration` und verwandte Datenmodelle. |
 | <a id="run-engine"></a>Run Engine | Anwendungskomponente zur sequentiellen Ausführung vordefinierter Bewegungsabläufe. |
 | SBOM | Software Bill of Materials. Strukturierte Auflistung eingesetzter Softwarekomponenten und Abhängigkeiten. |
