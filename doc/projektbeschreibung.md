@@ -287,6 +287,8 @@ Zu den Aufgaben der Run Engine gehören insbesondere:
 
 Die Kinematikkomponente (`Kinematics`) stellt die mathematischen Berechnungsverfahren des Systems bereit. Dazu gehören insbesondere die inverse Kinematik zur Berechnung von Gelenksollwerten aus einem Endeffektorziel sowie gegebenenfalls die Vorwärtskinematik zur Analyse oder Plausibilisierung von Gelenkkonfigurationen. Sie arbeitet auf Basis des Robotermodells (`Robot Model`) und bleibt von hardwarebezogenen Details unabhängig.
 
+Werden im Projekt iterative IK-Verfahren wie `CCD` oder `FABRIK` eingesetzt, so gehört auch die dazugehörige Iterationslogik in diese Komponente. Dazu zählen insbesondere die Wahl eines Startzustands, die wiederholte Annäherung an das Ziel, die Prüfung von Toleranzen sowie der Abbruch bei Konvergenz, maximaler Iterationszahl oder erkannter Nichterreichbarkeit. Der Orchestrator stößt die Berechnung nur an und bewertet deren Ergebnis, führt die eigentlichen Iterationsschritte jedoch nicht selbst aus.
+
 #### Prüfkomponente
 
 Die Prüfkomponente (`Validation`) bewertet Bewegungsanforderungen und berechnete Gelenksollzustände unter fachlichen Randbedingungen. Sie führt insbesondere die Erreichbarkeitsprüfung, die Prüfung von Gelenkgrenzen sowie die Bewertung der praktischen Ausführbarkeit durch. Ihre Aufgabe besteht nicht in der Berechnung einer Bewegung, sondern in deren fachlicher Beurteilung.

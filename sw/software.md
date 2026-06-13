@@ -520,22 +520,33 @@ Eingaben und Ausgaben:
 
 `Kinematics` berechnet aus einer gültigen Zielbeschreibung einen fachlichen Gelenkzustand.
 
+Für die inverse Kinematik darf diese Komponente intern sowohl analytische als auch iterative Lösungsverfahren kapseln. Insbesondere Verfahren wie `CCD` oder `FABRIK` werden hier als interne Iterationslogik verstanden und nicht als Aufgabe des `Orchestrator`.
+
 Eingaben und Ausgaben:
 
 * Eingabe einer `OffsetTargetPose`
 * Rückgabe eines `JointState`
+
+Bei iterativen Verfahren umfasst die Verantwortung von `Kinematics` insbesondere:
+
+* Wahl oder Übernahme eines geeigneten Startzustands
+* wiederholte Berechnung von Iterationsschritten bis zur Zielannäherung
+* Prüfung von Toleranz, Konvergenz und Abbruchbedingungen
+* Rückmeldung, ob eine Lösung gefunden wurde oder ob beispielsweise Iterationsgrenzen beziehungsweise Nichterreichbarkeit vorlagen
 
 `Kinematics` kennt dabei:
 
 * Task Space beziehungsweise modellkorrigierte Zielzustände
 * Joint Space
 * Robotermodell und geometrische Parameter
+* solverinterne Iterationsparameter und Konvergenzregeln
 
 `Kinematics` kennt dabei nicht:
 
 * Hardwaredetails
 * PWM-Grenzen
 * Ablauflogik der Anwendung
+* übergeordnete Ablaufentscheidungen bei Fehlern oder Alternativpfaden
 
 ### Hardware Abstraction
 
