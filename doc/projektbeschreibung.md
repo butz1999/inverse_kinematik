@@ -60,12 +60,12 @@ Für die Modellierung werden folgende Positionen als kartesische 3D-Vektoren ben
 * Greiferspitze G(x,y,z)
 
 #### Definition des Gelenkraumes (joint space)
-Abschließend wird der Gelenkraum definiert. Mit Ausnahme des Greifers werden alle Achsen in [°] angegeben.
+Abschließend wird der Gelenkraum definiert. Die Rotationsachsen werden in [°] angegeben, die Greiferöffnung in [%].
 * Drehteller d (-90°..90°), 0° zeigt in Richtung der y-Achse des Welt-Koordinatensystems.
 * Schulter s (-90°..90°), -90° ist horizontal in Richtung der y-Achse, 0° zeigt vertikal nach oben (Richtung der z-Achse) und 90° kippt die Schulter in Richtung der negativen z-Achse.
 * Ellenbogen e (-90°..90°). Hier ist die 0°-Position, wenn Oberarm und Unterarm in dieselbe Richtung zeigen. -90° kippt nach unten, +90° kippt nach oben.
 * Handgelenk-Pitch h (-90°..90°) analog zur Ellenbogenachse.
-* Handgelenk-Roll w (-90°..90°): Bei -90° dreht das Handgelenk nach links, bei 90° dreht das Handgelenk nach rechts. Blickrichtung: vom Drehteller nach vorne.
+* Handgelenk-Roll rj (-90°..90°): Bei -90° dreht das Handgelenk nach links, bei 90° dreht das Handgelenk nach rechts. Blickrichtung: vom Drehteller nach vorne. Die Bezeichnung `rj` dient der Unterscheidung zur Endeffektorgröße `r` im Weltkoordinatensystem.
 * Greifer g (0%..100%): 0% entspricht vollständig geschlossen, 100% vollständig geöffnet.
 
 ### Beschreibung des realen Roboterarms
@@ -209,7 +209,7 @@ Die Run Engine ist die zentrale Anwendungskomponente für die Ausführung vordef
 Zu den Aufgaben der Run Engine gehören insbesondere:
 
 * Verwaltung eines Ablaufs aus einem oder mehreren Schritten
-* sequentielle Übergabe von Sollpositionen an den Orchestrator
+* sequentielle Übergabe von Bewegungsanforderungen an den Orchestrator
 * Berücksichtigung von Haltezeiten zwischen zwei Bewegungsschritten
 * Auslösung einfacher Begleitaktionen wie LED-Signalen
 * Auslösung einfacher Roboter-Aktionen außerhalb einer reinen kartesischen Zielbeschreibung
@@ -521,9 +521,12 @@ Die Erweiterbarkeit soll jedoch nicht durch unnötige Abstraktion um ihrer selbs
 
 Für die Umsetzung des Projekts werden bewusst etablierte Entwicklungshilfsmittel eingesetzt, um die technische Komplexität auf die eigentlichen Projektziele zu konzentrieren.
 
-* Platform IO
-* Unit-test Framework
-* SBOM
+* Entwicklungumgebung: VSCode 
+* VSCode Plugin: Platform IO
+* Unit-test Framework: Unity
+* SBOM: Syft
+
+Als Entwicklungsumgebung bietet sich `VSCode` an. Die Umgebung ist leichtgewichtig, weit verbreitet und lässt sich gut mit eingebetteter Softwareentwicklung verbinden. Für das vorliegende Projekt ist insbesondere die Integration mit `Platform IO` hilfreich, da Build, Upload, serielle Ausgabe und Testausführung direkt aus einer gemeinsamen Oberfläche angestoßen werden können.
 
 Platform IO dient als Build-, Konfigurations- und Upload-Umgebung für den ESP32. Dadurch können Abhängigkeiten, Board-Konfigurationen und Build-Schritte reproduzierbar verwaltet werden.
 
@@ -581,7 +584,7 @@ Zusätzlich zu den fachlichen Funktionen muss das System verschiedene qualitativ
 
 Die folgenden Randbedingungen und Annahmen prägen den Entwurf des Systems:
 
-* Der Roboterarm wird zunächst ohne sensorische Rückmeldung betrieben.
+* Der Roboterarm wird ohne sensorische Rückmeldung betrieben.
 * Die reale Zielerreichung kann daher nicht physisch verifiziert, sondern nur ausgabeseitig und fachlich bewertet werden.
 * Die Geometrie des Arms wird in einer ersten Ausbaustufe vereinfacht modelliert.
 * Mechanische Offsets und Kalibrationsabweichungen werden schrittweise in das Modell integriert.
@@ -648,10 +651,32 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 
 ## Anhang
 
+### Glossar und Abkürzungen
+
+| Begriff / Abkürzung | Beschreibung |
+| --- | --- |
+| CCD | Cyclic Coordinate Descent. Iteratives Verfahren zur Lösung inverser Kinematik, bei dem Gelenke nacheinander so angepasst werden, dass sich der Endeffektor schrittweise an ein Ziel annähert. |
+| Endeffektor | Das funktionale Ende des Roboterarms. Im vorliegenden Projekt besteht der Endeffektor aus Handgelenk und Greifer. |
+| ESP32 | Mikrocontroller-Plattform, auf der die Steuerungssoftware des Projekts ausgeführt wird. |
+| FABRIK | Forward And Backward Reaching Inverse Kinematics. Iteratives IK-Verfahren, bei dem Segmentpunkte abwechselnd vom Ziel und von der Basis aus neu positioniert werden. |
+| Greiferöffnung | Öffnungszustand des Greifers. Im Dokument wird dieser Wert mit `g` bezeichnet und in Prozent angegeben. |
+| IK | Inverse Kinematik. Berechnung von Gelenkwinkeln aus einer gewünschten Position und Orientierung des Endeffektors. |
+| Joint Space | Darstellung des Roboterzustands im Gelenkraum. Beschrieben werden dabei die Winkel der einzelnen Rotationsachsen sowie die Greiferöffnung. |
+| Kalibration | Zuordnung zwischen idealisierten fachlichen Sollwerten und realen hardwarebezogenen Stellwerten eines Servoantriebs. |
+| PCA9685 | PWM-Treiberbaustein, der zur Ansteuerung mehrerer Servokanäle verwendet wird. |
+| Pitch | Neigung des Endeffektors beziehungsweise des Handgelenks. Im Dokument wird diese Größe im Weltkoordinatensystem mit `p` bezeichnet. |
+| Roll | Rotation des Endeffektors um seine Längsachse. Im Dokument wird diese Größe im Weltkoordinatensystem mit `r` bezeichnet. |
+| Run Engine | Anwendungskomponente zur sequentiellen Ausführung vordefinierter Bewegungsabläufe. |
+| SBOM | Software Bill of Materials. Strukturierte Auflistung eingesetzter Softwarekomponenten und Abhängigkeiten. |
+| Sollzustand | Gewünschter Zielzustand eines Systems. Im vorliegenden Projekt beschreibt der Sollzustand des Endeffektors insbesondere Position, Orientierung und Greiferöffnung. |
+| Task Space | Darstellung des Roboterzustands im Welt- beziehungsweise Arbeitskoordinatensystem. Im Dokument wird der Endeffektorzustand dort durch `(x, y, z, p, r, g)` beschrieben. |
+| Unity | Leichtgewichtiges Unit-Test-Framework, das für native und eingebettete Tests im Projekt vorgesehen ist. |
+| VSCode | Visual Studio Code. Entwicklungsumgebung, die im Projekt in Verbindung mit Platform IO eingesetzt werden kann. |
+
 ### Literaturverzeichnis
 
-[1] Aristidou, A., Lasenby, J., Chrysanthou, Y. und Shamir, A.: Inverse Kinematics Techniques in Computer Graphics: A Survey. Computer Graphics Forum, 37(6), 2018. URL: https://onlinelibrary.wiley.com/doi/10.1111/cgf.13310
+[1] Aristidou, A., Lasenby, J., Chrysanthou, Y. und Shamir, A.: Inverse Kinematics Techniques in Computer Graphics: A Survey. Computer Graphics Forum, 37(6), 2018. https://onlinelibrary.wiley.com/doi/10.1111/cgf.13310
 
-[2] Aristidou, A. und Lasenby, J.: FABRIK: A fast, iterative solver for the inverse kinematics problem. Graphical Models, 73(5), 243-260, 2011. URL: https://andreasaristidou.com/FABRIK
+[2] Aristidou, A. und Lasenby, J.: FABRIK: A fast, iterative solver for the inverse kinematics problem. Graphical Models, 73(5), 243-260, 2011. https://andreasaristidou.com/FABRIK
 
-[3] Kenwright, B.: Inverse Kinematics - Cyclic Coordinate Descent (CCD). Technische Einführung zu CCD. URL: https://alogicalmind.com/paper/ik_ccd/
+[3] Kenwright, B.: Inverse Kinematics - Cyclic Coordinate Descent (CCD). Journal of Graphics Tools / technische Einführung. https://alogicalmind.com/paper/ik_ccd/
