@@ -39,11 +39,11 @@ Der Sollzustand des Endeffektors wird durch die Größen
 (x,y,z,p,r,g)
 beschrieben.
 * Dabei beschreiben (x,y,z) die Position des Greifers im Raum.
-* p ist die Pitch-Achse des Handgelenks
-* r ist die Roll-Achse des Handgelenks
+* p beschreibt die Neigung des Handgelenks
+* r beschreibt die Rotation des Handgelenks um seine Längsachse
 * g beschreibt die Greiferöffnung
 
-Damit wird festgelegt, an welcher Position (x,y,z) sich der Greifer relativ zum Nullpunkt befinden soll. Zusätzlich werden seine Neigung (Pitch p), seine Drehung (Roll r) sowie seine Öffnung beschrieben.
+Damit wird festgelegt, an welcher Position (x,y,z) sich der Greifer relativ zum Nullpunkt befinden soll. Zusätzlich werden seine Neigung (p), seine Drehung (r) sowie seine Öffnung beschrieben.
 
 Die Positionen werden in [mm] gemessen. Der Bezugspunkt ist (0,0,0) auf der Standfläche des Motors, genau unterhalb der Achse des Drehtellers.
 Pitch und Roll werden in [°] gemessen; Bezugsebene ist die Horizontalebene.
@@ -64,8 +64,9 @@ Abschließend wird der Gelenkraum definiert. Mit Ausnahme des Greifers werden al
 * Drehteller d (-90°..90°), 0° zeigt in Richtung der y-Achse des Welt-Koordinatensystems.
 * Schulter s (-90°..90°), -90° ist horizontal in Richtung der y-Achse, 0° zeigt vertikal nach oben (Richtung der z-Achse) und 90° kippt die Schulter in Richtung der negativen z-Achse.
 * Ellenbogen e (-90°..90°). Hier ist die 0°-Position, wenn Oberarm und Unterarm in dieselbe Richtung zeigen. -90° kippt nach unten, +90° kippt nach oben.
-* Handgelenk h (-90°..90°) analog zur Ellenbogenachse.
-* Rotation r (-90°..90°): Bei -90° dreht das Handgelenk nach links, bei 90° dreht das Handgelenk nach rechts. Blickrichtung: vom Drehteller nach vorne.
+* Handgelenk-Pitch h (-90°..90°) analog zur Ellenbogenachse.
+* Handgelenk-Roll w (-90°..90°): Bei -90° dreht das Handgelenk nach links, bei 90° dreht das Handgelenk nach rechts. Blickrichtung: vom Drehteller nach vorne.
+* Greifer g (0%..100%): 0% entspricht vollständig geschlossen, 100% vollständig geöffnet.
 
 ### Beschreibung des realen Roboterarms
 
@@ -170,7 +171,7 @@ Diese Schicht nimmt Sollvorgaben entgegen und stellt die Schnittstelle zur Benut
 
 #### Orchestrierungs- und Steuerungsschicht
 
-Da es sich um eine Steuerung ohne sensorische Rückkopplung handelt, ist eine zentrale Orchestrierungsinstanz erforderlich, welche den gesamten Ablauf von der Zielvorgabe bis zur Stellwertausgabe verantwortet. Diese Instanz kann als Orchestrator verstanden werden. Die Schicht ruft Prüf- und Berechnungskomponenten in der richtigen Reihenfolge auf, koordiniert die fachlichen Verarbeitungsschritte und entscheidet, ob eine Bewegung freigegeben, verworfen oder mit einer Fehlermeldung an die Anwendung zurückgegeben wird.
+Da es sich um eine Steuerung ohne sensorische Rückkopplung handelt, ist eine zentrale Orchestrierungsinstanz erforderlich, welche den gesamten Ablauf von der Zielvorgabe bis zur Stellwertausgabe verantwortet. Diese Instanz kann als Orchestrator verstanden werden. Die Schicht ruft Prüf- und Berechnungskomponenten in der richtigen Reihenfolge auf, koordiniert die fachlichen Verarbeitungsschritte und entscheidet, ob eine Bewegungsanforderung freigegeben, verworfen oder mit einer Fehlermeldung an die Anwendung zurückgegeben wird. Rückmeldungen dieser Schicht beschreiben dabei den fachlichen und technischen Bearbeitungsstatus einer Anforderung, nicht jedoch eine physisch verifizierte Zielerreichung.
 
 #### Kinematik- und Modellschicht
 
@@ -242,13 +243,17 @@ Die Zielbeschreibung enthält die gewünschte Position des Greifers im Raum, sei
 
 Ein Ablaufschritt beschreibt eine einzelne Anweisung innerhalb eines Bewegungsprogramms. Er enthält mindestens eine Zielbeschreibung des Endeffektors und kann zusätzlich eine Haltezeit, optionale Begleitaktionen oder optionale Roboter-Aktionen umfassen. Unter Roboter-Aktionen werden dabei diskrete, fachlich benennbare Aktionen verstanden, die nicht ausschließlich über eine kartesische Zielbeschreibung modelliert werden, beispielsweise das gezielte Öffnen oder Schließen des Greifers. Dadurch bildet der Ablaufschritt die kleinste fachliche Einheit, welche von der Run Engine an den Orchestrator übergeben wird.
 
+#### Bewegungsanforderung
+
+Die Bewegungsanforderung ist das fachliche Übergabeobjekt zwischen Anwendungsschicht beziehungsweise Run Engine und Orchestrator. In der einfachsten Form enthält sie genau einen auszuführenden Ablaufschritt oder eine daraus abgeleitete Zielbeschreibung. Dadurch wird klar zwischen der internen Struktur eines Bewegungsprogramms und der einzelnen fachlichen Anforderung unterschieden, welche der Orchestrator konkret verarbeitet.
+
 #### Ablaufdefinition
 
 Die Ablaufdefinition beschreibt eine geordnete Liste von einem oder mehreren Ablaufschritten. Sie repräsentiert damit das eigentliche Bewegungsprogramm, das von der Run Engine verarbeitet wird. Die konkrete Speicherform bleibt bewusst offen, damit das Konzept unabhängig von Dateisystem, Speicherkarte oder externer Konfigurationsquelle bleibt.
 
 #### Gelenksollzustand
 
-Der Gelenksollzustand beschreibt die berechnete Konfiguration des Roboterarms im Gelenkraum. Dazu gehören die Winkel aller relevanten Achsen sowie die Öffnung des Greifers. Dieses Modell ist die zentrale Schnittstelle zwischen Kinematik, Freigabe und Hardwareansteuerung.
+Der Gelenksollzustand beschreibt die berechnete Konfiguration des Roboterarms im Gelenkraum. Dazu gehören die Winkel aller relevanten Achsen sowie die Öffnung des Greifers. Dieses Modell ist das Ergebnis der kinematischen Berechnung und die zentrale Schnittstelle zwischen Kinematik, Freigabe und Hardwareansteuerung.
 
 #### Robotermodell
 
@@ -264,7 +269,7 @@ Für die Ausführbarkeit von Bewegungen ist ein weiteres Modell für dynamische 
 
 #### Bewegungsergebnis
 
-Da die Architektur als Steuerung ohne sensorische Rückmeldung ausgelegt ist, ist ein explizites Ergebnis der Bewegungsanforderung sinnvoll. Dieses Modell beschreibt, ob ein Ziel freigegeben, verworfen oder nur eingeschränkt weiterverarbeitet wird. Zusätzlich kann es Begründungen enthalten, etwa Nichterreichbarkeit, Verletzung von Gelenkgrenzen oder Überschreitung dynamischer Randbedingungen.
+Da die Architektur als Steuerung ohne sensorische Rückmeldung ausgelegt ist, ist ein explizites Ergebnis der Bewegungsanforderung sinnvoll. Dieses Modell beschreibt nicht die physisch verifizierte Zielerreichung, sondern den fachlichen und technischen Bearbeitungsstatus einer Anforderung. Es kann beispielsweise ausdrücken, dass ein Ziel nicht erreichbar ist, fachlich abgelehnt wurde, zur Ausführung freigegeben wurde oder dass die vorgesehene Sollwertausgabe vollständig abgearbeitet wurde. Zusätzlich kann es Begründungen enthalten, etwa Nichterreichbarkeit, Verletzung von Gelenkgrenzen, Überschreitung dynamischer Randbedingungen oder technische Fehler in der Ausgabe.
 
 #### Ablaufzustand
 
@@ -276,7 +281,7 @@ Die Qualität der Architektur hängt nicht nur von der Trennung der Komponenten,
 
 #### Schnittstelle zwischen Anwendung und Orchestrator
 
-Die Anwendung übergibt dem Orchestrator in der einfachsten Form eine Zielbeschreibung des Endeffektors. Im vorgesehenen Betriebsmodell erfolgt diese Übergabe typischerweise durch die Run Engine, welche einzelne Ablaufschritte aus einer Ablaufdefinition nacheinander bereitstellt. Diese Schnittstelle ist bewusst fachlich formuliert und enthält keine hardwarebezogenen Angaben. Als Ergebnis erhält die Anwendung beziehungsweise die Run Engine ein Bewegungsergebnis, aus dem hervorgeht, ob die Anforderung freigegeben oder abgelehnt wurde.
+Die Anwendung übergibt dem Orchestrator in der einfachsten Form eine Bewegungsanforderung. Im vorgesehenen Betriebsmodell erfolgt diese Übergabe typischerweise durch die Run Engine, welche einzelne Ablaufschritte aus einer Ablaufdefinition nacheinander in solche Anforderungen überführt. Diese Schnittstelle ist bewusst fachlich formuliert und enthält keine hardwarebezogenen Angaben. Als Ergebnis erhält die Anwendung beziehungsweise die Run Engine ein Bewegungsergebnis, aus dem hervorgeht, ob die Anforderung beispielsweise nicht erreichbar, abgelehnt, freigegeben oder ausgabeseitig vollständig abgearbeitet wurde.
 
 #### Schnittstelle zwischen Orchestrator und Kinematik
 
@@ -292,7 +297,7 @@ Nach der fachlichen Freigabe übergibt der Orchestrator den Gelenksollzustand an
 
 #### Fehler- und Rückgabepfade
 
-Da die Architektur ohne sensorische Rückmeldung arbeitet, kommt den Rückgabepfaden besondere Bedeutung zu. Jede beteiligte Komponente sollte deshalb nicht nur erfolgreiche Ergebnisse, sondern auch klar interpretierbare Ablehnungs- und Fehlerzustände an den Orchestrator zurückgeben. Dieser bündelt die Resultate und stellt sie der Anwendung beziehungsweise der Run Engine in konsistenter Form zur Verfügung. Auf diese Weise bleibt die Verantwortung für die Ablaufsteuerung zentralisiert, auch wenn die fachlichen Bewertungen in verschiedenen Komponenten stattfinden.
+Da die Architektur ohne sensorische Rückmeldung arbeitet, kommt den Rückgabepfaden besondere Bedeutung zu. Jede beteiligte Komponente sollte deshalb nicht nur erfolgreiche Ergebnisse, sondern auch klar interpretierbare Ablehnungs-, Abschluss- und Fehlerzustände an den Orchestrator zurückgeben. Dieser bündelt die Resultate und stellt sie der Anwendung beziehungsweise der Run Engine in konsistenter Form zur Verfügung. Auf diese Weise bleibt die Verantwortung für die Ablaufsteuerung zentralisiert, auch wenn die fachlichen Bewertungen in verschiedenen Komponenten stattfinden.
 
 ### Verarbeitungsablauf
 
@@ -340,7 +345,7 @@ flowchart LR
     B -->|Bewegungsanforderungen| C
     C -->|Bewegungsergebnisse / Sollwerte| B
     B -->|freigegebene Stellwerte| D
-    D -->|Status / Fehler| B
+    D -->|Ausgabestatus / Fehler| B
     B -->|Statusinformationen| A
 ```
 
