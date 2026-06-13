@@ -75,27 +75,51 @@ Für die weitere Spezifikation sind noch konkret festzulegen:
 
 ## Mechanik des Roboterarms
 
-Dieses Kapitel beschreibt den physischen Aufbau des Arms aus Hardwaresicht.
+Dieses Kapitel beschreibt den physischen Aufbau des Arms aus Hardwaresicht. Die Benennung orientiert sich an der in der Projektbeschreibung eingeführten Nomenklatur.
 
-Zu erfassen sind insbesondere:
+Wesentliche mechanische Bezugspunkte und Gelenke sind:
 
-* Achsen und Gelenke
-* Achsbezeichnungen
-* mechanische Bewegungsgrenzen
-* relevante Offsets und Montagebesonderheiten
-* Bezug zur definierten Home Position
+* `D`: Drehteller, fest bei `(0,0,0)` als mechanischer Basispunkt des Arms
+* `E`: Ellenbogen als kartesischer Gelenkpunkt `E(x,y,z)`
+* `H`: Handgelenk als kartesischer Gelenkpunkt `H(x,y,z)`
+* `G`: Greiferspitze als kartesischer Endpunkt `G(x,y,z)`
 
-## Aktorik
+Die mechanisch betätigten Achsen werden wie folgt bezeichnet:
 
-Dieses Kapitel beschreibt die einzelnen Servoantriebe und ihre Zuordnung zu den Gelenken.
+* `d`: Drehtellerachse
+* `s`: Schulterachse
+* `e`: Ellenbogenachse
+* `h`: Handgelenk-Pitch
+* `r`: Handgelenk-Roll
+* `g`: Greiferöffnung
 
-Sinnvolle Inhalte sind:
+Für die Hardwarebetrachtung sind dabei insbesondere relevant:
 
-* Zuordnung Servo zu Achse
-* Spannungsbereich
-* nutzbarer Stellbereich
-* Einbaurichtung
-* Besonderheiten bei Last, Spiel oder mechanischem Anschlag
+* die physische Zuordnung jedes Servos zu einer dieser Achsen
+* die realen mechanischen Anschläge und nutzbaren Winkelbereiche
+* montagebedingte Offsets gegenüber dem idealisierten Modell
+* die definierte Home Position als reproduzierbare Ausgangslage
+
+## Aktoren
+
+Als Aktoren werden sechs Servoantriebe des Typs [COM-Motor02](../doc/datasheet/COM-Motor02-Datasheet.pdf) eingesetzt. Sie bilden die mechanisch betätigten Achsen des Roboterarms und des Greifers ab.
+
+Für die erste Hardwarebeschreibung wird folgende fachliche Zuordnung verwendet:
+
+| Servo | Achse | Bedeutung | Sollbereich gemäss Projektbeschreibung |
+| --- | --- | --- | --- |
+| Servo 1 | `d` | Drehtellerachse | `-180° .. 90°` |
+| Servo 2 | `s` | Schulterachse | `-90° .. 90°` |
+| Servo 3 | `e` | Ellenbogenachse | `-100° .. 100°` |
+| Servo 4 | `h` | Handgelenk-Pitch | `0° .. 135°` |
+| Servo 5 | `r` | Handgelenk-Roll | `-180° .. 180°` |
+| Servo 6 | `g` | Greiferöffnung | `0% .. 100%` |
+
+Für alle sechs Aktoren sind aus aktueller Sicht insbesondere relevant:
+
+* Versorgung aus der `5V`-Ebene
+* Kalibration je Achse wegen mechanischer Offsets und Montageabweichungen
+* spätere Zuordnung auf konkrete PWM-Kanäle des `Servo Driver`
 
 ## Ansteuerung der Servos
 
