@@ -1,12 +1,12 @@
 # Projektbeschreibung
 
-Dieses Projekt befasst sich mit der Implementierung eines 6-achsigen Roboterarms von Joy-it. Der Produktname lautet „Joy-it Grab-it“; der Arm besteht aus sechs unabhängigen Servoantrieben des Typs COM-Motor02. Die technischen Daten der Servoantriebe sind in der Datei `COM-Motor02-Datasheet.pdf` dokumentiert.
+Dieses Projekt befasst sich mit der Implementierung eines 6-achsigen Roboterarms von Joy-it. Der Produktname lautet „Joy-it Grab-it“, das [Datenblatt](datasheet/Robot02_Datasheet_2019_09_19.pdf) ist abgelegt [[5]](#ref-5). Der Arm besteht aus sechs unabhängigen Servoantrieben des Typs COM-Motor02. Die technischen Daten der Servoantriebe sind im [Datenblatt](datasheet/COM-Motor02-Datasheet.pdf) dokumentiert [[6]](#ref-6).
 
 Ziel des Projekts ist es, den Roboterarm mithilfe inverser Kinematik gleichmäßig und zielorientiert zu steuern. Gleichzeitig soll auf einem ESP32-Modul eine höherwertige Programmiersprache eingesetzt werden, um moderne Programmiertechniken praktisch zu erproben.
 
-Eine weitere zentrale Anforderung ist der Einsatz einer Servokarte mit PCA9685-Chip. Dadurch können die sechs Servos mithilfe verfügbarer Bibliotheken in Echtzeit angesteuert werden.
+Eine weitere zentrale Anforderung ist der Einsatz einer Servokarte mit PCA9685-Chip [[4]](#ref-4). Dadurch können die sechs Servos mithilfe verfügbarer Bibliotheken in Echtzeit angesteuert werden.
 
-![Joy-it Grab-it Roboterarm](Robot02-1.png)
+![Joy-it Grab-it Roboterarm](datasheet/Robot02-1.png)
 
 ## Technisches Konzept
 
@@ -25,7 +25,7 @@ Für einfache Robotergeometrien lassen sich geschlossene, analytische Lösungen 
 
 Für den hier betrachteten Roboterarm bietet sich zunächst ein vereinfachtes Modell an, bei dem die Geometrie des Arms in Segmente und Gelenke zerlegt wird. Auf dieser Grundlage kann zunächst eine grundlegende IK für Position und einfache Orientierung implementiert werden. Anschließend kann das Modell schrittweise um reale mechanische Abweichungen ergänzt werden, sodass die inverse Kinematik zunehmend besser zum tatsächlichen Verhalten des Roboters passt.
 
-Einen guten Überblick über die Eigenschaften, Stärken und Schwächen verschiedener IK-Verfahren geben Aristidou et al. in ihrer Survey zu Inverse-Kinematik-Verfahren [1]. Für FABRIK ist insbesondere die Originalarbeit von Aristidou und Lasenby relevant [2], in der das Verfahren beschrieben und gegenüber etablierten iterativen Ansätzen eingeordnet wird. Für CCD kann ergänzend die Einführung von Kenwright herangezogen werden [3].
+Einen guten Überblick über die Eigenschaften, Stärken und Schwächen verschiedener IK-Verfahren geben Aristidou et al. in ihrer Survey zu Inverse-Kinematik-Verfahren [[1]](#ref-1). Für FABRIK ist insbesondere die Originalarbeit von Aristidou und Lasenby relevant [[2]](#ref-2), in der das Verfahren beschrieben und gegenüber etablierten iterativen Ansätzen eingeordnet wird. Für CCD kann ergänzend die Einführung von Kenwright herangezogen werden [[3]](#ref-3).
 
 ### Beschreibung des idealen Roboterarms
 
@@ -826,8 +826,20 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 
 ### Literaturverzeichnis
 
+<a id="ref-1"></a>
 [1] Aristidou, A., Lasenby, J., Chrysanthou, Y. und Shamir, A.: Inverse Kinematics Techniques in Computer Graphics: A Survey. Computer Graphics Forum, 37(6), 2018. https://onlinelibrary.wiley.com/doi/10.1111/cgf.13310
 
+<a id="ref-2"></a>
 [2] Aristidou, A. und Lasenby, J.: FABRIK: A fast, iterative solver for the inverse kinematics problem. Graphical Models, 73(5), 243-260, 2011. https://andreasaristidou.com/FABRIK
 
+<a id="ref-3"></a>
 [3] Kenwright, B.: Inverse Kinematics - Cyclic Coordinate Descent (CCD). Journal of Graphics Tools / technische Einführung. https://alogicalmind.com/paper/ik_ccd/
+
+<a id="ref-4"></a>
+[4] NXP Semiconductors: PCA9685 - 16-Channel, 12-bit PWM Fm+ I2C-Bus LED Controller, Product Data Sheet, Rev. 4 - 16 April 2015. Lokale Ablage: `datasheet/PCA9685_NXP_Datasheet_Rev4_2015-04-16.pdf`. Original-URL: https://www.nxp.com/docs/en/data-sheet/PCA9685.pdf
+
+<a id="ref-5"></a>
+[5] Joy-it: Robot02 Datasheet, Version vom 2019-09-19. Lokale Ablage: `datasheet/Robot02_Datasheet_2019_09_19.pdf`
+
+<a id="ref-6"></a>
+[6] Joy-it: COM-Motor02 Datasheet. Lokale Ablage: `datasheet/COM-Motor02-Datasheet.pdf`
