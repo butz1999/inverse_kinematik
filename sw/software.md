@@ -44,23 +44,26 @@ Darüber hinaus verfolgt die Implementierung folgende Qualitätsziele:
 
 ## Geplante Modulstruktur
 
-In diesem Kapitel sollte beschrieben werden:
-
-* welche Hauptmodule in `src/` erwartet werden
-* wie die Trennung zwischen `Application`, `Orchestration`, `Robotics`, `Hardware` und gemeinsamen Datenmodellen im Code abgebildet wird
-* welche Abhängigkeitsrichtung zwischen den Modulen erlaubt ist
-* welche Teile als Bibliothek, Komponente oder einfacher Quellcodeblock umgesetzt werden könnten
-* dass Header- und Implementierungsdateien für den Projektstart bewusst nicht in getrennten Hauptordnern geführt werden, sondern pro Komponente nebeneinander liegen
-* dass jede grössere Komponente einen eigenen Ordner in `src/` erhält
-* dass die Namen dieser Komponentenordner zugleich als Grundlage für die späteren C++-Namespaces verwendet werden
-
-Für die erste Ausbaustufe wird damit folgende Strukturentscheidung getroffen:
-
-* die Implementierung liegt vollständig unter `src/`
-* `.h`- und `.cpp`-Dateien einer Komponente liegen im selben Komponentenordner
-* grössere Bausteine wie `application`, `orchestration`, `robotics`, `hardware` und gegebenenfalls `common` werden als eigene Ordner angelegt
-* die Ordnernamen sollen möglichst direkt als C++-Namespaces wiederverwendet werden
-* dadurch bleiben fachliche Struktur, Verzeichnisstruktur und Code-Namensräume möglichst deckungsgleich
+> [!Note]
+> Klärung, was noch offen ist und was im zweiten Teil schon gemacht worden ist.
+> 
+> In diesem Kapitel sollte beschrieben werden:
+> 
+> * welche Hauptmodule in `src/` erwartet werden
+> * wie die Trennung zwischen `Application`, `Orchestration`, `Robotics`, `Hardware` und gemeinsamen Datenmodellen im Code abgebildet wird
+> * welche Abhängigkeitsrichtung zwischen den Modulen erlaubt ist
+> * welche Teile als Bibliothek, Komponente oder einfacher Quellcodeblock umgesetzt werden könnten
+> * dass Header- und Implementierungsdateien für den Projektstart bewusst nicht in getrennten Hauptordnern geführt werden, sondern pro Komponente nebeneinander liegen
+> * dass jede grössere Komponente einen eigenen Ordner in `src/` erhält
+> * dass die Namen dieser Komponentenordner zugleich als Grundlage für die späteren C++-Namespaces verwendet werden
+> 
+> Für die erste Ausbaustufe wird damit folgende Strukturentscheidung getroffen:
+> 
+> * die Implementierung liegt vollständig unter `src/`
+> * `.h`- und `.cpp`-Dateien einer Komponente liegen im selben Komponentenordner
+> * grössere Bausteine wie `application`, `orchestration`, `robotics`, `hardware` und gegebenenfalls `common` werden als eigene Ordner angelegt
+> * die Ordnernamen sollen möglichst direkt als C++-Namespaces wiederverwendet werden
+> * dadurch bleiben fachliche Struktur, Verzeichnisstruktur und Code-Namensräume möglichst deckungsgleich
 
 ## Verzeichnisstruktur
 
@@ -828,12 +831,13 @@ Damit bleibt die Rückmeldung fachlich ehrlich und konsistent mit der gewählten
 
 ## Teststruktur
 
-In diesem Kapitel sollte beschrieben werden:
-
-* welche Teile nativ getestet werden
-* welche Teile als Embedded-Test auf dem ESP32 geprüft werden
-* wie `Unity` in die Softwarestruktur eingebunden wird
-* welche Kernkomponenten zuerst mit Tests abgesichert werden sollen
+> [!Note]
+> In diesem Kapitel sollte beschrieben werden:
+> 
+> * welche Teile nativ getestet werden
+> * welche Teile als Embedded-Test auf dem ESP32 geprüft werden
+> * wie `Unity` in die Softwarestruktur eingebunden wird
+> * welche Kernkomponenten zuerst mit Tests abgesichert werden sollen
 
 ## Konventionen
 
@@ -925,11 +929,30 @@ Diese letzte Regel ist besonders wichtig, weil viele spätere Inkonsistenzen nic
 
 ## Offene Softwarepunkte
 
-In diesem Kapitel sollte beschrieben werden:
+> [!Important]
+> ### Offene Fragen
+> #### Iterative Implementierung der IK von der StartPose zur TargetPose
+> * `StartPose` ist die aktuelle Position, `TargetPose` ist die Zielposition.
+> * Zuerst wird die Validierung positiv durchgeführt.
+> * Dann wird der Weg von Start nach Target iterativ abgefahren.
+> * In einer ersten Näherung mit kontinuierlichen Schritten, sprich konstanter Geschwindigkeit.
+> * Kann das mit dem vorhandenen Design implementiert werden oder fehlt eine Schicht?
+> * In einer zweiten Näherung möchte ich eine konstante Beschleunigung implementieren.
+> * Passt auch das in das vorhandene Modell oder fehlt etwas fundamentales?
+> 
+> #### Euler Winkel
+> * Macht es Sinn, wenn wir für meinen 5-Achsen plus Greifer Robotter für das Welt-Koordinatensystem Euler Winkel einführen?
+> * Vorteil: Womöglich vereinfacht es die Beschreibung der `TargetPose` natürlicher indem 3 Raumwinkel für die Greifer Position definiert werden.
+> * Nachteil: Womöglich wird die Validierung und die Umrechnung in den Arbeitsraum etwas schwieriger.
+> * Hier bräuchte ich eine Einschätzung.
 
-* welche Implementationsentscheidungen noch offen sind
-* welche Punkte vor dem Start der eigentlichen Codierung noch festgelegt werden sollten
-* welche Themen bewusst erst in einer späteren Ausbaustufe behandelt werden
+
+> [!Note]
+> In diesem Kapitel sollte weiter beschrieben werden:
+> 
+> * welche Implementationsentscheidungen noch offen sind
+> * welche Punkte vor dem Start der eigentlichen Codierung noch festgelegt werden sollten
+> * welche Themen bewusst erst in einer späteren Ausbaustufe behandelt werden
 
 ## Anhang
 
