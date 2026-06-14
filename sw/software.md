@@ -23,6 +23,7 @@ Konkret soll die Implementierung zunächst insbesondere folgende Ziele erfüllen
 * Abbildung der in der Projektbeschreibung beschriebenen fachlichen Kernmodelle in klar benannte C++-Strukturen
 * Umsetzung einer einfachen, testbaren Modulstruktur mit klaren Verantwortlichkeiten
 * sequentielle Verarbeitung einzelner Bewegungsanforderungen über `Run Engine`, `Orchestrator`, `Validation`, `Kinematics` und `Hardware Abstraction`
+* kontrollierte Bewegungsübergänge zwischen zwei Gelenkzuständen mit austauschbaren Bewegungsprofilen
 * reproduzierbare Initialisierung auf Basis der definierten Startlage und der angenommenen Initialwerte
 * nachvollziehbare Abbildung zwischen fachlichen Gelenkwerten und realen Stellwerten
 * frühzeitige Testbarkeit mathematischer und fachlicher Kernlogik unabhängig von der realen Hardware
@@ -38,6 +39,7 @@ Darüber hinaus verfolgt die Implementierung folgende Qualitätsziele:
 
 * gute Nachvollziehbarkeit der fachlichen Datenflüsse
 * klare Trennung zwischen fachlicher Logik und hardwarenaher Ansteuerung
+* klare Trennung zwischen Zielberechnung und zeitlicher Bewegungsausführung
 * leichte Erweiterbarkeit für spätere Iterationen
 * gute lokale Testbarkeit zentraler Komponenten
 * konsistente Benennung zwischen Dokumentation, Verzeichnisstruktur und Quellcode
@@ -74,6 +76,8 @@ Für die erste Ausbaustufe wird folgende Grundstruktur vorgesehen:
 ```text
 sw/
   software.md
+  profile_calculation.md
+  figures/
 
 src/
   main.cpp
@@ -100,7 +104,7 @@ Dabei gelten zunächst die folgenden Strukturregeln:
 Für die Komponentenordner unter `src/` ist in der ersten Ausbaustufe grob folgende Aufteilung vorgesehen:
 
 * `src/application/` für Run Engine und anwendungsnahe Ablaufsteuerung
-* `src/orchestration/` für Orchestrator und Koordination der Verarbeitungsschritte
+* `src/orchestration/` für Orchestrator, Motion-Profile-Ausführung und Koordination der Verarbeitungsschritte
 * `src/robotics/` für Kinematik, Validierung, Robot Model, `RobotModelOffset` und robotiknahe Datenmodelle
 * `src/hardware/` für Hardware Abstraction, `HardwareCalibration`, Treiberanbindung und hardwarebezogene Ausgabe
 * `src/common/` für gemeinsame, modulübergreifend verwendete Datentypen und Hilfsstrukturen
@@ -157,6 +161,7 @@ classDiagram
 
     class MotionRequest {
         +TargetPose target
+        +MotionProfile profile
         +bool has_wait
         +uint32 wait_ms
     }
@@ -166,6 +171,29 @@ classDiagram
         +bool has_joint_state
         +JointState joint_state
         +ResultCode code
+    }
+
+    class MotionProfile {
+        +MotionProfileType type
+        +float target_velocity_deg_s
+        +uint32 sample_time_ms
+    }
+
+    class MotionProfileType {
+        +constant_velocity
+        +constant_acceleration
+        +smooth_start_stop
+    }
+
+    class MotionPlan {
+        +MotionProfile profile
+        +uint32 total_duration_ms
+        +TimedJointState[] samples
+    }
+
+    class TimedJointState {
+        +JointState joint_state
+        +uint32 time_from_start_ms
     }
 
     class JointPwmState {
@@ -210,7 +238,12 @@ classDiagram
     }
 
     MotionRequest --> TargetPose
+    MotionRequest --> MotionProfile
+    MotionProfile --> MotionProfileType
     MotionResult --> JointState
+    MotionPlan --> MotionProfile
+    MotionPlan --> TimedJointState
+    TimedJointState --> JointState
     HardwareCalibration *-- AxisCalibration
     HardwareCalibration *-- GripperCalibration
 ```
@@ -277,17 +310,95 @@ Bedeutung der Felder:
 classDiagram
     class MotionRequest {
         +TargetPose target
+        +MotionProfile profile
         +bool has_wait
         +uint32 wait_ms
     }
 ```
 
-Für die erste Ausbaustufe bleibt dieses Modell bewusst einfach. Es enthält mindestens:
+Für die erweiterte Ausbaustufe enthält dieses Modell mindestens:
 
 * ein fachliches Bewegungsziel als `TargetPose`
+* ein gewünschtes Bewegungsprofil als `MotionProfile`
 * eine optionale Wartezeit nach der Zielverarbeitung
 
 Spätere Erweiterungen wie LED-Aktionen, Roboter-Aktionen oder Prioritäten können auf diesem Modell aufbauen.
+
+### MotionProfile
+
+`MotionProfile` beschreibt, wie der Übergang zwischen aktuellem und neu berechnetem `JointState` zeitlich ausgeführt werden soll.
+
+```mermaid
+classDiagram
+    class MotionProfile {
+        +MotionProfileType type
+        +float target_velocity_deg_s
+        +uint32 sample_time_ms
+    }
+
+    class MotionProfileType {
+        +constant_velocity
+        +constant_acceleration
+        +smooth_start_stop
+    }
+```
+
+Das Modell trennt bewusst zwischen Zielberechnung und Bewegungsausführung:
+
+* `Kinematics` bestimmt, welcher `JointState` das Ziel fachlich beschreibt
+* das Bewegungsprofil bestimmt, wie dieser Zielzustand vom aktuellen Zustand aus zeitlich angefahren wird
+
+Für die aktuell vorgesehenen Bewegungsarten sind insbesondere folgende Profiltypen relevant:
+
+* `constant_velocity`: lineare Interpolation mit konstanter Sollgeschwindigkeit
+* `constant_acceleration`: trapezförmiges oder dreieckiges Profil mit begrenzter Beschleunigung
+* `smooth_start_stop`: S-Kurven-artiges Profil mit sanftem Losfahren und Abbremsen
+
+Für die vereinfachte Ausbaustufe wird das Profilmodell bewusst auf wenige, gut verständliche Angaben reduziert:
+
+* `type` wählt eines der drei konkret unterstützten Bewegungsprofile
+* `target_velocity_deg_s` beschreibt die gewünschte Zielgeschwindigkeit des Profils
+* `sample_time_ms` beschreibt den festen zeitlichen Abstand zwischen zwei aufeinanderfolgenden Stützstellen des `MotionPlan`
+
+Damit ist die zeitliche Diskretisierung des `MotionPlan` nicht mehr adaptiv, sondern bewusst fest vorgegeben. Ein typischer Wert kann beispielsweise `20 ms` sein.
+
+### MotionPlan und TimedJointState
+
+Die zeitliche Bewegungsausführung wird nicht als einzelner Sprung von einem `JointState` zum nächsten modelliert, sondern als Folge diskreter Zwischenstände.
+
+```mermaid
+classDiagram
+    class MotionPlan {
+        +MotionProfile profile
+        +uint32 total_duration_ms
+        +TimedJointState[] samples
+    }
+
+    class TimedJointState {
+        +JointState joint_state
+        +uint32 time_from_start_ms
+    }
+```
+
+Dabei gilt:
+
+* `MotionPlan` beschreibt einen vollständigen Übergang von Start- zu Zielzustand
+* `MotionPlan` enthält zusätzlich die daraus abgeleitete Gesamtdauer `T` in Form von `total_duration_ms`
+* jeder `TimedJointState` enthält einen zeitlich eingeordneten Zwischenzustand im Gelenkraum
+* die Hardwareseite arbeitet weiterhin nur mit fachlichen Gelenkzuständen und deren zeitlicher Taktung, nicht mit Task-Space-Zielen
+
+Diese Zwischenrepräsentation ist bewusst einfach gehalten. Sie reicht für konstante Geschwindigkeit, konstante Beschleunigung und sanfte Anfahr- und Bremsprofile aus, ohne bereits eine vollständige kartesische Bahnplanung einzuführen.
+
+Bedeutung der Felder:
+
+* `profile`: das für diesen Bewegungsübergang verwendete `MotionProfile`
+* `total_duration_ms`: Gesamtdauer des berechneten Bewegungsübergangs
+* `samples`: geordnete Folge zeitlich parametrisierter Zwischenzustände mit festem zeitlichem Abstand gemäss `sample_time_ms`
+
+Bedeutung der Felder von `TimedJointState`:
+
+* `joint_state`: fachlicher Zwischenzustand im Gelenkraum
+* `time_from_start_ms`: Sollzeit relativ zum Start des `MotionPlan`
 
 ### MotionResult
 
@@ -410,6 +521,7 @@ flowchart LR
     RMO[Robot Model Offset]
     HWC[(Hardware Calibration)]
     IK[Kinematics]
+    MPG[Motion Profile Generator]
     HAL[Hardware Abstraction]
     DRV[Hardware Driver]
 
@@ -425,8 +537,11 @@ flowchart LR
     RMO -->|OffsetTargetPose| IK
     IK -->|JointState| ORCH
 
-    ORCH -->|JointState| HAL
-    HAL -->|JointState| HWC
+    ORCH -->|start JointState\ntarget JointState\nMotionProfile| MPG
+    MPG -->|MotionPlan| ORCH
+
+    ORCH -->|TimedJointState| HAL
+    HAL -->|TimedJointState| HWC
     HWC -->|JointPwmState| HAL
 
     HAL -->|JointPwmState| DRV
@@ -442,6 +557,7 @@ Besonders wichtig ist dabei die Unterscheidung zwischen fachlichen Zuständen un
 * `TargetPose` ist das fachliche Ziel aus Sicht der Anwendung
 * `OffsetTargetPose` ist eine durch bekannte Modell-Offsets korrigierte Zwischenrepräsentation für die Kinematik
 * `JointState` ist das Ergebnis der kinematischen Berechnung im Gelenkraum
+* `MotionPlan` ist die zeitlich ausgeformte Folge von Gelenkzuständen zwischen Start und Ziel einschließlich der berechneten Gesamtdauer
 * `JointPwmState` ist die hardwarebezogene Ausgabeform nach Anwendung der Hardwarekalibration
 
 Auf diese Weise wird im Diagramm sichtbar, an welcher Stelle sich die Darstellung einer Bewegung ändert: von der fachlichen Zielbeschreibung über modellkorrigierte Zwischenstände bis hin zur konkreten PWM-Ausgabe für die Aktoren.
@@ -451,6 +567,7 @@ Die dabei verwendeten Modellbegriffe sind zunächst fachlich zu verstehen:
 * `TargetPoseResult` beschreibt das Ergebnis einer fachlichen Prüfung eines `TargetPose`
 * `JointStateResult` beschreibt das Ergebnis einer fachlichen Prüfung eines `JointState`
 * `OffsetTargetPose` beschreibt eine durch `RobotModelOffset` korrigierte Zielbeschreibung für die weitere Verarbeitung in der Kinematik
+* `MotionPlan` beschreibt eine zeitlich getaktete Folge von Gelenkzwischenständen einschließlich ihrer Gesamtdauer
 * `JointPwmState` beschreibt die PWM-bezogenen Sollwerte nach Anwendung der `HardwareCalibration`
 * `HardwareResult` beschreibt den technischen Rückgabestatus der Hardwareseite
 
@@ -485,7 +602,8 @@ Eingaben und Ausgaben:
 * Übergabe eines `TargetPose` an `Validation`
 * Übergabe eines `TargetPose` an die Komponente `Robot Model Offset`
 * Übergabe eines `JointState` an `Validation`
-* Übergabe eines `JointState` an `Hardware Abstraction`
+* Übergabe von Startzustand, Zielzustand und `MotionProfile` an einen Profilgenerator
+* Übergabe einzelner `TimedJointState` an `Hardware Abstraction`
 * Rückgabe eines `MotionResult` an die Anwendung
 
 Der `Orchestrator` kennt dabei:
@@ -493,6 +611,7 @@ Der `Orchestrator` kennt dabei:
 * die Reihenfolge der Verarbeitungsschritte
 * fachliche und technische Rückgabepfade
 * die zentralen Übergabemodelle
+* den aktuell angenommenen Startzustand für die zeitliche Bewegungsplanung
 
 Der `Orchestrator` kennt dabei nicht:
 
@@ -512,6 +631,7 @@ Eingaben und Ausgaben:
 
 * Gelenkgrenzen
 * Bewegungsrandbedingungen
+* profilbezogene Grenzen für Geschwindigkeit, Beschleunigung und zeitliche Auflösung
 * fachliche Freigaberegeln
 
 `Validation` kennt dabei nicht:
@@ -551,13 +671,45 @@ Bei iterativen Verfahren umfasst die Verantwortung von `Kinematics` insbesondere
 * Ablauflogik der Anwendung
 * übergeordnete Ablaufentscheidungen bei Fehlern oder Alternativpfaden
 
+### Motion Profile Generator
+
+Der `Motion Profile Generator` erzeugt aus einem aktuellen Startzustand, einem freigegebenen Zielzustand und einem gewünschten `MotionProfile` einen zeitlich getakteten `MotionPlan`.
+
+Eingaben und Ausgaben:
+
+* Eingabe eines Start-`JointState`
+* Eingabe eines Ziel-`JointState`
+* Eingabe eines `MotionProfile`
+* Rückgabe eines `MotionPlan`
+
+Die Verantwortung dieses Bausteins umfasst insbesondere:
+
+* Berechnung der Interpolationsdauer `T` bei festem zeitlichem Raster
+* Erzeugung von Zwischenzuständen im Gelenkraum
+* Auswahl des passenden Profilschemas für `constant_velocity`, `constant_acceleration` oder `smooth_start_stop`
+* Erzeugung äquidistanter Stützstellen entsprechend `sample_time_ms`
+
+Der Baustein kennt dabei:
+
+* den aktuellen und den gewünschten `JointState`
+* den festen Sampling-Takt des Profils
+* die gewünschte Zielgeschwindigkeit des Profils
+* die daraus abgeleitete Gesamtdauer des `MotionPlan`
+* den Unterschied zwischen geometrischer Zielerreichung und zeitlicher Sollwertausformung
+
+Der Baustein kennt dabei nicht:
+
+* Task-Space-Ziele
+* IK-Details
+* PWM-Abbildung oder Treiberdetails
+
 ### Hardware Abstraction
 
 `Hardware Abstraction` kapselt den Übergang von hardwarenahen Stellwerten zur konkreten Treiberansteuerung. In der Implementierung kann dieser Baustein als HAL verstanden und entsprechend benannt werden.
 
 Eingaben und Ausgaben:
 
-* Eingabe eines `JointState`
+* Eingabe eines `TimedJointState`
 * Anwendung der hinterlegten `HardwareCalibration`
 * interne Erzeugung eines `JointPwmState`
 * Übergabe eines `JointPwmState` an den `Hardware Driver`
@@ -627,7 +779,7 @@ Wesentlich ist dabei, dass die Software nicht versucht, aus einem unbekannten ph
 
 ### Laufzeitmodell
 
-Im regulären Betrieb wird eine Bewegungsanforderung schrittweise von der Anwendungsebene bis zur Hardwareausgabe verarbeitet. Der Laufzeitfluss bleibt dabei bewusst streng gerichtet, damit die fachlichen und technischen Zustandswechsel nachvollziehbar bleiben.
+Im regulären Betrieb wird eine Bewegungsanforderung schrittweise von der Anwendungsebene bis zur Hardwareausgabe verarbeitet. Seit der Erweiterung um `MotionPlan` besteht die Laufzeitverarbeitung nicht mehr nur aus Zielberechnung und Einzelausgabe, sondern zusätzlich aus einer expliziten Planungs- und Abarbeitungsphase für die Folge der Zwischenzustände. Der Laufzeitfluss bleibt dabei bewusst streng gerichtet, damit die fachlichen und technischen Zustandswechsel nachvollziehbar bleiben.
 
 Ein typischer Ablauf ist wie folgt aufgebaut:
 
@@ -637,21 +789,73 @@ Ein typischer Ablauf ist wie folgt aufgebaut:
 4. Bei positiver Vorprüfung wird die Zielbeschreibung mithilfe von `RobotModelOffset` in eine `OffsetTargetPose` überführt.
 5. `Kinematics` berechnet daraus einen `JointState` oder meldet zurück, dass keine geeignete Lösung gefunden wurde.
 6. Der berechnete `JointState` wird durch `Validation` fachlich geprüft und freigegeben oder abgelehnt.
-7. Ein freigegebener `JointState` wird in der `Hardware Abstraction` mithilfe der `HardwareCalibration` in einen `JointPwmState` überführt.
-8. Der `Hardware Driver` gibt diesen `JointPwmState` an die reale Hardware aus und liefert einen technischen Status zurück.
-9. Der `Orchestrator` verdichtet die fachlichen und technischen Teilergebnisse zu einem `MotionResult`.
-10. Die `Run Engine` verarbeitet dieses `MotionResult` und entscheidet über Fortsetzung, Wartephase, Abbruch oder Übergang zum nächsten Schritt.
+7. Der `Orchestrator` bestimmt den aktuellen Start-`JointState` aus dem zuletzt angenommenen Systemzustand beziehungsweise aus der `Init Position`, falls noch keine reguläre Bewegung ausgeführt wurde.
+8. Aus diesem Startzustand, dem freigegebenen Zielzustand und dem im `MotionRequest` hinterlegten `MotionProfile` wird ein `MotionPlan` mit berechneter Gesamtdauer `T` erzeugt.
+9. Der `Orchestrator` gibt die geplanten `TimedJointState`-Zwischenstände des `MotionPlan` nacheinander an die `Hardware Abstraction`.
+10. Für jeden Zwischenstand wird in der `Hardware Abstraction` mithilfe der `HardwareCalibration` ein `JointPwmState` erzeugt.
+11. Der `Hardware Driver` gibt diese `JointPwmState`-Folge an die reale Hardware aus und liefert technische Statusmeldungen zurück.
+12. Nach erfolgreicher Abarbeitung des gesamten `MotionPlan` übernimmt der `Orchestrator` den Ziel-`JointState` als neuen logisch angenommenen Systemzustand.
+13. Der `Orchestrator` verdichtet die fachlichen und technischen Teilergebnisse zu einem `MotionResult`.
+14. Die `Run Engine` verarbeitet dieses `MotionResult` und entscheidet über Fortsetzung, Wartephase, Abbruch oder Übergang zum nächsten Schritt.
 
 Aus Sicht des Laufzeitmodells hat jede Hauptkomponente dabei eine klar abgegrenzte Rolle:
 
 * `Run Engine` verwaltet den Ablauf und dessen Fortschritt
-* `Orchestrator` koordiniert die Verarbeitungsschritte und Rückgabepfade
+* `Orchestrator` koordiniert die Verarbeitungsschritte, verwaltet den logisch angenommenen aktuellen Gelenkzustand und steuert die Rückgabepfade
 * `Validation` bewertet fachliche Zulässigkeit und Freigabe
-* `Kinematics` berechnet den Gelenkraumzustand
-* `Hardware Abstraction` überführt fachliche Sollwerte in hardwarenahe Stellwerte
+* `Kinematics` berechnet den Zielzustand im Gelenkraum
+* `Motion Profile Generator` formt den zeitlichen Bewegungsübergang zwischen Start- und Zielzustand aus
+* `Hardware Abstraction` überführt die geplanten Zwischenzustände in hardwarenahe Stellwerte
 * `Hardware Driver` setzt die Ausgabe technisch um
 
-Da keine Positionsrückführung vorhanden ist, beschreibt ein erfolgreiches `MotionResult` in der ersten Ausbaustufe keinen physisch bestätigten Zielerfolg. Es beschreibt vielmehr, dass die Anforderung fachlich akzeptiert, rechnerisch verarbeitet und hardwareseitig ohne gemeldeten technischen Fehler ausgegeben wurde.
+### Bewegungsprofile und Verantwortungsgrenzen
+
+Die gewünschte Erweiterung um unterschiedliche Bewegungscharakteristiken passt grundsätzlich in das vorhandene Design, benötigt aber eine explizite Schicht für die zeitliche Bewegungsausführung. Ohne diesen Baustein würde der `Orchestrator` fachlich zu breit werden, weil er sonst zusätzlich IK, Freigabe und zeitliche Interpolation kapseln müsste.
+
+Für die vorgesehenen Profilarten wird folgende Zuordnung festgelegt:
+
+* `constant_velocity`: gleichmäßige Interpolation im Gelenkraum mit konstanter Sollgeschwindigkeit zwischen Start und Ziel
+* `constant_acceleration`: Profil mit Beschleunigungs- und Bremsphase, typischerweise trapez- oder dreiecksförmig
+* `smooth_start_stop`: Profil mit weichem Ein- und Ausblenden der Beschleunigung, beispielsweise S-Kurve oder glatte Blendfunktion
+
+Für die vereinfachte Variante gilt zusätzlich:
+
+* der `Motion Profile Generator` erzeugt die Stützstellen stets mit fester Sampling-Zeit
+* die Zielgeschwindigkeit wird explizit im `MotionProfile` vorgegeben
+* der Profiltyp wird explizit als `MotionProfileType` modelliert
+
+Die folgende Einordnung der Profile ist in diesem Kapitel besser aufgehoben als im Datenmodell. Die Diagramme beschreiben nicht die Struktur eines Typs, sondern die fachliche Bedeutung der drei Profilarten.
+
+Die grün markierten Punkte in den Diagrammen stellen zeitlich äquidistante Stützstellen des `MotionPlan` dar. Für die vereinfachte Ausbaustufe wird davon ausgegangen, dass diese Stützstellen mit einem festen Raster wie beispielsweise `20 ms` erzeugt werden.
+
+Eine ausführlichere, bewusst didaktischere Beschreibung der mathematischen Profilberechnung ist im ergänzenden Dokument [profile_calculation.md](./profile_calculation.md) festgehalten.
+
+#### `constant_velocity`
+
+![Bewegungsprofil konstante Geschwindigkeit](figures/profile-constant-velocity.svg)
+
+Bei `constant_velocity` verläuft `s(t)` idealisiert linear. Das zugehörige `v(t)` bleibt zwischen Start und Ziel konstant und weist an den Übergängen sprunghafte Änderungen auf. Dieses Profil ist konzeptionell einfach, erzeugt aber an Bewegungsbeginn und Bewegungsende die härtesten Übergänge.
+
+#### `constant_acceleration`
+
+![Bewegungsprofil konstante Beschleunigung](figures/profile-constant-acceleration.svg)
+
+Bei `constant_acceleration` wird die Geschwindigkeit zunächst linear aufgebaut, anschließend gegebenenfalls konstant gehalten und vor dem Ziel linear wieder abgebaut. Im `v/t`-Diagramm ergibt sich dadurch typischerweise ein trapezförmiger Verlauf, im `s/t`-Diagramm ein entsprechend gekrümmter Wegverlauf.
+
+#### `smooth_start_stop`
+
+![Bewegungsprofil sanftes Losfahren und Abbremsen](figures/profile-smooth-start-stop.svg)
+
+Bei `smooth_start_stop` werden Beschleunigung und Verzögerung weicher ein- und ausgeblendet. Das `v(t)`-Diagramm zeigt deshalb keinen harten Knick am Anfang und Ende der Bewegung, sondern einen geglätteten Verlauf. Im `s/t`-Diagramm führt das zu einem S-förmigen, besonders ruhigen Wegverlauf.
+
+Damit bleibt die Architektur erweiterbar:
+
+* `Kinematics` bleibt für Zielerreichung und Gelenkberechnung zuständig
+* `Validation` bewertet auch profilbezogene Randbedingungen
+* der `Motion Profile Generator` erzeugt die zeitliche Abfolge der Sollzustände
+* `Hardware Abstraction` und `Hardware Driver` bleiben unverändert auf die Ausgabe einzelner Zwischenstände fokussiert
+
+Da keine Positionsrückführung vorhanden ist, beschreibt ein erfolgreiches `MotionResult` in der ersten Ausbaustufe keinen physisch bestätigten Zielerfolg. Es beschreibt vielmehr, dass die Anforderung fachlich akzeptiert, rechnerisch verarbeitet, als `MotionPlan` ausgeformt und hardwareseitig ohne gemeldeten technischen Fehler ausgegeben wurde.
 
 Für Reset, Neustart oder unklaren physischen Zustand folgt daraus dieselbe Konsequenz wie bei der Initialisierung: Der Softwarezustand darf nicht stillschweigend als gültiges Abbild des realen Arms weiterverwendet werden. In solchen Fällen ist erneut von der definierten `Home Position` und der dazugehörigen `Init Position` auszugehen oder der Betrieb bleibt gesperrt, bis diese Annahme wieder hergestellt ist.
 
@@ -673,16 +877,17 @@ Für die erste Ausbaustufe werden zwei Kalibrationsebenen unterschieden:
 Damit gilt für die Verantwortlichkeiten:
 
 * `Kinematics` und `Validation` arbeiten mit `TargetPose`, `OffsetTargetPose`, `JointState` und `RobotModelOffset`
-* `Hardware Abstraction` arbeitet mit `JointState`, `HardwareCalibration` und `JointPwmState`
+* der `Motion Profile Generator` arbeitet mit Start- und Ziel-`JointState`, `MotionProfile` und `MotionPlan`
+* `Hardware Abstraction` arbeitet mit `TimedJointState`, `HardwareCalibration` und `JointPwmState`
 * der `Hardware Driver` arbeitet ausschließlich mit dem bereits vorbereiteten `JointPwmState`
 
 ### Abbildung von fachlichen Sollwerten auf Hardwarewerte
 
-Die hardwarenahe Abbildung beginnt erst dann, wenn ein `JointState` fachlich akzeptiert und zur Ausgabe freigegeben wurde. Ab diesem Punkt übernimmt die `Hardware Abstraction` die Umrechnung in konkrete hardwaregeeignete Werte.
+Die hardwarenahe Abbildung beginnt erst dann, wenn ein fachlich freigegebener `MotionPlan` vorliegt und daraus `TimedJointState`-Zwischenstände zur Ausgabe anstehen. Ab diesem Punkt übernimmt die `Hardware Abstraction` die Umrechnung in konkrete hardwaregeeignete Werte.
 
 Der logische Abbildungsweg ist dabei wie folgt:
 
-1. Der `Orchestrator` übergibt einen freigegebenen `JointState` an die `Hardware Abstraction`.
+1. Der `Orchestrator` übergibt einen `TimedJointState` aus dem aktuellen `MotionPlan` an die `Hardware Abstraction`.
 2. Für jede Achse wird der zugehörige Kalibrationseintrag aus `HardwareCalibration` ausgewählt.
 3. Der fachliche Sollwert in `[°]` beziehungsweise `[%]` wird auf den zulässigen kalibrierten Arbeitsbereich begrenzt.
 4. Eine eventuell invertierte Drehrichtung wird berücksichtigt.
@@ -781,6 +986,7 @@ Fachliche Ablehnungen entstehen dann, wenn eine Bewegungsanforderung zwar formal
 * ungültige oder unplausible `TargetPose`
 * Verletzung von Gelenkgrenzen im berechneten `JointState`
 * Verletzung definierter Bewegungsrandbedingungen
+* Verletzung profilbezogener Grenzen wie maximale Geschwindigkeit oder Beschleunigung
 * Widersprüche zwischen Modellannahmen und freizugebendem Zustand
 
 Davon zu unterscheiden ist die Nichterreichbarkeit oder rechnerische Nichtlösbarkeit. Diese liegt beispielsweise vor, wenn:
@@ -860,7 +1066,7 @@ Dadurch bleibt beispielsweise sofort erkennbar, ob ein Typ zur Robotik, zur Abla
 
 Für fachliche Typen und zentrale Softwarebausteine werden sprechende, code-nahe Bezeichner verwendet, die direkt an die Dokumentation anschließen. Für die erste Ausbaustufe genügen dabei folgende Regeln:
 
-* Typnamen werden in `UpperCamelCase` geschrieben, zum Beispiel `TargetPose`, `JointState`, `MotionRequest`, `MotionResult`, `RobotModelOffset` und `HardwareCalibration`
+* Typnamen werden in `UpperCamelCase` geschrieben, zum Beispiel `TargetPose`, `JointState`, `MotionRequest`, `MotionProfile`, `MotionResult`, `RobotModelOffset` und `HardwareCalibration`
 * Komponentenordner unter `src/` werden in `lowercase` geführt und entsprechen nach Möglichkeit dem jeweiligen Namespace, zum Beispiel `application`, `orchestration`, `robotics`, `hardware` und `common`
 * Klassen, Strukturen und öffentliche Typen eines Komponentenordners liegen im gleichnamigen Namespace
 * Begriffe aus der Dokumentation sollen möglichst direkt übernommen werden, solange sie als C++-Bezeichner praktikabel bleiben
@@ -931,14 +1137,14 @@ Diese letzte Regel ist besonders wichtig, weil viele spätere Inkonsistenzen nic
 
 > [!Important]
 > ### Offene Fragen
-> #### Iterative Implementierung der IK von der StartPose zur TargetPose
-> * `StartPose` ist die aktuelle Position, `TargetPose` ist die Zielposition.
-> * Zuerst wird die Validierung positiv durchgeführt.
-> * Dann wird der Weg von Start nach Target iterativ abgefahren.
-> * In einer ersten Näherung mit kontinuierlichen Schritten, sprich konstanter Geschwindigkeit.
-> * Kann das mit dem vorhandenen Design implementiert werden oder fehlt eine Schicht?
-> * In einer zweiten Näherung möchte ich eine konstante Beschleunigung implementieren.
-> * Passt auch das in das vorhandene Modell oder fehlt etwas fundamentales?
+> #### Bewegungsprofile zwischen aktuellem Zustand und Zielzustand
+> * Die Erweiterung ist mit dem vorhandenen Design möglich, wenn zwischen `Kinematics` und `Hardware Abstraction` ein expliziter `Motion Profile Generator` eingeführt wird.
+> * `Kinematics` liefert weiterhin nur den fachlichen Ziel-`JointState`.
+> * Der zeitliche Übergang von aktuellem Zustand zu Zielzustand wird danach separat als `MotionPlan` modelliert und ausgeführt.
+> * Eine erste Näherung mit konstanter Geschwindigkeit passt direkt in dieses Modell.
+> * Eine zweite Näherung mit konstanter Beschleunigung passt ebenfalls hinein und benötigt keine fundamentale Architekturänderung.
+> * Für sanftes Losfahren und Abbremsen wird derselbe Baustein lediglich um ein drittes Profilschema erweitert.
+> * Offen bleibt nur, ob die Profilgrenzen global konfiguriert oder pro `MotionRequest` übergeben werden sollen.
 > 
 > #### Euler Winkel
 > * Macht es Sinn, wenn wir für meinen 5-Achsen plus Greifer Robotter für das Welt-Koordinatensystem Euler Winkel einführen?
@@ -963,6 +1169,9 @@ Diese letzte Regel ist besonders wichtig, weil viele spätere Inkonsistenzen nic
 | HardwareResult | Technisches Rückgabemodell der Hardwareseite an den `Orchestrator`. Es beschreibt, ob eine hardwarenahe Ausgabe technisch erfolgreich verarbeitet wurde oder ein Fehler vorliegt. |
 | JointPwmState | PWM-bezogenes Ausgabemodell mit den vorbereiteten Stellwerten pro Aktor zwischen `Hardware Abstraction` und `Hardware Driver`. |
 | JointStateResult | Fachliches Prüfergebnis zur Bewertung eines berechneten `JointState`. |
+| MotionPlan | Zeitlich geordnete Folge von Zwischenzuständen im Gelenkraum für die Ausführung eines Bewegungsübergangs einschließlich der berechneten Gesamtdauer. |
+| MotionProfile | Fachliches Profilmodell zur Beschreibung von Profiltyp, Zielgeschwindigkeit und fester Sampling-Zeit eines Bewegungsübergangs. |
+| MotionProfileType | Auswahl des Profilschemas, nämlich `constant_velocity`, `constant_acceleration` oder `smooth_start_stop`. |
 | MotionRequest | Übergabemodell zwischen Anwendung und `Orchestrator` für die Verarbeitung einer einzelnen Bewegungsanforderung. |
 | MotionResult | Zentrales Rückgabemodell des `Orchestrator` an die Anwendung beziehungsweise `Run Engine`. Es beschreibt den fachlichen und technischen Bearbeitungsstatus einer Anforderung. |
 | MotionStatus | Grobe fachliche oder technische Statusklasse innerhalb eines `MotionResult`, beispielsweise akzeptiert, abgelehnt, nicht erreichbar oder technisch fehlgeschlagen. |
@@ -972,6 +1181,7 @@ Diese letzte Regel ist besonders wichtig, weil viele spätere Inkonsistenzen nic
 | Run Engine | Anwendungskomponente zur sequentiellen Ausführung vordefinierter Bewegungsabläufe. |
 | SequenceState | Softwaremodell zur Beschreibung des aktuellen Fortschritts eines mehrschrittigen Ablaufs. |
 | TargetPoseResult | Fachliches Prüfergebnis zur Bewertung einer `TargetPose` vor der kinematischen Verarbeitung. |
+| TimedJointState | Einzelner zeitlich markierter Zwischenzustand im Gelenkraum innerhalb eines `MotionPlan`. |
 
 ### Dokumentenverweise
 
