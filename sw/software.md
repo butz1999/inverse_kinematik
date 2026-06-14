@@ -516,6 +516,7 @@ Das folgende Diagramm zeigt die geplanten Hauptschnittstellen zwischen den Kernm
 ```mermaid
 flowchart LR
     APP[Run Engine]
+    REST[REST Interface]
     ORCH[Orchestrator]
     VAL[Validation]
     RMO[Robot Model Offset]
@@ -525,7 +526,13 @@ flowchart LR
     HAL[Hardware Abstraction]
     DRV[Hardware Driver]
 
+    REST ~~~ VAL ~~~ RMO ~~~ MPG ~~~ HAL
+
     APP -->|MotionRequest| ORCH
+    ORCH -->|MotionResult| APP
+    
+    ORCH -->|MotionResult| REST
+    REST -->|MotionRequest| ORCH
 
     ORCH -->|TargetPose| VAL
     VAL -->|TargetPoseResult| ORCH
@@ -547,10 +554,11 @@ flowchart LR
     HAL -->|JointPwmState| DRV
 
     HAL -->|HardwareResult| ORCH
-    ORCH -->|MotionResult| APP
 ```
 
 Das Diagramm ist bewusst als Datenflussdiagramm zu lesen. Die Pfeile beschreiben daher in erster Linie, welche Modelle oder Ergebnisobjekte von einer Komponente an die nächste übergeben werden. Es geht an dieser Stelle also nicht nur um statische Abhängigkeiten, sondern um den fachlichen Verarbeitungsfluss einer Bewegungsanforderung.
+
+Mit der ergänzten `REST Interface`-Komponente wird außerdem sichtbar, dass die Anwendungsschicht mehrere fachliche Eingangsquellen besitzen kann. Sowohl `Run Engine` als auch REST-basierte Bedien- oder Testzugriffe erzeugen dabei dieselben internen Kernmodelle und münden bewusst in denselben `Orchestrator`.
 
 Besonders wichtig ist dabei die Unterscheidung zwischen fachlichen Zuständen und transformierten Zwischenständen:
 
@@ -570,6 +578,7 @@ Die dabei verwendeten Modellbegriffe sind zunächst fachlich zu verstehen:
 * `MotionPlan` beschreibt eine zeitlich getaktete Folge von Gelenkzwischenständen einschließlich ihrer Gesamtdauer
 * `JointPwmState` beschreibt die PWM-bezogenen Sollwerte nach Anwendung der `HardwareCalibration`
 * `HardwareResult` beschreibt den technischen Rückgabestatus der Hardwareseite
+* `Statusmodelle` beschreibt zusammengefasste Zustands- und Ergebnisinformationen für externe API-Aufrufer
 
 ### Run Engine
 
@@ -591,6 +600,42 @@ Die Anwendung kennt dabei nicht:
 * konkrete IK-Details
 * Kalibrationsparameter
 * hardwarebezogene Stellwerte oder Treiberdetails
+
+### Externe REST-Schnittstelle
+
+Neben der `Run Engine` kann die Anwendungsschicht später um eine externe REST-Schnittstelle erweitert werden. Diese Schnittstelle ist im aktuellen Dokument noch kein detailliert ausgearbeitetes API-Design, wird aber als vorgesehene Erweiterung der Architektur ausdrücklich mitgedacht.
+
+Die REST-Schnittstelle hätte dabei insbesondere folgende Aufgaben:
+
+* Entgegennahme externer Bedien- und Steueranfragen über HTTP
+* Abbildung von HTTP- und JSON-Nutzdaten auf interne Modelle wie `MotionRequest`
+* Übergabe fachlicher Anfragen an den `Orchestrator`
+* Rückgabe fachlicher und technischer Ergebnisse auf Basis von `MotionResult` und Statusmodellen
+
+Eingaben und Ausgaben:
+
+* Eingabe externer REST-Aufrufe
+* Übergabe eines `MotionRequest` an den `Orchestrator`
+* Entgegennahme eines `MotionResult` oder anderer Zustandsinformationen vom `Orchestrator`
+* Rückgabe von HTTP-Antworten mit fachlichen Ergebnissen und Statusdaten
+
+Damit gilt bewusst:
+
+* die REST-Schnittstelle gehört zur Anwendungs- beziehungsweise Interfaceschicht
+* sie ersetzt nicht den `Orchestrator`, sondern nutzt ihn als fachlichen Einstiegspunkt
+* sie kapselt Protokollthemen wie HTTP, JSON und gegebenenfalls statische HMI-Seiten vom restlichen System ab
+* sie greift nicht direkt auf `Kinematics`, `Hardware Abstraction` oder `Hardware Driver` zu
+
+Für die weitere Architektur ist wichtig, dass eine spätere REST-Schnittstelle dieselben fachlichen Kernmodelle verwendet wie die `Run Engine`. Dadurch bleibt offen, ob Bewegungsanforderungen später aus einem vordefinierten Ablauf, aus einem Test-HMI oder aus einer anderen externen Quelle stammen.
+
+Noch nicht Teil dieses Dokuments sind:
+
+* konkrete Endpunkte
+* JSON-Schemata
+* Authentisierung oder Zugriffsschutz
+* Details einer Browser-HMI
+
+Die Architektur soll jedoch so offen bleiben, dass der ESP32 später sowohl ein REST API als auch eine kleine statische HMI-Seite über dieselbe Netzwerkschnittstelle anbieten kann.
 
 ### Orchestrator
 
