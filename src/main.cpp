@@ -2,9 +2,17 @@
 Project structure (current relevant excerpt):
 src/
   main.cpp
+  hardware/
+    SerialLogger.h
+    SerialLogger.cpp
+    StatusLed.h
+    StatusLed.cpp
 */
 
 #include <Arduino.h>
+
+#include "hardware/SerialLogger.h"
+#include "hardware/StatusLed.h"
 
 namespace {
 
@@ -15,49 +23,27 @@ constexpr unsigned long kSerialBaudrate = 115200;
 
 unsigned long lastToggleMs = 0;
 unsigned long heartbeatCount = 0;
-bool isGreenOn = false;
-auto &debugSerial = Serial;
+bool isGreenOn = true;
 constexpr const char *kDebugSerialName = "Serial";
-
-void writeStatusLed(uint8_t red, uint8_t green, uint8_t blue) {
-  // The onboard LED uses GRB channel order.
-  neopixelWrite(kRgbLedPin, green, red, blue);
-}
-
-void setStatusLed(bool enabled) {
-  writeStatusLed(0, enabled ? kRgbBrightness : 0, 0);
-}
-
-void setStatusLedRed() {
-  writeStatusLed(kRgbBrightness, 0, 0);
-}
-
-void setStatusLedBlue() {
-  writeStatusLed(0, 0, kRgbBrightness);
-}
-
-void logLine(const char *message) {
-  debugSerial.println(message);
-  debugSerial.flush();
-}
+hardware::SerialLogger logger(Serial, kSerialBaudrate);
+hardware::StatusLed statusLed(kRgbLedPin, kRgbBrightness);
 
 }  // namespace
 
 void setup() {
-  setStatusLedRed();
+  statusLed.show(hardware::StatusLed::Color::Red);
 
-  debugSerial.begin(kSerialBaudrate);
-  delay(200);
+  logger.begin();
+  delay(250);
 
-  setStatusLedBlue();
-  logLine("");
-  logLine("[BOOT] Firmware setup reached");
-  debugSerial.print("[BOOT] Debug serial ready on ");
-  debugSerial.println(kDebugSerialName);
-  debugSerial.flush();
-  logLine("[BOOT] Status LED configured for GRB order on GPIO38");
-  delay(500);
-  setStatusLed(false);
+  statusLed.show(hardware::StatusLed::Color::Blue);
+  logger.println();
+  logger.println("[BOOT] Firmware setup reached");
+  logger.print("[BOOT] Debug serial ready on ");
+  logger.println(kDebugSerialName);
+  logger.println("[BOOT] Status LED configured for GRB order on GPIO38");
+  delay(250);
+  statusLed.show(hardware::StatusLed::Color::Green);
 }
 
 void loop() {
@@ -65,14 +51,8 @@ void loop() {
 
   if (now - lastToggleMs >= kBlinkIntervalMs) {
     lastToggleMs = now;
+    statusLed.setEnabled(isGreenOn);
     isGreenOn = !isGreenOn;
-    setStatusLed(isGreenOn);
     ++heartbeatCount;
-
-    debugSerial.print("[DEBUG] Heartbeat #");
-    debugSerial.print(heartbeatCount);
-    debugSerial.print(" LED=");
-    debugSerial.println(isGreenOn ? "GREEN" : "OFF");
-    debugSerial.flush();
   }
 }

@@ -53,7 +53,7 @@ Darüber hinaus verfolgt die Implementierung folgende Qualitätsziele:
 * `usbipd-win` unter Windows installiert (`winget install --interactive --exact dorssel.usbipd-win`)
 * verfügbare USB-Geräte unter Windows anzeigen (`usbipd list`)
 * gewünschtes USB-Gerät anhand seiner aktuellen `BUSID` einmalig binden (`usbipd bind --busid <BUSID>`)
-* gewünschtes USB-Gerät nach Neustart, Reconnect oder Reset erneut in WSL einhängen (`usbipd attach --wsl --busid <BUSID>`)
+* gewünschtes USB-Gerät **nach Neustart, Reconnect oder Reset** erneut in WSL einhängen (`usbipd attach --wsl --busid <BUSID>`)
 * in WSL prüfen, unter welchem Gerätenamen das Interface erscheint, z. B. `ls /dev/ttyUSB* /dev/ttyACM*`
 * für eine stabilere Identifikation zusätzlich Symlinks unter `ls -l /dev/serial/by-id` prüfen
 
@@ -73,6 +73,30 @@ Die Gerätenamen `/dev/ttyUSB0` und `/dev/ttyACM0` sind dabei nicht allein entsc
 
 Falls der serielle Port in WSL sichtbar ist, aber nicht geöffnet werden kann, muss der Benutzer gegebenenfalls zur Gruppe `dialout` hinzugefügt werden:
 `sudo usermod -a -G dialout $USER`
+
+### PlatformIO-Nutzung in WSL
+Im aktuellen Entwicklungssetup soll für CLI-Aufrufe in WSL nicht das Systemkommando `/usr/bin/pio` verwendet werden. Dort war eine alte PlatformIO-Version vorhanden, die mit der lokalen Python-Umgebung nicht zuverlässig funktionierte.
+
+Stattdessen wird der projektnahe PlatformIO-Interpreter unter
+`~/.platformio/penv/bin/pio`
+verwendet.
+
+Für den funktionierenden ersten Workflow sind insbesondere die folgenden Befehle relevant:
+
+* Upload der Firmware:
+  `~/.platformio/penv/bin/pio run -e esp32s3 -t upload`
+* Serieller Monitor:
+  `~/.platformio/penv/bin/pio device monitor -p /dev/ttyACM0 -b 115200`
+
+### Aktueller Bring-up-Stand
+Der aktuell bestätigte einfache Bring-up-Pfad basiert auf den folgenden Annahmen:
+
+* genau ein unter WSL sichtbarer serieller Board-Port
+* Upload und Monitoring über denselben Port `/dev/ttyACM0`
+* serielle Log-Ausgabe der Firmware über den normalen Arduino-`Serial`-Pfad
+* keine zusätzliche Aktivierung eines separaten nativen USB-CDC-Debugkanals
+
+Die aktuelle `platformio.ini` bildet diesen Stand mit `upload_port = /dev/ttyACM0` und `monitor_port = /dev/ttyACM0` direkt ab.
 
 ## Geplante Modulstruktur
 
