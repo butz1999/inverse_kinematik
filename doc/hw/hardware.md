@@ -39,7 +39,7 @@ Die Hardwareauslegung verfolgt insbesondere folgende Ziele:
 * Trennung zwischen fachlicher Steuerlogik und hardwarenaher Signalausgabe
 * praktikable Inbetriebnahme ohne sensorische Rückführung
 * Eignung für schrittweise Kalibration und Testbarkeit
-* Auslegung auf eine erste Implementationsstufe ohne REST API und ohne zusätzliche Sensorik
+* Auslegung auf eine erste Implementationsstufe mit einer kleinen REST-Schnittstelle für Entwicklung und Integration, jedoch weiterhin ohne zusätzliche Sensorik
 
 ## Komponentenliste
 
@@ -65,6 +65,7 @@ Aus aktueller Sicht ergeben sich daraus insbesondere folgende Eigenschaften und 
 * ESP32-S3 als zentrale Mikrocontroller-Plattform
 * Eignung für moderne C/C++-Entwicklung mit PlatformIO
 * Nutzung einer I2C-Schnittstelle zur Anbindung des PCA9685
+* Nutzung der integrierten Netzwerkfunktionen für eine kleine REST-Schnittstelle in der frühen Softwarephase
 * USB-Schnittstelle für Firmware-Upload, serielle Diagnose und Entwicklung
 * ausreichende Leistungsfähigkeit für Orchestrierung, Kinematik, Validierung und Ablaufsteuerung
 
@@ -73,6 +74,7 @@ Für die weitere Spezifikation sind noch konkret festzulegen:
 * exakte Pinbelegung für SDA und SCL
 * Versorgungskonzept des Boards im Zusammenspiel mit der externen Servo-Versorgung
 * Nutzung zusätzlicher GPIOs, beispielsweise für Status-LED oder Enable-Signale
+* Netzwerkanbindung und Betriebsart der REST-Schnittstelle im Entwicklungsaufbau
 * Boot- und Reset-relevante Pins, die bei der Verdrahtung nicht störend belegt werden dürfen
 
 ## Mechanik des Roboterarms
@@ -214,6 +216,7 @@ Hier werden die elektrischen und logischen Schnittstellen zwischen den Baugruppe
 Dazu gehören insbesondere:
 
 * I2C zwischen ESP32 und PCA9685
+* WLAN als Netzwerkbasis für die REST-Schnittstelle
 * serielle Schnittstelle für Debugging
 * optionale Erweiterungsschnittstellen
 * Reset-, Enable- oder Statussignale, falls verwendet
@@ -221,6 +224,8 @@ Dazu gehören insbesondere:
 Für die erste Ausbaustufe ergibt sich damit folgende Hauptsignalkette:
 
 `ESP32-S3 -> I2C -> PCA9685 -> PWM -> Servos`
+
+Für den ersten Software-Slice wird die Kommunikation zunächst bewusst kleiner angesetzt. Bevor die Servoansteuerung eingebunden wird, darf die Firmware zunächst nur `ESP32-S3 -> WLAN -> REST API` sowie serielle Debug-Ausgaben nutzen. Die I2C- und PWM-Kette bleibt dabei weiterhin Teil der vorgesehenen Hardwarezielarchitektur, wird aber erst in einem späteren Implementationsschritt aktiv verwendet.
 
 ## Startverhalten und sichere Inbetriebnahme
 
