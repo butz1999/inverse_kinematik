@@ -69,6 +69,16 @@ Aus aktueller Sicht ergeben sich daraus insbesondere folgende Eigenschaften und 
 * USB-Schnittstelle für Firmware-Upload, serielle Diagnose und Entwicklung
 * ausreichende Leistungsfähigkeit für Orchestrierung, Kinematik, Validierung und Ablaufsteuerung
 
+Im aktuell verwendeten Entwicklungsaufbau erscheint das Board unter WSL als einzelnes serielles Gerät mit einem Symlink der Form
+`/dev/serial/by-id/usb-1a86_USB_Single_Serial_... -> ../../ttyACM0`.
+
+Daraus ergeben sich für den aktuellen Software- und Bring-up-Stand die folgenden pragmatischen Schlussfolgerungen:
+
+* Upload und serieller Monitor laufen über denselben Port `/dev/ttyACM0`
+* Bootmeldungen des Chips und Firmware-Logs teilen sich denselben seriellen Kanal
+* für den aktuellen WSL-Workflow wird kein separater nativer USB-CDC-Kanal des `ESP32-S3` vorausgesetzt
+* die erste serielle Diagnose erfolgt zuverlässig über den normalen Arduino-Serial-Pfad
+
 Für die weitere Spezifikation sind noch konkret festzulegen:
 
 * exakte Pinbelegung für SDA und SCL

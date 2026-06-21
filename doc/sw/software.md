@@ -44,10 +44,35 @@ Darüber hinaus verfolgt die Implementierung folgende Qualitätsziele:
 * gute lokale Testbarkeit zentraler Komponenten
 * konsistente Benennung zwischen Dokumentation, Verzeichnisstruktur und Quellcode
 
-## Vorbedinungen
+## Voraussetzungen
 * WSL unter Windows installiert
-* Platformio in VSCode installiert
-* G++ in WSL installiert. (`sudo apt update && sudo apt install build-essential`)
+* PlatformIO in VS Code installiert
+* G++ in WSL installiert (`sudo apt update && sudo apt install build-essential`)
+
+### Nutzung serieller USB-Geräte in WSL
+* `usbipd-win` unter Windows installiert (`winget install --interactive --exact dorssel.usbipd-win`)
+* verfügbare USB-Geräte unter Windows anzeigen (`usbipd list`)
+* gewünschtes USB-Gerät anhand seiner aktuellen `BUSID` einmalig binden (`usbipd bind --busid <BUSID>`)
+* gewünschtes USB-Gerät nach Neustart, Reconnect oder Reset erneut in WSL einhängen (`usbipd attach --wsl --busid <BUSID>`)
+* in WSL prüfen, unter welchem Gerätenamen das Interface erscheint, z. B. `ls /dev/ttyUSB* /dev/ttyACM*`
+* für eine stabilere Identifikation zusätzlich Symlinks unter `ls -l /dev/serial/by-id` prüfen
+
+Im aktuellen Entwicklungsaufbau wurde unter WSL genau ein serielles Gerät sichtbar:
+`usb-1a86_USB_Single_Serial_... -> /dev/ttyACM0`
+
+Damit verläuft der funktionierende erste Bring-up-Pfad nicht über einen separaten nativen USB-CDC-Kanal des `ESP32-S3`, sondern über einen einzelnen USB-Seriell-Wandler, der Upload, Bootmeldungen und Firmware-Logs über denselben Port bereitstellt.
+
+Für diesen Stand gelten daher die folgenden praktischen Annahmen:
+
+* `upload_port = /dev/ttyACM0`
+* `monitor_port = /dev/ttyACM0`
+* serielle Log-Ausgabe aus der Firmware über den normalen Arduino-Serial-Pfad
+* keine Aktivierung eines alternativen nativen USB-CDC-Debugpfads für den ersten WSL-Workflow
+
+Die Gerätenamen `/dev/ttyUSB0` und `/dev/ttyACM0` sind dabei nicht allein entscheidend. Maßgeblich ist, welches konkrete Gerät unter `/dev/serial/by-id` erscheint und ob Upload sowie Monitor darüber zuverlässig funktionieren.
+
+Falls der serielle Port in WSL sichtbar ist, aber nicht geöffnet werden kann, muss der Benutzer gegebenenfalls zur Gruppe `dialout` hinzugefügt werden:
+`sudo usermod -a -G dialout $USER`
 
 ## Geplante Modulstruktur
 

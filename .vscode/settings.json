@@ -1,0 +1,4 @@
+{
+    "platformio-ide.defaultEnv": "esp32s3",
+    "terminal.integrated.cwd": "${workspaceFolder}"
+}

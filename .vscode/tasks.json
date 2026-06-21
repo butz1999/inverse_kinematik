@@ -1,0 +1,90 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "PlatformIO: Build (esp32s3)",
+            "type": "shell",
+            "command": "/home/andi/.platformio/penv/bin/pio",
+            "args": [
+                "run",
+                "-e",
+                "esp32s3"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "PlatformIO: Upload (esp32s3)",
+            "type": "shell",
+            "command": "/home/andi/.platformio/penv/bin/pio",
+            "args": [
+                "run",
+                "-e",
+                "esp32s3",
+                "-t",
+                "upload"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "PlatformIO: Monitor (esp32s3)",
+            "type": "shell",
+            "command": "/home/andi/.platformio/penv/bin/pio",
+            "args": [
+                "device",
+                "monitor",
+                "-b",
+                "115200"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "PlatformIO: Clean (esp32s3)",
+            "type": "shell",
+            "command": "/home/andi/.platformio/penv/bin/pio",
+            "args": [
+                "run",
+                "-e",
+                "esp32s3",
+                "-t",
+                "clean"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}
