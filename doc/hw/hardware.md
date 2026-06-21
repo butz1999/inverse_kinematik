@@ -58,6 +58,8 @@ Die folgenden Hauptkomponenten sind für die erste Ausbaustufe vorgesehen:
 
 Als Zielplattform ist für die erste Implementationsstufe das [Waveshare ESP32-S3 Entwicklungsboard](https://www.bastelgarage.ch/waveshare-esp32-s3-entwicklungsboard) vorgesehen.
 
+Für die Build-Konfiguration in PlatformIO wird dafür vorerst das generische Boardprofil `esp32-s3-devkitc-1` verwendet. Solange kein boardspezifisches Profil für das genaue Waveshare-Board benötigt wird, dient dieses Profil als pragmatische Entwicklungsgrundlage.
+
 Aus aktueller Sicht ergeben sich daraus insbesondere folgende Eigenschaften und Erwartungen:
 
 * ESP32-S3 als zentrale Mikrocontroller-Plattform
