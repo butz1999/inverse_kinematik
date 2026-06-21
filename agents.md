@@ -22,6 +22,7 @@ Hinweis: Die Hardware-Doku zielt auf ein Waveshare ESP32-S3-Board. In `platformi
 
 ## 4. Prioritäten bei Widersprüchen
 Bei Widersprüchen gilt folgende Reihenfolge:
+* `doc/projektbeschreibung.md` für das Projekt-Design
 * `doc/hw/hardware.md` für Hardwareannahmen und Zielplattform
 * `doc/sw/software.md` für Modulstruktur, Begriffe und Datenmodelle
 * `platformio.ini` für Build- und Test-Konfiguration
@@ -31,6 +32,7 @@ Wenn diese Quellen einander widersprechen, weise explizit darauf hin und triff k
 
 ## 5. Programmier-Richtlinien & Code-Stil
 * **Sprache:** C++17 im PlatformIO-Umfeld; auf dem Target mit Arduino-Framework.
+* **Kommentare:** Schreibe alle Kommentare im Source-Code in englischer Sprache.
 * **Modularität:** Halte dich an die im Software Design `doc/sw/software.md` verwendeten Module und Vorgaben.
 * **Asynchroner Code:** Vermeide blockierende `delay()`-Aufrufe. Bevorzuge deterministische, testbare Ablaufsteuerung.
 * **Hardwarebezug:** Berücksichtige die Vorgaben aus `doc/hw/hardware.md`, insbesondere PCA9685 über I2C, servoabhängige Kalibration und die manuell hergestellte Initiallage.

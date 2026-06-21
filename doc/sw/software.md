@@ -44,28 +44,39 @@ Darüber hinaus verfolgt die Implementierung folgende Qualitätsziele:
 * gute lokale Testbarkeit zentraler Komponenten
 * konsistente Benennung zwischen Dokumentation, Verzeichnisstruktur und Quellcode
 
+## Vorbedinungen
+* WSL unter Windows installiert
+* Platformio in VSCode installiert
+* G++ in WSL installiert. (`sudo apt update && sudo apt install build-essential`)
+
 ## Geplante Modulstruktur
 
-> [!Note]
-> Klärung, was noch offen ist und was im zweiten Teil schon gemacht worden ist.
-> 
-> In diesem Kapitel sollte beschrieben werden:
-> 
-> * welche Hauptmodule in `src/` erwartet werden
-> * wie die Trennung zwischen `Application`, `Orchestration`, `Robotics`, `Hardware` und gemeinsamen Datenmodellen im Code abgebildet wird
-> * welche Abhängigkeitsrichtung zwischen den Modulen erlaubt ist
-> * welche Teile als Bibliothek, Komponente oder einfacher Quellcodeblock umgesetzt werden könnten
-> * dass Header- und Implementierungsdateien für den Projektstart bewusst nicht in getrennten Hauptordnern geführt werden, sondern pro Komponente nebeneinander liegen
-> * dass jede grössere Komponente einen eigenen Ordner in `src/` erhält
-> * dass die Namen dieser Komponentenordner zugleich als Grundlage für die späteren C++-Namespaces verwendet werden
-> 
-> Für die erste Ausbaustufe wird damit folgende Strukturentscheidung getroffen:
-> 
-> * die Implementierung liegt vollständig unter `src/`
-> * `.h`- und `.cpp`-Dateien einer Komponente liegen im selben Komponentenordner
-> * grössere Bausteine wie `application`, `orchestration`, `robotics`, `hardware` und gegebenenfalls `common` werden als eigene Ordner angelegt
-> * die Ordnernamen sollen möglichst direkt als C++-Namespaces wiederverwendet werden
-> * dadurch bleiben fachliche Struktur, Verzeichnisstruktur und Code-Namensräume möglichst deckungsgleich
+Für die erste Ausbaustufe wird die Implementierung vollständig unter `src/` aufgebaut. Grössere fachliche Bausteine erhalten jeweils einen eigenen Komponentenordner, damit fachliche Struktur, Verzeichnisstruktur und spätere C++-Namespaces möglichst deckungsgleich bleiben. Header- und Implementierungsdateien liegen dabei bewusst innerhalb einer Komponente nebeneinander; ein separater `include/`-Hauptordner ist für den Projektstart nicht vorgesehen.
+
+Die primären Komponenten der Softwaresicht sind:
+
+* `application` für anwendungsnahe Einstiegspunkte wie `Run Engine`, Statusmodelle und die externe REST-Schnittstelle
+* `orchestration` für den `Orchestrator` sowie die Koordination fachlicher Verarbeitungsschritte
+* `robotics` für Kinematik, Validierung, Robot Model, `RobotModelOffset` und robotiknahe Datenmodelle
+* `hardware` für Hardware Abstraction, `HardwareCalibration`, Treiberanbindung und hardwarebezogene Ausgabe
+* `common` für gemeinsam genutzte, modulübergreifende Datentypen und Hilfsstrukturen
+
+Für die Abhängigkeitsrichtung der Module gelten in der ersten Ausbaustufe folgende Grundregeln:
+
+* `application` darf `orchestration` sowie gemeinsame Datentypen verwenden, greift aber nicht direkt auf Treiber oder hardwarenahe Abbildung zu
+* `orchestration` darf `robotics`, `hardware` und gegebenenfalls `common` verwenden, bleibt aber frei von HTTP-, JSON- oder UI-Protokolldetails
+* `robotics` kennt keine konkreten Hardwaretreiber und keine REST-/Serial-Protokollschicht
+* `hardware` kennt keine fachliche Ablaufsteuerung, sondern nur freigegebene hardwarenahe Eingangsdaten und technische Rückgabemodelle
+* `common` enthält nur solche Typen, die tatsächlich modulübergreifend gebraucht werden
+
+Die konkrete Umsetzung einer Komponente kann je nach Reifegrad unterschiedlich klein oder gross ausfallen. Für frühe Bring-up-Schritte darf ein Baustein zunächst auch nur aus wenigen Dateien oder sogar aus einer noch schlanken Verdrahtung in `src/main.cpp` bestehen, solange die fachliche Zielstruktur erkennbar bleibt. Das ist insbesondere für den ersten Software-Slice relevant, in dem zunächst nur serielle Debug-Ausgaben und eine kleine REST-Schnittstelle aufgebaut werden, bevor `Run Engine`, `Orchestrator`, Robotik und die PCA9685-Ansteuerung vollständig umgesetzt sind.
+
+Für die REST-Schnittstelle bedeutet dies konkret:
+
+* sie gehört fachlich zur `application`-Schicht
+* sie nutzt den `Orchestrator` als späteren fachlichen Einstiegspunkt
+* sie kapselt HTTP-, JSON- und Netzwerkdetails gegenüber den übrigen Modulen
+* sie darf in einem frühen Startzustand zunächst noch klein bleiben und beispielsweise nur Gesundheits- oder Test-Endpunkte sowie serielle Debug-Ausgaben bereitstellen
 
 ## Verzeichnisstruktur
 
@@ -74,7 +85,7 @@ Dieses Kapitel beschreibt die konkrete Ablage der Softwareartefakte im Repositor
 Für die erste Ausbaustufe wird folgende Grundstruktur vorgesehen:
 
 ```text
-sw/
+doc/sw/
   software.md
   profile_calculation.md
   figures/
@@ -94,7 +105,7 @@ test/
 
 Dabei gelten zunächst die folgenden Strukturregeln:
 
-* `sw/` enthält die softwarebezogene Dokumentation und keine Implementierung
+* `doc/sw/` enthält die softwarebezogene Dokumentation und keine Implementierung
 * `src/` enthält die produktive Implementierung des Projekts
 * `main.cpp` bildet den Einstiegspunkt der Firmware und hält selbst möglichst wenig fachliche Logik
 * jeder grössere Softwarebaustein erhält unter `src/` einen eigenen Komponentenordner
@@ -112,10 +123,11 @@ Für die Komponentenordner unter `src/` ist in der ersten Ausbaustufe grob folge
 Für den ersten lauffähigen Stand werden mindestens folgende Dateien oder gleichwertige Strukturen erwartet:
 
 * `src/main.cpp` als Programmeinstieg
-* eine erste Implementierung der Run Engine oder eines einfachen Startablaufs
-* ein erster Orchestrator als zentrale Koordinationskomponente
-* grundlegende Datenmodelle für Zielbeschreibung, Gelenksollzustand, Bewegungsanforderung und Bewegungsergebnis
-* ein erster Hardwarezugang für PCA9685 und Servo-Ausgabe
+* ein einfacher Startablauf mit serieller Debug-Ausgabe
+* ein erster Netzwerk- und REST-Initialisierungspfad für Entwicklungs- und Integrationstests
+* erste, noch kleine Strukturen in `application/` für REST- oder Statuslogik, sobald der reine Bring-up-Schritt aus `main.cpp` herausgelöst wird
+* grundlegende Datenmodelle für spätere Zielbeschreibung, Gelenksollzustand, Bewegungsanforderung und Bewegungsergebnis
+* ein später nachziehbarer Hardwarezugang für PCA9685 und Servo-Ausgabe
 * erste Testdateien unter `test/native/` für fachliche Kernlogik
 
 Ein separater Hauptordner `include/` ist für die erste Ausbaustufe bewusst nicht vorgesehen. Sollte sich später eine klarere Trennung zwischen öffentlicher Schnittstelle und interner Implementierung als hilfreich erweisen, kann diese Struktur zu einem späteren Zeitpunkt gezielt nachgeschärft werden.
@@ -603,7 +615,7 @@ Die Anwendung kennt dabei nicht:
 
 ### Externe REST-Schnittstelle
 
-Neben der `Run Engine` kann die Anwendungsschicht später um eine externe REST-Schnittstelle erweitert werden. Diese Schnittstelle ist im aktuellen Dokument noch kein detailliert ausgearbeitetes API-Design, wird aber als vorgesehene Erweiterung der Architektur ausdrücklich mitgedacht.
+Neben der `Run Engine` gehört auch eine externe REST-Schnittstelle zur vorgesehenen Anwendungsschicht. Diese Schnittstelle ist im aktuellen Dokument noch kein detailliert ausgearbeitetes API-Design, wird aber für die frühe Implementationsphase bereits als kleiner erster Software-Slice ausdrücklich vorgesehen.
 
 Die REST-Schnittstelle hätte dabei insbesondere folgende Aufgaben:
 
@@ -611,6 +623,7 @@ Die REST-Schnittstelle hätte dabei insbesondere folgende Aufgaben:
 * Abbildung von HTTP- und JSON-Nutzdaten auf interne Modelle wie `MotionRequest`
 * Übergabe fachlicher Anfragen an den `Orchestrator`
 * Rückgabe fachlicher und technischer Ergebnisse auf Basis von `MotionResult` und Statusmodellen
+* serielle Debug-Ausgaben für Startup, Request-Eingang, Request-Ergebnis und Fehlerzustände während der frühen Entwicklungsphase
 
 Eingaben und Ausgaben:
 
@@ -626,7 +639,7 @@ Damit gilt bewusst:
 * sie kapselt Protokollthemen wie HTTP, JSON und gegebenenfalls statische HMI-Seiten vom restlichen System ab
 * sie greift nicht direkt auf `Kinematics`, `Hardware Abstraction` oder `Hardware Driver` zu
 
-Für die weitere Architektur ist wichtig, dass eine spätere REST-Schnittstelle dieselben fachlichen Kernmodelle verwendet wie die `Run Engine`. Dadurch bleibt offen, ob Bewegungsanforderungen später aus einem vordefinierten Ablauf, aus einem Test-HMI oder aus einer anderen externen Quelle stammen.
+Für die weitere Architektur ist wichtig, dass die REST-Schnittstelle dieselben fachlichen Kernmodelle verwendet wie die `Run Engine`. Dadurch bleibt offen, ob Bewegungsanforderungen aus einem vordefinierten Ablauf, aus einem Test-HMI oder aus einer anderen externen Quelle stammen.
 
 Noch nicht Teil dieses Dokuments sind:
 
@@ -635,7 +648,7 @@ Noch nicht Teil dieses Dokuments sind:
 * Authentisierung oder Zugriffsschutz
 * Details einer Browser-HMI
 
-Die Architektur soll jedoch so offen bleiben, dass der ESP32 später sowohl ein REST API als auch eine kleine statische HMI-Seite über dieselbe Netzwerkschnittstelle anbieten kann.
+Die Architektur soll dabei so offen bleiben, dass der ESP32 zunächst ein kleines REST API und später zusätzlich eine kleine statische HMI-Seite über dieselbe Netzwerkschnittstelle anbieten kann.
 
 ### Orchestrator
 
