@@ -4,16 +4,13 @@
 
 #include <Arduino.h>
 
+#include "hardware/StatusLedColor.h"
+
 namespace hardware {
 
 class StatusLed {
  public:
-  enum class Color {
-    Off,
-    Red,
-    Green,
-    Blue,
-  };
+  using Color = StatusColor;
 
   StatusLed(uint8_t pin, uint8_t brightness);
 
@@ -21,7 +18,7 @@ class StatusLed {
   void setEnabled(bool enabled) const;
 
  private:
-  void writeRgb(uint8_t red, uint8_t green, uint8_t blue) const;
+  void writeColor(NeopixelWriteColor color) const;
 
   uint8_t pin_;
   uint8_t brightness_;

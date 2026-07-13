@@ -1,4 +1,7 @@
 {
     "platformio-ide.defaultEnv": "esp32s3",
-    "terminal.integrated.cwd": "${workspaceFolder}"
+    "terminal.integrated.cwd": "${workspaceFolder}",
+    "terminal.integrated.env.linux": {
+        "PATH": "/home/andi/.platformio/penv/bin:${env:PATH}"
+    }
 }
