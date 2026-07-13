@@ -1,13 +1,4 @@
-/*
-Project structure (current relevant excerpt):
-src/
-  main.cpp
-  hardware/
-    StatusLed.h
-    StatusLed.cpp
-    SerialLogger.h
-    SerialLogger.cpp
-*/
+// Small wrapper around HardwareSerial to keep logging setup in one place.
 
 #pragma once
 

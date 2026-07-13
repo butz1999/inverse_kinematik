@@ -1,11 +1,4 @@
-/*
-Project structure (current relevant excerpt):
-src/
-  main.cpp
-  hardware/
-    StatusLed.h
-    StatusLed.cpp
-*/
+// Controls the onboard RGB status LED with a fixed brightness level.
 
 #pragma once
 

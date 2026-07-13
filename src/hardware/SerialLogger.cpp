@@ -1,13 +1,4 @@
-/*
-Project structure (current relevant excerpt):
-src/
-  main.cpp
-  hardware/
-    StatusLed.h
-    StatusLed.cpp
-    SerialLogger.h
-    SerialLogger.cpp
-*/
+// SerialLogger forwards formatted debug output to the configured UART.
 
 #include "hardware/SerialLogger.h"
 

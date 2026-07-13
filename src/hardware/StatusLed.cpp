@@ -1,11 +1,4 @@
-/*
-Project structure (current relevant excerpt):
-src/
-  main.cpp
-  hardware/
-    StatusLed.h
-    StatusLed.cpp
-*/
+// Maps logical status colors to the ESP32-S3 onboard RGB LED.
 
 #include "hardware/StatusLed.h"
 

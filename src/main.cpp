@@ -1,13 +1,4 @@
-/*
-Project structure (current relevant excerpt):
-src/
-  main.cpp
-  hardware/
-    SerialLogger.h
-    SerialLogger.cpp
-    StatusLed.h
-    StatusLed.cpp
-*/
+// Firmware entry point.
 
 #include <Arduino.h>
 
