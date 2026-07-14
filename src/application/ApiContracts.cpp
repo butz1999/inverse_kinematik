@@ -27,6 +27,8 @@ const char *toString(ApiResultCode code) {
       return "joint_limit_violation";
     case ApiResultCode::JointPwmLimitViolation:
       return "joint_pwm_limit_violation";
+    case ApiResultCode::HardwareDriverFailure:
+      return "hardware_driver_failure";
     case ApiResultCode::OrchestratorUnavailable:
       return "orchestrator_unavailable";
     case ApiResultCode::UnknownRoute:

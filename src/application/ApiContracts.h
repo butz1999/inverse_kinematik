@@ -15,6 +15,7 @@ enum class ApiResultCode {
   MissingField,
   JointLimitViolation,
   JointPwmLimitViolation,
+  HardwareDriverFailure,
   OrchestratorUnavailable,
   UnknownRoute,
 };

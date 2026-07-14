@@ -1,10 +1,12 @@
 // Firmware entry point.
 
 #include <Arduino.h>
+#include <ESPmDNS.h>
 #include <WebServer.h>
 #include <WiFi.h>
 
 #include "application/RestApiServer.h"
+#include "hardware/Pca9685ServoDriver.h"
 #include "hardware/SerialLogger.h"
 #include "hardware/StatusLed.h"
 
@@ -24,6 +26,7 @@ constexpr unsigned long kBlinkIntervalMs = 500;
 constexpr unsigned long kSerialBaudrate = 115200;
 constexpr unsigned long kWifiConnectTimeoutMs = 15000;
 constexpr uint16_t kHttpPort = 80;
+constexpr const char *kNetworkHostname = "robot";
 
 constexpr const char *kWifiSsid = IK_WIFI_SSID;
 constexpr const char *kWifiPassword = IK_WIFI_PASSWORD;
@@ -35,7 +38,9 @@ constexpr const char *kDebugSerialName = "Serial";
 hardware::SerialLogger logger(Serial, kSerialBaudrate);
 hardware::StatusLed statusLed(kRgbLedPin, kRgbBrightness);
 WebServer webServer(kHttpPort);
-application::RestApiServer restApi(webServer);
+auto servoDriverConfig = hardware::defaultPca9685ServoDriverConfig();
+hardware::Pca9685ServoDriver servoDriver(servoDriverConfig);
+application::RestApiServer restApi(webServer, servoDriver, logger);
 
 bool isConfigured(const char *value) {
   return value != nullptr && value[0] != '\0';
@@ -49,6 +54,7 @@ bool connectWifi() {
 
   WiFi.mode(WIFI_STA);
   WiFi.setSleep(false);
+  WiFi.setHostname(kNetworkHostname);
   logger.print("[BOOT] Connecting to WiFi SSID: ");
   logger.println(kWifiSsid);
 
@@ -71,6 +77,15 @@ bool connectWifi() {
 
   logger.print("[BOOT] WiFi connected, IP address: ");
   logger.println(WiFi.localIP().toString().c_str());
+
+  if (MDNS.begin(kNetworkHostname)) {
+    logger.print("[BOOT] mDNS responder available at http://");
+    logger.print(kNetworkHostname);
+    logger.println(".local");
+  } else {
+    logger.println("[BOOT] mDNS responder failed to start");
+  }
+
   return true;
 }
 
@@ -95,6 +110,8 @@ void setup() {
     logger.print("[BOOT] REST API listening on http://");
     logger.print(WiFi.localIP().toString().c_str());
     logger.println("/api/health");
+    logger.println("[BOOT] or use it's hostname");
+    logger.println("[BOOT] REST API listening on http://robot.local/api/status");
   }
 
   restApi.begin();

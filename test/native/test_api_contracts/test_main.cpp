@@ -34,6 +34,9 @@ void test_api_contracts_map_result_codes_to_json_values() {
       "joint_pwm_limit_violation",
       application::toString(application::ApiResultCode::JointPwmLimitViolation));
   TEST_ASSERT_EQUAL_STRING(
+      "hardware_driver_failure",
+      application::toString(application::ApiResultCode::HardwareDriverFailure));
+  TEST_ASSERT_EQUAL_STRING(
       "orchestrator_unavailable",
       application::toString(application::ApiResultCode::OrchestratorUnavailable));
   TEST_ASSERT_EQUAL_STRING(
