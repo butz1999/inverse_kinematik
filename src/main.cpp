@@ -111,7 +111,7 @@ void setup() {
     logger.print(WiFi.localIP().toString().c_str());
     logger.println("/api/health");
     logger.println("[BOOT] or use it's hostname");
-    logger.println("[BOOT] REST API listening on http://robot.local/api/status");
+    logger.println("[BOOT] REST API listening on http://robot.fritz.box/api/status");
   }
 
   restApi.begin();
