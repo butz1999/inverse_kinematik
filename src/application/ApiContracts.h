@@ -11,6 +11,10 @@ enum class ApiCapabilityStatus {
 
 enum class ApiResultCode {
   Ok,
+  InvalidJson,
+  MissingField,
+  JointLimitViolation,
+  JointPwmLimitViolation,
   OrchestratorUnavailable,
   UnknownRoute,
 };

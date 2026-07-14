@@ -19,6 +19,14 @@ const char *toString(ApiResultCode code) {
   switch (code) {
     case ApiResultCode::Ok:
       return "ok";
+    case ApiResultCode::InvalidJson:
+      return "invalid_json";
+    case ApiResultCode::MissingField:
+      return "missing_field";
+    case ApiResultCode::JointLimitViolation:
+      return "joint_limit_violation";
+    case ApiResultCode::JointPwmLimitViolation:
+      return "joint_pwm_limit_violation";
     case ApiResultCode::OrchestratorUnavailable:
       return "orchestrator_unavailable";
     case ApiResultCode::UnknownRoute:

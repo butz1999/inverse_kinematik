@@ -716,12 +716,21 @@ Damit gilt bewusst:
 * sie kapselt Protokollthemen wie HTTP, JSON und gegebenenfalls statische HMI-Seiten vom restlichen System ab
 * sie greift nicht direkt auf `Kinematics`, `Hardware Abstraction` oder `Hardware Driver` zu
 
+Für den frühen Bring-up ist zusätzlich ein bewusst niedriger angesetzter REST-Pfad vorgesehen. Dieser Pfad dient dazu, den Roboter zunächst ohne inverse Kinematik und ohne vollständigen `Orchestrator` schrittweise bedienbar zu machen:
+
+* `GET /api/joint-state` liefert den aktuell angenommenen fachlichen `JointState`
+* `POST /api/joint-motion` nimmt einen direkten Zielzustand im Joint Space entgegen
+* `GET /api/joint-pwm-state` liefert den aktuell angenommenen hardwarenahen `JointPwmState`
+* `POST /api/joint-pwm-motion` nimmt direkte PWM-Zielwerte für die einzelnen Aktorkanäle entgegen
+
+Diese Endpunkte sind ausdrücklich als Low-Level- und Inbetriebnahme-Pfad zu verstehen. Der reguläre, höherliegende Bewegungsrequest bleibt weiterhin der dokumentierte `MotionRequest` mit `TargetPose` und `MotionProfile`. Sobald `Orchestrator`, `Validation`, `Motion Profile Generator` und `Hardware Abstraction` verfügbar sind, sollen die direkten Joint- und PWM-Endpunkte nicht die fachliche Bewegungslogik ersetzen, sondern als Diagnose- und Bring-up-Werkzeuge dienen.
+
 Für die weitere Architektur ist wichtig, dass die REST-Schnittstelle dieselben fachlichen Kernmodelle verwendet wie die `Run Engine`. Dadurch bleibt offen, ob Bewegungsanforderungen aus einem vordefinierten Ablauf, aus einem Test-HMI oder aus einer anderen externen Quelle stammen.
 
 Noch nicht Teil dieses Dokuments sind:
 
-* konkrete Endpunkte
-* JSON-Schemata
+* ein vollständiges API-Design für den regulären `MotionRequest`-Pfad
+* vollständige JSON-Schemata
 * Authentisierung oder Zugriffsschutz
 * Details einer Browser-HMI
 
