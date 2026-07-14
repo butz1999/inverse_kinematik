@@ -19,7 +19,7 @@
 namespace {
 
 constexpr uint8_t kRgbLedPin = 38;
-constexpr uint8_t kRgbBrightness = 255;
+constexpr uint8_t kRgbBrightness = 15;
 constexpr unsigned long kBlinkIntervalMs = 500;
 constexpr unsigned long kSerialBaudrate = 115200;
 constexpr unsigned long kWifiConnectTimeoutMs = 15000;

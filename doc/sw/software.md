@@ -51,6 +51,7 @@ Darüber hinaus verfolgt die Implementierung folgende Qualitätsziele:
 
 ### Nutzung serieller USB-Geräte in WSL
 * `usbipd-win` unter Windows installiert (`winget install --interactive --exact dorssel.usbipd-win`)
+* PowerShell als **Administrator** starten
 * verfügbare USB-Geräte unter Windows anzeigen (`usbipd list`)
 * gewünschtes USB-Gerät anhand seiner aktuellen `BUSID` einmalig binden (`usbipd bind --busid <BUSID>`)
 * gewünschtes USB-Gerät **nach Neustart, Reconnect oder Reset** erneut in WSL einhängen (`usbipd attach --wsl --busid <BUSID>`)
@@ -74,6 +75,27 @@ Die Gerätenamen `/dev/ttyUSB0` und `/dev/ttyACM0` sind dabei nicht allein entsc
 Falls der serielle Port in WSL sichtbar ist, aber nicht geöffnet werden kann, muss der Benutzer gegebenenfalls zur Gruppe `dialout` hinzugefügt werden:
 `sudo usermod -a -G dialout $USER`
 
+### ESP32-S3-Hardware-Debugging in WSL
+Für Hardware-Debugging über `debug_tool = esp-builtin` reicht der CH343-Seriell-Wandler nicht aus. Zusätzlich muss das native ESP32-S3 USB-JTAG-Gerät in WSL sichtbar sein. Unter Windows erscheint es typischerweise mit der USB-ID `303a:1001` und einer Beschreibung wie `USB JTAG/serial debug unit`.
+
+Der funktionierende Debug-Aufbau benötigt daher zwei USB-Geräte in WSL:
+
+* `1a86:55d3` für CH343/UART, Upload und seriellen Monitor
+* `303a:1001` für ESP32-S3 USB-JTAG-Debugging
+
+Das JTAG-Gerät muss über `usbipd` separat an WSL gebunden und angehängt werden:
+
+```powershell
+usbipd bind --busid <BUSID>
+usbipd attach --wsl --busid <BUSID>
+```
+
+Nach Reset, Reconnect oder Neuaufzählung des USB-Geräts kann ein erneutes `usbipd attach --wsl --busid <BUSID>` erforderlich sein. Wiederholte OpenOCD-Meldungen wie `LIBUSB_ERROR_NO_DEVICE` deuten darauf hin, dass die USB-JTAG-Verbindung in WSL verloren gegangen ist.
+
+Auf Ubuntu 24.04 ist der von der Arduino-ESP32-S3-Toolchain mitgelieferte alte GDB nicht zuverlässig nutzbar, weil er eine nicht mehr vorhandene Python-2.7-Bibliothek erwartet. Die `platformio.ini` bindet deshalb das aktuelle Paket `platformio/tool-xtensa-esp-elf-gdb` ein; das Script `scripts/use_modern_esp32s3_gdb.py` setzt den PlatformIO-GDB-Pfad auf dieses Paket, ohne den Compiler für den Firmware-Build zu ersetzen.
+
+Zusätzlich werden `ARDUINO_RUNNING_CORE` und `ARDUINO_EVENT_RUNNING_CORE` auf `0` gesetzt. Damit laufen `setup()` und `loop()` auf dem von OpenOCD/GDB standardmäßig verwendeten Target `esp32s3.cpu0`; Source-Breakpoints in `src/main.cpp` können so zuverlässig auf demselben Core greifen.
+
 ### PlatformIO-Nutzung in WSL
 Im aktuellen Entwicklungssetup soll für CLI-Aufrufe in WSL nicht das Systemkommando `/usr/bin/pio` verwendet werden. Dort war eine alte PlatformIO-Version vorhanden, die mit der lokalen Python-Umgebung nicht zuverlässig funktionierte.
 
@@ -87,16 +109,22 @@ Für den funktionierenden ersten Workflow sind insbesondere die folgenden Befehl
   `~/.platformio/penv/bin/pio run -e esp32s3 -t upload`
 * Serieller Monitor:
   `~/.platformio/penv/bin/pio device monitor -p /dev/ttyACM0 -b 115200`
+* Es kann nur entweder der Monitor oder aber der FW Upload aktiv sein.
+* Hardware-Debugging über GDB:
+  `~/.platformio/penv/bin/pio debug -e esp32s3 --interface gdb`
+
+Der Befehl `pio debug` ohne `--interface gdb` führt nur den PlatformIO-Pre-Debug-Schritt aus und kann mit `SUCCESS` enden, ohne eine interaktive Debug-Sitzung zu starten. In VS Code soll stattdessen die Debug-Konfiguration `PIO Debug` aus dem Run-and-Debug-Bereich verwendet werden.
 
 ### Aktueller Bring-up-Stand
 Der aktuell bestätigte einfache Bring-up-Pfad basiert auf den folgenden Annahmen:
 
-* genau ein unter WSL sichtbarer serieller Board-Port
+* ein unter WSL sichtbarer serieller Board-Port für Upload und Monitoring
+* ein zusätzlich unter WSL sichtbares ESP32-S3 USB-JTAG-Gerät für Hardware-Debugging
 * Upload und Monitoring über denselben Port `/dev/ttyACM0`
 * serielle Log-Ausgabe der Firmware über den normalen Arduino-`Serial`-Pfad
-* keine zusätzliche Aktivierung eines separaten nativen USB-CDC-Debugkanals
+* Hardware-Debugging über das native USB-JTAG-Interface des ESP32-S3
 
-Die aktuelle `platformio.ini` bildet diesen Stand mit `upload_port = /dev/ttyACM0` und `monitor_port = /dev/ttyACM0` direkt ab.
+Die aktuelle `platformio.ini` bildet diesen Stand mit `upload_port = /dev/ttyACM0`, `monitor_port = /dev/ttyACM0` und `debug_tool = esp-builtin` direkt ab.
 
 ## Geplante Modulstruktur
 
