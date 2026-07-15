@@ -4,9 +4,11 @@
 
 #include <Arduino.h>
 
-namespace hardware {
+namespace hardware
+{
 
-class SerialLogger {
+class SerialLogger
+{
  public:
   SerialLogger(HardwareSerial &serial, unsigned long baudrate);
 

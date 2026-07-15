@@ -18,7 +18,8 @@
 #define IK_WIFI_PASSWORD ""
 #endif
 
-namespace {
+namespace
+{
 // RGB LED
 constexpr uint8_t kRgbLedPin = 38;
 constexpr uint8_t kRgbBrightness = 15;
@@ -47,14 +48,15 @@ auto servoDriverConfig = hardware::defaultPca9685ServoDriverConfig();
 hardware::Pca9685ServoDriver servoDriver(servoDriverConfig);
 application::RestApiServer restApi(webServer, servoDriver, logger);
 
-bool isConfigured(const char *value) 
+bool isConfigured(const char *value)
 {
   return value != nullptr && value[0] != '\0';
 }
 
-bool connectWifi() {
+bool connectWifi()
+{
   // Check valid SSID
-  if (!isConfigured(kWifiSsid)) 
+  if (!isConfigured(kWifiSsid))
   {
     logger.println("[BOOT] WiFi STA not configured: IK_WIFI_SSID is empty");
     return false;
@@ -67,23 +69,22 @@ bool connectWifi() {
   logger.println(kWifiSsid);
 
   // Check valid password, start with or without password
-  if (isConfigured(kWifiPassword)) 
+  if (isConfigured(kWifiPassword))
   {
     WiFi.begin(kWifiSsid, kWifiPassword);
-  } 
-  else 
+  }
+  else
   {
     WiFi.begin(kWifiSsid);
   }
   // Start WiFi with connection timeout
   const auto startedAtMs = millis();
-  while (WiFi.status() != WL_CONNECTED &&
-         millis() - startedAtMs < kWifiConnectTimeoutMs) 
+  while (WiFi.status() != WL_CONNECTED && millis() - startedAtMs < kWifiConnectTimeoutMs)
   {
     delay(250);
   }
   // Abort if connection failed
-  if (WiFi.status() != WL_CONNECTED) 
+  if (WiFi.status() != WL_CONNECTED)
   {
     logger.println("[BOOT] WiFi STA connection failed");
     return false;
@@ -95,14 +96,17 @@ bool connectWifi() {
   return true;
 }
 
-bool startMdns() {
-  if (!MDNS.begin(kNetworkHostname)) {
+bool startMdns()
+{
+  if (!MDNS.begin(kNetworkHostname))
+  {
     logger.println("[BOOT] mDNS responder failed to start");
     return false;
   }
 
   // Register mDNS services
-  if (!MDNS.addService("http", "tcp", kHttpPort)) {
+  if (!MDNS.addService("http", "tcp", kHttpPort))
+  {
     logger.println("[BOOT] mDNS service registration failed");
     return false;
   }
@@ -116,7 +120,8 @@ bool startMdns() {
 
 }  // namespace
 
-void setup() {
+void setup()
+{
   statusLed.show(hardware::StatusLed::Color::Red);
 
   logger.begin();
@@ -131,14 +136,16 @@ void setup() {
   delay(250);
 
   const auto wifiConnected = connectWifi();
-  if (wifiConnected) {
+  if (wifiConnected)
+  {
     const auto mdnsStarted = startMdns();
 
     logger.print("[BOOT] REST API listening on http://");
     logger.print(WiFi.localIP().toString().c_str());
     logger.println("/api/health");
 
-    if (mdnsStarted) {
+    if (mdnsStarted)
+    {
       logger.println("[BOOT] or use its hostname");
       logger.print("[BOOT] REST API listening on http://");
       logger.print(kNetworkHostname);
@@ -152,11 +159,13 @@ void setup() {
   statusLed.show(hardware::StatusLed::Color::Green);
 }
 
-void loop() {
+void loop()
+{
   const auto now = millis();
   restApi.handleClient();
 
-  if (now - lastToggleMs >= kBlinkIntervalMs) {
+  if (now - lastToggleMs >= kBlinkIntervalMs)
+  {
     lastToggleMs = now;
     statusLed.setEnabled(isGreenOn);
     isGreenOn = !isGreenOn;

@@ -4,9 +4,11 @@
 
 #include <cstdint>
 
-namespace hardware {
+namespace hardware
+{
 
-enum class StatusColor {
+enum class StatusColor
+{
   Off,
   Red,
   Orange,
@@ -17,7 +19,8 @@ enum class StatusColor {
   Violet,
 };
 
-struct NeopixelWriteColor {
+struct NeopixelWriteColor
+{
   uint8_t red_arg;
   uint8_t green_arg;
   uint8_t blue_arg;

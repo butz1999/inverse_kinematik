@@ -6,9 +6,11 @@
 
 #include "hardware/StatusLedColor.h"
 
-namespace hardware {
+namespace hardware
+{
 
-class StatusLed {
+class StatusLed
+{
  public:
   using Color = StatusColor;
 

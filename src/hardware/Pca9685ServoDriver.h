@@ -7,9 +7,11 @@
 #include "common/JointPwmState.h"
 #include "hardware/Pca9685ServoDriverConfig.h"
 
-namespace hardware {
+namespace hardware
+{
 
-class Pca9685ServoDriver {
+class Pca9685ServoDriver
+{
  public:
   explicit Pca9685ServoDriver(const Pca9685ServoDriverConfig &config);
 

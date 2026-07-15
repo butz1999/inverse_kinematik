@@ -2,20 +2,25 @@
 
 #include "hardware/StatusLed.h"
 
-namespace hardware {
+namespace hardware
+{
 
-StatusLed::StatusLed(uint8_t pin, uint8_t brightness)
-    : pin_(pin), brightness_(brightness) {}
+StatusLed::StatusLed(uint8_t pin, uint8_t brightness) : pin_(pin), brightness_(brightness)
+{
+}
 
-void StatusLed::show(Color color) const {
+void StatusLed::show(Color color) const
+{
   writeColor(toNeopixelWriteColor(color, brightness_));
 }
 
-void StatusLed::setEnabled(bool enabled) const {
+void StatusLed::setEnabled(bool enabled) const
+{
   show(enabled ? Color::Green : Color::Off);
 }
 
-void StatusLed::writeColor(NeopixelWriteColor color) const {
+void StatusLed::writeColor(NeopixelWriteColor color) const
+{
   neopixelWrite(pin_, color.red_arg, color.green_arg, color.blue_arg);
 }
 

@@ -5,9 +5,11 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace common {
+namespace common
+{
 
-struct JointPwmState {
+struct JointPwmState
+{
   uint16_t d_pwm;
   uint16_t s_pwm;
   uint16_t e_pwm;
@@ -16,7 +18,8 @@ struct JointPwmState {
   uint16_t g_pwm;
 };
 
-struct JointPwmLimit {
+struct JointPwmLimit
+{
   const char *field_name;
   uint16_t min_value;
   uint16_t max_value;
@@ -26,23 +29,22 @@ constexpr uint16_t kPca9685MinPwm = 0U;
 constexpr uint16_t kPca9685MaxPwm = 4095U;
 
 constexpr JointPwmLimit kJointPwmLimits[] = {
-    {"d_pwm", kPca9685MinPwm, kPca9685MaxPwm},
-    {"s_pwm", kPca9685MinPwm, kPca9685MaxPwm},
-    {"e_pwm", kPca9685MinPwm, kPca9685MaxPwm},
-    {"hp_pwm", kPca9685MinPwm, kPca9685MaxPwm},
-    {"hr_pwm", kPca9685MinPwm, kPca9685MaxPwm},
-    {"g_pwm", kPca9685MinPwm, kPca9685MaxPwm},
+    {"d_pwm", kPca9685MinPwm, kPca9685MaxPwm},  {"s_pwm", kPca9685MinPwm, kPca9685MaxPwm},
+    {"e_pwm", kPca9685MinPwm, kPca9685MaxPwm},  {"hp_pwm", kPca9685MinPwm, kPca9685MaxPwm},
+    {"hr_pwm", kPca9685MinPwm, kPca9685MaxPwm}, {"g_pwm", kPca9685MinPwm, kPca9685MaxPwm},
 };
 
-constexpr std::size_t kJointPwmAxisCount =
-    sizeof(kJointPwmLimits) / sizeof(kJointPwmLimits[0]);
+constexpr std::size_t kJointPwmAxisCount = sizeof(kJointPwmLimits) / sizeof(kJointPwmLimits[0]);
 
-inline JointPwmState initialJointPwmState() {
+inline JointPwmState initialJointPwmState()
+{
   return JointPwmState{0U, 0U, 0U, 0U, 0U, 0U};
 }
 
-inline uint16_t valueForLimit(const JointPwmState &state, std::size_t index) {
-  switch (index) {
+inline uint16_t valueForLimit(const JointPwmState &state, std::size_t index)
+{
+  switch (index)
+  {
     case 0:
       return state.d_pwm;
     case 1:
@@ -58,12 +60,14 @@ inline uint16_t valueForLimit(const JointPwmState &state, std::size_t index) {
   }
 }
 
-inline const JointPwmLimit *findFirstLimitViolation(
-    const JointPwmState &state) {
-  for (std::size_t i = 0; i < kJointPwmAxisCount; ++i) {
+inline const JointPwmLimit *findFirstLimitViolation(const JointPwmState &state)
+{
+  for (std::size_t i = 0; i < kJointPwmAxisCount; ++i)
+  {
     const auto value = valueForLimit(state, i);
     const auto &limit = kJointPwmLimits[i];
-    if (value < limit.min_value || value > limit.max_value) {
+    if (value < limit.min_value || value > limit.max_value)
+    {
       return &limit;
     }
   }
@@ -71,7 +75,8 @@ inline const JointPwmLimit *findFirstLimitViolation(
   return nullptr;
 }
 
-inline bool isWithinJointPwmLimits(const JointPwmState &state) {
+inline bool isWithinJointPwmLimits(const JointPwmState &state)
+{
   return findFirstLimitViolation(state) == nullptr;
 }
 

@@ -4,21 +4,27 @@
 
 #include "application/ApiJson.h"
 
-namespace application {
+namespace application
+{
 
-namespace {
+namespace
+{
 
-void appendJsonEscaped(String &body, const String &value) {
-  for (std::size_t i = 0; i < value.length(); ++i) {
+void appendJsonEscaped(String &body, const String &value)
+{
+  for (std::size_t i = 0; i < value.length(); ++i)
+  {
     const char c = value.charAt(i);
-    if (c == '"' || c == '\\') {
+    if (c == '"' || c == '\\')
+    {
       body += '\\';
     }
     body += c;
   }
 }
 
-void appendJointStateJson(String &body, const common::JointState &state) {
+void appendJointStateJson(String &body, const common::JointState &state)
+{
   body += "{\"d_deg\":";
   body += String(state.d_deg, 3);
   body += ",\"s_deg\":";
@@ -34,7 +40,8 @@ void appendJointStateJson(String &body, const common::JointState &state) {
   body += "}";
 }
 
-void appendJointPwmStateJson(String &body, const common::JointPwmState &state) {
+void appendJointPwmStateJson(String &body, const common::JointPwmState &state)
+{
   body += "{\"d_pwm\":";
   body += state.d_pwm;
   body += ",\"s_pwm\":";
@@ -50,8 +57,8 @@ void appendJointPwmStateJson(String &body, const common::JointPwmState &state) {
   body += "}";
 }
 
-void appendHardwareDriverResultJson(String &body,
-                                    const hardware::HardwareDriverResult &result) {
+void appendHardwareDriverResultJson(String &body, const hardware::HardwareDriverResult &result)
+{
   body += "{\"status\":\"";
   body += hardware::toString(result.status);
   body += "\",\"message\":\"";
@@ -66,46 +73,86 @@ RestApiServer::RestApiServer(WebServer &server)
       servo_driver_(nullptr),
       logger_(nullptr),
       current_joint_state_(common::initialJointState()),
-      current_joint_pwm_state_(common::initialJointPwmState()) {}
+      current_joint_pwm_state_(common::initialJointPwmState())
+{
+}
 
-RestApiServer::RestApiServer(WebServer &server,
-                             hardware::Pca9685ServoDriver &servo_driver)
+RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver)
     : server_(server),
       servo_driver_(&servo_driver),
       logger_(nullptr),
       current_joint_state_(common::initialJointState()),
-      current_joint_pwm_state_(common::initialJointPwmState()) {}
+      current_joint_pwm_state_(common::initialJointPwmState())
+{
+}
 
-RestApiServer::RestApiServer(WebServer &server,
-                             hardware::Pca9685ServoDriver &servo_driver,
+RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver,
                              const hardware::SerialLogger &logger)
     : server_(server),
       servo_driver_(&servo_driver),
       logger_(&logger),
       current_joint_state_(common::initialJointState()),
-      current_joint_pwm_state_(common::initialJointPwmState()) {}
+      current_joint_pwm_state_(common::initialJointPwmState())
+{
+}
 
-void RestApiServer::begin() {
-  server_.on("/api/health", HTTP_GET, [this]() { handleHealth(); });
-  server_.on("/api/status", HTTP_GET, [this]() { handleStatus(); });
-  server_.on("/api/joint-state", HTTP_GET, [this]() { handleJointState(); });
+void RestApiServer::begin()
+{
+  server_.on("/api/health", HTTP_GET,
+             [this]()
+             {
+               handleHealth();
+             });
+  server_.on("/api/status", HTTP_GET,
+             [this]()
+             {
+               handleStatus();
+             });
+  server_.on("/api/joint-state", HTTP_GET,
+             [this]()
+             {
+               handleJointState();
+             });
   server_.on("/api/joint-motion", HTTP_POST,
-             [this]() { handleJointMotionRequest(); });
+             [this]()
+             {
+               handleJointMotionRequest();
+             });
   server_.on("/api/joint-pwm-state", HTTP_GET,
-             [this]() { handleJointPwmState(); });
+             [this]()
+             {
+               handleJointPwmState();
+             });
   server_.on("/api/joint-pwm-motion", HTTP_POST,
-             [this]() { handleJointPwmMotionRequest(); });
-  server_.on("/api/motion", HTTP_POST, [this]() { handleMotionRequest(); });
-  server_.on("/favicon.ico", HTTP_GET, [this]() { handleFavicon(); });
-  server_.onNotFound([this]() { handleNotFound(); });
+             [this]()
+             {
+               handleJointPwmMotionRequest();
+             });
+  server_.on("/api/motion", HTTP_POST,
+             [this]()
+             {
+               handleMotionRequest();
+             });
+  server_.on("/favicon.ico", HTTP_GET,
+             [this]()
+             {
+               handleFavicon();
+             });
+  server_.onNotFound(
+      [this]()
+      {
+        handleNotFound();
+      });
   server_.begin();
 }
 
-void RestApiServer::handleClient() {
+void RestApiServer::handleClient()
+{
   server_.handleClient();
 }
 
-void RestApiServer::handleHealth() {
+void RestApiServer::handleHealth()
+{
   logRequest("GET", "/api/health");
 
   String body;
@@ -125,7 +172,8 @@ void RestApiServer::handleHealth() {
   sendJson(200, body);
 }
 
-void RestApiServer::handleStatus() {
+void RestApiServer::handleStatus()
+{
   logRequest("GET", "/api/status");
 
   String body;
@@ -143,8 +191,7 @@ void RestApiServer::handleStatus() {
   body += "\",\"jointPwmMotionEndpoint\":\"";
   body += toString(ApiCapabilityStatus::Available);
   body += "\",\"jointPwmHardwareOutput\":\"";
-  body += toString(servo_driver_ != nullptr ? ApiCapabilityStatus::Available
-                                            : ApiCapabilityStatus::NotAvailable);
+  body += toString(servo_driver_ != nullptr ? ApiCapabilityStatus::Available : ApiCapabilityStatus::NotAvailable);
   body += "\",\"motionEndpoint\":\"reserved\",\"uptimeMs\":";
   body += millis();
   body += "}";
@@ -152,7 +199,8 @@ void RestApiServer::handleStatus() {
   sendJson(200, body);
 }
 
-void RestApiServer::handleJointState() {
+void RestApiServer::handleJointState()
+{
   logRequest("GET", "/api/joint-state");
 
   String body;
@@ -168,7 +216,8 @@ void RestApiServer::handleJointState() {
   sendJson(200, body);
 }
 
-void RestApiServer::handleJointMotionRequest() {
+void RestApiServer::handleJointMotionRequest()
+{
   logRequest("POST", "/api/joint-motion");
 
   const auto body_arg = server_.arg("plain");
@@ -177,11 +226,13 @@ void RestApiServer::handleJointMotionRequest() {
   String body;
   body.reserve(384);
 
-  if (!parsed.ok) {
+  if (!parsed.ok)
+  {
     body += "{\"status\":\"rejected\",\"code\":\"";
     body += toString(parsed.code);
     body += "\"";
-    if (parsed.field_name[0] != '\0') {
+    if (parsed.field_name[0] != '\0')
+    {
       body += ",\"field\":\"";
       appendJsonEscaped(body, parsed.field_name);
       body += "\"";
@@ -203,13 +254,15 @@ void RestApiServer::handleJointMotionRequest() {
   body += toString(ApiCapabilityStatus::NotAvailable);
   body += "\",\"jointState\":";
   appendJointStateJson(body, current_joint_state_);
-  body += ",\"message\":\"Joint state accepted as assumed low-level target; "
-          "hardware output is not connected yet.\"}";
+  body +=
+      ",\"message\":\"Joint state accepted as assumed low-level target; "
+      "hardware output is not connected yet.\"}";
 
   sendJson(202, body);
 }
 
-void RestApiServer::handleJointPwmState() {
+void RestApiServer::handleJointPwmState()
+{
   logRequest("GET", "/api/joint-pwm-state");
 
   String body;
@@ -225,7 +278,8 @@ void RestApiServer::handleJointPwmState() {
   sendJson(200, body);
 }
 
-void RestApiServer::handleJointPwmMotionRequest() {
+void RestApiServer::handleJointPwmMotionRequest()
+{
   logRequest("POST", "/api/joint-pwm-motion");
 
   const auto body_arg = server_.arg("plain");
@@ -234,11 +288,13 @@ void RestApiServer::handleJointPwmMotionRequest() {
   String body;
   body.reserve(384);
 
-  if (!parsed.ok) {
+  if (!parsed.ok)
+  {
     body += "{\"status\":\"rejected\",\"code\":\"";
     body += toString(parsed.code);
     body += "\"";
-    if (parsed.field_name[0] != '\0') {
+    if (parsed.field_name[0] != '\0')
+    {
       body += ",\"field\":\"";
       appendJsonEscaped(body, parsed.field_name);
       body += "\"";
@@ -251,10 +307,13 @@ void RestApiServer::handleJointPwmMotionRequest() {
     return;
   }
 
-  if (servo_driver_ != nullptr) {
-    if (!servo_driver_->isInitialized()) {
+  if (servo_driver_ != nullptr)
+  {
+    if (!servo_driver_->isInitialized())
+    {
       const auto begin_result = servo_driver_->begin();
-      if (begin_result.status != hardware::HardwareDriverStatus::Ok) {
+      if (begin_result.status != hardware::HardwareDriverStatus::Ok)
+      {
         logResult("[REST] PCA9685 begin failed");
         body += "{\"status\":\"hardware_failed\",\"code\":\"";
         body += toString(ApiResultCode::HardwareDriverFailure);
@@ -269,7 +328,8 @@ void RestApiServer::handleJointPwmMotionRequest() {
     }
 
     const auto write_result = servo_driver_->write(parsed.joint_pwm_state);
-    if (write_result.status != hardware::HardwareDriverStatus::Ok) {
+    if (write_result.status != hardware::HardwareDriverStatus::Ok)
+    {
       logResult("[REST] PCA9685 write failed");
       body += "{\"status\":\"hardware_failed\",\"code\":\"";
       body += toString(ApiResultCode::HardwareDriverFailure);
@@ -307,30 +367,36 @@ void RestApiServer::handleJointPwmMotionRequest() {
   body += toString(ApiCapabilityStatus::NotAvailable);
   body += "\",\"jointPwmState\":";
   appendJointPwmStateJson(body, current_joint_pwm_state_);
-  body += ",\"message\":\"Joint PWM state accepted as assumed low-level "
-          "target; hardware output is not connected yet.\"}";
+  body +=
+      ",\"message\":\"Joint PWM state accepted as assumed low-level "
+      "target; hardware output is not connected yet.\"}";
 
   sendJson(202, body);
 }
 
-void RestApiServer::handleMotionRequest() {
+void RestApiServer::handleMotionRequest()
+{
   logRequest("POST", "/api/motion");
 
   String body;
   body.reserve(192);
   body += "{\"status\":\"not_implemented\",\"code\":\"";
   body += toString(ApiResultCode::OrchestratorUnavailable);
-  body += "\",\"message\":\"Motion endpoint is reserved for Orchestrator integration.\"}";
+  body +=
+      "\",\"message\":\"Motion endpoint is reserved for Orchestrator "
+      "integration.\"}";
 
   sendJson(501, body);
 }
 
-void RestApiServer::handleFavicon() {
+void RestApiServer::handleFavicon()
+{
   server_.sendHeader("Cache-Control", "no-store");
   server_.send(204);
 }
 
-void RestApiServer::handleNotFound() {
+void RestApiServer::handleNotFound()
+{
   logRequest(server_.method() == HTTP_POST ? "POST" : "HTTP", server_.uri().c_str());
 
   String body;
@@ -344,8 +410,10 @@ void RestApiServer::handleNotFound() {
   sendJson(404, body);
 }
 
-void RestApiServer::logRequest(const char *method, const char *path) const {
-  if (logger_ == nullptr) {
+void RestApiServer::logRequest(const char *method, const char *path) const
+{
+  if (logger_ == nullptr)
+  {
     return;
   }
 
@@ -355,15 +423,18 @@ void RestApiServer::logRequest(const char *method, const char *path) const {
   logger_->println(path);
 }
 
-void RestApiServer::logResult(const char *message) const {
-  if (logger_ == nullptr) {
+void RestApiServer::logResult(const char *message) const
+{
+  if (logger_ == nullptr)
+  {
     return;
   }
 
   logger_->println(message);
 }
 
-void RestApiServer::sendJson(int status_code, const String &body) {
+void RestApiServer::sendJson(int status_code, const String &body)
+{
   server_.sendHeader("Cache-Control", "no-store");
   server_.send(status_code, "application/json", body);
 }

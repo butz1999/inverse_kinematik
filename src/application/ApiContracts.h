@@ -2,14 +2,17 @@
 
 #pragma once
 
-namespace application {
+namespace application
+{
 
-enum class ApiCapabilityStatus {
+enum class ApiCapabilityStatus
+{
   Available,
   NotAvailable,
 };
 
-enum class ApiResultCode {
+enum class ApiResultCode
+{
   Ok,
   InvalidJson,
   MissingField,

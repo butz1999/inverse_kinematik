@@ -2,10 +2,13 @@
 
 #include "hardware/StatusLedColor.h"
 
-namespace hardware {
+namespace hardware
+{
 
-NeopixelWriteColor toNeopixelWriteColor(StatusColor color, uint8_t brightness) {
-  switch (color) {
+NeopixelWriteColor toNeopixelWriteColor(StatusColor color, uint8_t brightness)
+{
+  switch (color)
+  {
     case StatusColor::Off:
       return {0, 0, 0};
     case StatusColor::Red:

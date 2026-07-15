@@ -11,14 +11,15 @@
 #include "hardware/Pca9685ServoDriver.h"
 #include "hardware/SerialLogger.h"
 
-namespace application {
+namespace application
+{
 
-class RestApiServer {
+class RestApiServer
+{
  public:
   explicit RestApiServer(WebServer &server);
   RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver);
-  RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver,
-                const hardware::SerialLogger &logger);
+  RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver, const hardware::SerialLogger &logger);
 
   void begin();
   void handleClient();

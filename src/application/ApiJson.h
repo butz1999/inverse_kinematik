@@ -6,9 +6,11 @@
 #include "common/JointPwmState.h"
 #include "common/JointState.h"
 
-namespace application {
+namespace application
+{
 
-struct JointMotionParseResult {
+struct JointMotionParseResult
+{
   bool ok;
   ApiResultCode code;
   const char *field_name;
@@ -16,7 +18,8 @@ struct JointMotionParseResult {
   common::JointState joint_state;
 };
 
-struct JointPwmMotionParseResult {
+struct JointPwmMotionParseResult
+{
   bool ok;
   ApiResultCode code;
   const char *field_name;

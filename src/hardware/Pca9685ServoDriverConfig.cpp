@@ -2,10 +2,13 @@
 
 #include "hardware/Pca9685ServoDriverConfig.h"
 
-namespace hardware {
+namespace hardware
+{
 
-const char *toString(HardwareDriverStatus status) {
-  switch (status) {
+const char *toString(HardwareDriverStatus status)
+{
+  switch (status)
+  {
     case HardwareDriverStatus::Ok:
       return "ok";
     case HardwareDriverStatus::DriverBeginFailed:

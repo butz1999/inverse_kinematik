@@ -4,13 +4,15 @@
 
 #include <cstdint>
 
-namespace hardware {
+namespace hardware
+{
 
 constexpr uint8_t kPca9685DefaultI2cAddress = 0x40U;
 constexpr uint8_t kPca9685MaxChannel = 15U;
 constexpr uint16_t kDefaultServoPwmFrequencyHz = 50U;
 
-struct ServoChannelMap {
+struct ServoChannelMap
+{
   uint8_t d;
   uint8_t s;
   uint8_t e;
@@ -19,13 +21,15 @@ struct ServoChannelMap {
   uint8_t g;
 };
 
-struct Pca9685ServoDriverConfig {
+struct Pca9685ServoDriverConfig
+{
   uint8_t i2c_address;
   uint16_t pwm_frequency_hz;
   ServoChannelMap channels;
 };
 
-enum class HardwareDriverStatus {
+enum class HardwareDriverStatus
+{
   Ok,
   DriverBeginFailed,
   InvalidChannel,
@@ -33,12 +37,14 @@ enum class HardwareDriverStatus {
   NotInitialized,
 };
 
-struct HardwareDriverResult {
+struct HardwareDriverResult
+{
   HardwareDriverStatus status;
   const char *message;
 };
 
-inline Pca9685ServoDriverConfig defaultPca9685ServoDriverConfig() {
+inline Pca9685ServoDriverConfig defaultPca9685ServoDriverConfig()
+{
   return Pca9685ServoDriverConfig{
       kPca9685DefaultI2cAddress,
       kDefaultServoPwmFrequencyHz,
@@ -46,17 +52,15 @@ inline Pca9685ServoDriverConfig defaultPca9685ServoDriverConfig() {
   };
 }
 
-inline bool isValidPca9685Channel(uint8_t channel) {
+inline bool isValidPca9685Channel(uint8_t channel)
+{
   return channel <= kPca9685MaxChannel;
 }
 
-inline bool isValidChannelMap(const ServoChannelMap &channels) {
-  return isValidPca9685Channel(channels.d) &&
-         isValidPca9685Channel(channels.s) &&
-         isValidPca9685Channel(channels.e) &&
-         isValidPca9685Channel(channels.hp) &&
-         isValidPca9685Channel(channels.hr) &&
-         isValidPca9685Channel(channels.g);
+inline bool isValidChannelMap(const ServoChannelMap &channels)
+{
+  return isValidPca9685Channel(channels.d) && isValidPca9685Channel(channels.s) && isValidPca9685Channel(channels.e) &&
+         isValidPca9685Channel(channels.hp) && isValidPca9685Channel(channels.hr) && isValidPca9685Channel(channels.g);
 }
 
 const char *toString(HardwareDriverStatus status);

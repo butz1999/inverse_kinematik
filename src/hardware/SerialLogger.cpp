@@ -2,26 +2,32 @@
 
 #include "hardware/SerialLogger.h"
 
-namespace hardware {
+namespace hardware
+{
 
-SerialLogger::SerialLogger(HardwareSerial &serial, unsigned long baudrate)
-    : serial_(serial), baudrate_(baudrate) {}
+SerialLogger::SerialLogger(HardwareSerial &serial, unsigned long baudrate) : serial_(serial), baudrate_(baudrate)
+{
+}
 
-void SerialLogger::begin() const {
+void SerialLogger::begin() const
+{
   serial_.begin(baudrate_);
 }
 
-void SerialLogger::print(const char *message) const {
+void SerialLogger::print(const char *message) const
+{
   serial_.print(message);
   serial_.flush();
 }
 
-void SerialLogger::println() const {
+void SerialLogger::println() const
+{
   serial_.println();
   serial_.flush();
 }
 
-void SerialLogger::println(const char *message) const {
+void SerialLogger::println(const char *message) const
+{
   serial_.println(message);
   serial_.flush();
 }
