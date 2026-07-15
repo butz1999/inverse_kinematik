@@ -14,7 +14,7 @@ NeopixelWriteColor toNeopixelWriteColor(StatusColor color, uint8_t brightness)
     case StatusColor::Red:
       return {0, brightness, 0};
     case StatusColor::Orange:
-      return {static_cast<uint8_t>(brightness / 2), brightness, 0};
+      return {static_cast<uint8_t>(brightness / 3), brightness, 0};
     case StatusColor::Yellow:
       return {brightness, brightness, 0};
     case StatusColor::Green:

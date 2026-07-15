@@ -26,7 +26,7 @@ void test_status_led_color_maps_orange_for_grb_led_order()
 {
   const auto color = hardware::toNeopixelWriteColor(hardware::StatusColor::Orange, 100);
 
-  TEST_ASSERT_EQUAL_UINT8(50, color.red_arg);
+  TEST_ASSERT_EQUAL_UINT8(33, color.red_arg);
   TEST_ASSERT_EQUAL_UINT8(100, color.green_arg);
   TEST_ASSERT_EQUAL_UINT8(0, color.blue_arg);
 }

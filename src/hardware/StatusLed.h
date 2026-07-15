@@ -17,7 +17,7 @@ class StatusLed
   StatusLed(uint8_t pin, uint8_t brightness);
 
   void show(Color color) const;
-  void setEnabled(bool enabled) const;
+  void setEnabled(bool enabled, Color color) const;
 
  private:
   void writeColor(NeopixelWriteColor color) const;

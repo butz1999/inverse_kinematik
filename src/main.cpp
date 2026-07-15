@@ -38,7 +38,8 @@ constexpr const char *kWifiPassword = IK_WIFI_PASSWORD;
 // RGB LED blinker
 unsigned long lastToggleMs = 0;
 unsigned long heartbeatCount = 0;
-bool isGreenOn = true;
+bool isLedOn = true;
+hardware::StatusColor color = hardware::StatusColor::Off;
 
 // Create Components
 hardware::SerialLogger logger(Serial, kSerialBaudrate);
@@ -98,19 +99,19 @@ bool connectWifi()
 
 bool startMdns()
 {
+  // Register mDNS
   if (!MDNS.begin(kNetworkHostname))
   {
     logger.println("[BOOT] mDNS responder failed to start");
     return false;
   }
-
   // Register mDNS services
   if (!MDNS.addService("http", "tcp", kHttpPort))
   {
     logger.println("[BOOT] mDNS service registration failed");
     return false;
   }
-
+  // Report success
   logger.print("[BOOT] mDNS responder available at http://");
   logger.print(kNetworkHostname);
   logger.println(".local");
@@ -122,41 +123,53 @@ bool startMdns()
 
 void setup()
 {
-  statusLed.show(hardware::StatusLed::Color::Red);
-
+  // Start logger
+  color = hardware::StatusLed::Color::Yellow;
+  statusLed.show(color);
   logger.begin();
-  delay(250);
-
-  statusLed.show(hardware::StatusLed::Color::Blue);
+  // Report success
   logger.println();
   logger.println("[BOOT] Firmware setup reached");
   logger.print("[BOOT] Debug serial ready on ");
   logger.println(kDebugSerialName);
   logger.println("[BOOT] Status LED configured for GRB order on GPIO38");
   delay(250);
-
+  // Connect Wifi
+  color = hardware::StatusLed::Color::Blue;
+  statusLed.show(color);
   const auto wifiConnected = connectWifi();
   if (wifiConnected)
   {
-    const auto mdnsStarted = startMdns();
-
+    // Report success
     logger.print("[BOOT] REST API listening on http://");
     logger.print(WiFi.localIP().toString().c_str());
     logger.println("/api/health");
-
+    // Start mDNS
+    const auto mdnsStarted = startMdns();
     if (mdnsStarted)
     {
+      // Report success
       logger.println("[BOOT] or use its hostname");
       logger.print("[BOOT] REST API listening on http://");
       logger.print(kNetworkHostname);
       logger.println(".local/api/status");
+      color = hardware::StatusLed::Color::Green;
+    }
+    else
+    {
+      logger.println("[BOOT] mDNS not started");
+      color = hardware::StatusLed::Color::Orange;
     }
   }
-
+  else
+  {
+    logger.println("[BOOT] Wifi not started");
+    color = hardware::StatusLed::Color::Red;
+  }
+  // Register REST API
   restApi.begin();
   logger.println("[BOOT] REST API endpoints registered");
-
-  statusLed.show(hardware::StatusLed::Color::Green);
+  statusLed.show(color);
 }
 
 void loop()
@@ -167,8 +180,8 @@ void loop()
   if (now - lastToggleMs >= kBlinkIntervalMs)
   {
     lastToggleMs = now;
-    statusLed.setEnabled(isGreenOn);
-    isGreenOn = !isGreenOn;
+    statusLed.setEnabled(isLedOn, color);
+    isLedOn = !isLedOn;
     ++heartbeatCount;
   }
 }

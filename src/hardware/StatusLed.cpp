@@ -14,9 +14,9 @@ void StatusLed::show(Color color) const
   writeColor(toNeopixelWriteColor(color, brightness_));
 }
 
-void StatusLed::setEnabled(bool enabled) const
+void StatusLed::setEnabled(bool enabled, Color color) const
 {
-  show(enabled ? Color::Green : Color::Off);
+  show(enabled ? color : Color::Off);
 }
 
 void StatusLed::writeColor(NeopixelWriteColor color) const
