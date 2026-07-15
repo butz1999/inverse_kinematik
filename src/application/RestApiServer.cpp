@@ -2,6 +2,8 @@
 
 #include "application/RestApiServer.h"
 
+#include <ArduinoJson.h>
+
 #include "application/ApiJson.h"
 
 namespace application
@@ -10,60 +12,42 @@ namespace application
 namespace
 {
 
-void appendJsonEscaped(String &body, const String &value)
+constexpr std::size_t kRestJsonCapacity = 512;
+using RestJsonDocument = StaticJsonDocument<kRestJsonCapacity>;
+
+template <typename JsonDocumentType>
+String jsonBody(const JsonDocumentType &doc)
 {
-  for (std::size_t i = 0; i < value.length(); ++i)
-  {
-    const char c = value.charAt(i);
-    if (c == '"' || c == '\\')
-    {
-      body += '\\';
-    }
-    body += c;
-  }
+  String body;
+  body.reserve(measureJson(doc));
+  serializeJson(doc, body);
+  return body;
 }
 
-void appendJointStateJson(String &body, const common::JointState &state)
+void setJointStateJson(JsonObject object, const common::JointState &state)
 {
-  body += "{\"d_deg\":";
-  body += String(state.d_deg, 3);
-  body += ",\"s_deg\":";
-  body += String(state.s_deg, 3);
-  body += ",\"e_deg\":";
-  body += String(state.e_deg, 3);
-  body += ",\"hp_deg\":";
-  body += String(state.hp_deg, 3);
-  body += ",\"hr_deg\":";
-  body += String(state.hr_deg, 3);
-  body += ",\"g_pct\":";
-  body += String(state.g_pct, 3);
-  body += "}";
+  object["d_deg"] = serialized(String(state.d_deg, 3));
+  object["s_deg"] = serialized(String(state.s_deg, 3));
+  object["e_deg"] = serialized(String(state.e_deg, 3));
+  object["hp_deg"] = serialized(String(state.hp_deg, 3));
+  object["hr_deg"] = serialized(String(state.hr_deg, 3));
+  object["g_pct"] = serialized(String(state.g_pct, 3));
 }
 
-void appendJointPwmStateJson(String &body, const common::JointPwmState &state)
+void setJointPwmStateJson(JsonObject object, const common::JointPwmState &state)
 {
-  body += "{\"d_pwm\":";
-  body += state.d_pwm;
-  body += ",\"s_pwm\":";
-  body += state.s_pwm;
-  body += ",\"e_pwm\":";
-  body += state.e_pwm;
-  body += ",\"hp_pwm\":";
-  body += state.hp_pwm;
-  body += ",\"hr_pwm\":";
-  body += state.hr_pwm;
-  body += ",\"g_pwm\":";
-  body += state.g_pwm;
-  body += "}";
+  object["d_pwm"] = state.d_pwm;
+  object["s_pwm"] = state.s_pwm;
+  object["e_pwm"] = state.e_pwm;
+  object["hp_pwm"] = state.hp_pwm;
+  object["hr_pwm"] = state.hr_pwm;
+  object["g_pwm"] = state.g_pwm;
 }
 
-void appendHardwareDriverResultJson(String &body, const hardware::HardwareDriverResult &result)
+void setHardwareDriverResultJson(JsonObject object, const hardware::HardwareDriverResult &result)
 {
-  body += "{\"status\":\"";
-  body += hardware::toString(result.status);
-  body += "\",\"message\":\"";
-  appendJsonEscaped(body, result.message);
-  body += "\"}";
+  object["status"] = hardware::toString(result.status);
+  object["message"] = result.message;
 }
 
 }  // namespace
@@ -155,65 +139,46 @@ void RestApiServer::handleHealth()
 {
   logRequest("GET", "/api/health");
 
-  String body;
-  body.reserve(160);
-  body += "{\"service\":\"";
-  body += kApiName;
-  body += "\",\"apiVersion\":\"";
-  body += kApiVersion;
-  body += "\",\"status\":\"";
-  body += toString(ApiResultCode::Ok);
-  body += "\",\"orchestrator\":\"";
-  body += toString(ApiCapabilityStatus::NotAvailable);
-  body += "\",\"uptimeMs\":";
-  body += millis();
-  body += "}";
+  RestJsonDocument doc;
+  doc["service"] = kApiName;
+  doc["apiVersion"] = kApiVersion;
+  doc["status"] = toString(ApiResultCode::Ok);
+  doc["orchestrator"] = toString(ApiCapabilityStatus::NotAvailable);
+  doc["uptimeMs"] = millis();
 
-  sendJson(200, body);
+  sendJson(200, jsonBody(doc));
 }
 
 void RestApiServer::handleStatus()
 {
   logRequest("GET", "/api/status");
 
-  String body;
-  body.reserve(192);
-  body += "{\"restApi\":\"";
-  body += toString(ApiCapabilityStatus::Available);
-  body += "\",\"orchestrator\":\"";
-  body += toString(ApiCapabilityStatus::NotAvailable);
-  body += "\",\"jointStateEndpoint\":\"";
-  body += toString(ApiCapabilityStatus::Available);
-  body += "\",\"jointMotionEndpoint\":\"";
-  body += toString(ApiCapabilityStatus::Available);
-  body += "\",\"jointPwmStateEndpoint\":\"";
-  body += toString(ApiCapabilityStatus::Available);
-  body += "\",\"jointPwmMotionEndpoint\":\"";
-  body += toString(ApiCapabilityStatus::Available);
-  body += "\",\"jointPwmHardwareOutput\":\"";
-  body += toString(servo_driver_ != nullptr ? ApiCapabilityStatus::Available : ApiCapabilityStatus::NotAvailable);
-  body += "\",\"motionEndpoint\":\"reserved\",\"uptimeMs\":";
-  body += millis();
-  body += "}";
+  RestJsonDocument doc;
+  doc["restApi"] = toString(ApiCapabilityStatus::Available);
+  doc["orchestrator"] = toString(ApiCapabilityStatus::NotAvailable);
+  doc["jointStateEndpoint"] = toString(ApiCapabilityStatus::Available);
+  doc["jointMotionEndpoint"] = toString(ApiCapabilityStatus::Available);
+  doc["jointPwmStateEndpoint"] = toString(ApiCapabilityStatus::Available);
+  doc["jointPwmMotionEndpoint"] = toString(ApiCapabilityStatus::Available);
+  doc["jointPwmHardwareOutput"] =
+      toString(servo_driver_ != nullptr ? ApiCapabilityStatus::Available : ApiCapabilityStatus::NotAvailable);
+  doc["motionEndpoint"] = "reserved";
+  doc["uptimeMs"] = millis();
 
-  sendJson(200, body);
+  sendJson(200, jsonBody(doc));
 }
 
 void RestApiServer::handleJointState()
 {
   logRequest("GET", "/api/joint-state");
 
-  String body;
-  body.reserve(256);
-  body += "{\"status\":\"";
-  body += toString(ApiResultCode::Ok);
-  body += "\",\"code\":\"";
-  body += toString(ApiResultCode::Ok);
-  body += "\",\"source\":\"assumed_low_level_state\",\"jointState\":";
-  appendJointStateJson(body, current_joint_state_);
-  body += "}";
+  RestJsonDocument doc;
+  doc["status"] = toString(ApiResultCode::Ok);
+  doc["code"] = toString(ApiResultCode::Ok);
+  doc["source"] = "assumed_low_level_state";
+  setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
 
-  sendJson(200, body);
+  sendJson(200, jsonBody(doc));
 }
 
 void RestApiServer::handleJointMotionRequest()
@@ -223,59 +188,46 @@ void RestApiServer::handleJointMotionRequest()
   const auto body_arg = server_.arg("plain");
   const auto parsed = parseJointMotionRequestJson(body_arg.c_str());
 
-  String body;
-  body.reserve(384);
-
   if (!parsed.ok)
   {
-    body += "{\"status\":\"rejected\",\"code\":\"";
-    body += toString(parsed.code);
-    body += "\"";
+    RestJsonDocument doc;
+    doc["status"] = "rejected";
+    doc["code"] = toString(parsed.code);
     if (parsed.field_name[0] != '\0')
     {
-      body += ",\"field\":\"";
-      appendJsonEscaped(body, parsed.field_name);
-      body += "\"";
+      doc["field"] = parsed.field_name;
     }
-    body += ",\"message\":\"";
-    appendJsonEscaped(body, parsed.message);
-    body += "\"}";
+    doc["message"] = parsed.message;
     logResult("[REST] Joint motion request rejected");
-    sendJson(400, body);
+    sendJson(400, jsonBody(doc));
     return;
   }
 
   current_joint_state_ = parsed.joint_state;
   logResult("[REST] Joint motion request accepted");
 
-  body += "{\"status\":\"accepted\",\"code\":\"";
-  body += toString(ApiResultCode::Ok);
-  body += "\",\"mode\":\"joint_space_direct\",\"hardware\":\"";
-  body += toString(ApiCapabilityStatus::NotAvailable);
-  body += "\",\"jointState\":";
-  appendJointStateJson(body, current_joint_state_);
-  body +=
-      ",\"message\":\"Joint state accepted as assumed low-level target; "
-      "hardware output is not connected yet.\"}";
+  RestJsonDocument doc;
+  doc["status"] = "accepted";
+  doc["code"] = toString(ApiResultCode::Ok);
+  doc["mode"] = "joint_space_direct";
+  doc["hardware"] = toString(ApiCapabilityStatus::NotAvailable);
+  setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
+  doc["message"] = "Joint state accepted as assumed low-level target; hardware output is not connected yet.";
 
-  sendJson(202, body);
+  sendJson(202, jsonBody(doc));
 }
 
 void RestApiServer::handleJointPwmState()
 {
   logRequest("GET", "/api/joint-pwm-state");
 
-  String body;
-  body.reserve(256);
-  body += "{\"status\":\"";
-  body += toString(ApiResultCode::Ok);
-  body += "\",\"code\":\"";
-  body += toString(ApiResultCode::Ok);
-  body += "\",\"source\":\"assumed_low_level_pwm_state\",\"jointPwmState\":";
-  appendJointPwmStateJson(body, current_joint_pwm_state_);
-  body += "}";
+  RestJsonDocument doc;
+  doc["status"] = toString(ApiResultCode::Ok);
+  doc["code"] = toString(ApiResultCode::Ok);
+  doc["source"] = "assumed_low_level_pwm_state";
+  setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
 
-  sendJson(200, body);
+  sendJson(200, jsonBody(doc));
 }
 
 void RestApiServer::handleJointPwmMotionRequest()
@@ -285,25 +237,18 @@ void RestApiServer::handleJointPwmMotionRequest()
   const auto body_arg = server_.arg("plain");
   const auto parsed = parseJointPwmMotionRequestJson(body_arg.c_str());
 
-  String body;
-  body.reserve(384);
-
   if (!parsed.ok)
   {
-    body += "{\"status\":\"rejected\",\"code\":\"";
-    body += toString(parsed.code);
-    body += "\"";
+    RestJsonDocument doc;
+    doc["status"] = "rejected";
+    doc["code"] = toString(parsed.code);
     if (parsed.field_name[0] != '\0')
     {
-      body += ",\"field\":\"";
-      appendJsonEscaped(body, parsed.field_name);
-      body += "\"";
+      doc["field"] = parsed.field_name;
     }
-    body += ",\"message\":\"";
-    appendJsonEscaped(body, parsed.message);
-    body += "\"}";
+    doc["message"] = parsed.message;
     logResult("[REST] Joint PWM request rejected");
-    sendJson(400, body);
+    sendJson(400, jsonBody(doc));
     return;
   }
 
@@ -315,14 +260,13 @@ void RestApiServer::handleJointPwmMotionRequest()
       if (begin_result.status != hardware::HardwareDriverStatus::Ok)
       {
         logResult("[REST] PCA9685 begin failed");
-        body += "{\"status\":\"hardware_failed\",\"code\":\"";
-        body += toString(ApiResultCode::HardwareDriverFailure);
-        body += "\",\"mode\":\"joint_pwm_direct\",\"hardware\":\"";
-        body += toString(ApiCapabilityStatus::Available);
-        body += "\",\"driver\":";
-        appendHardwareDriverResultJson(body, begin_result);
-        body += "}";
-        sendJson(503, body);
+        RestJsonDocument doc;
+        doc["status"] = "hardware_failed";
+        doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
+        doc["mode"] = "joint_pwm_direct";
+        doc["hardware"] = toString(ApiCapabilityStatus::Available);
+        setHardwareDriverResultJson(doc.createNestedObject("driver"), begin_result);
+        sendJson(503, jsonBody(doc));
         return;
       }
     }
@@ -331,62 +275,54 @@ void RestApiServer::handleJointPwmMotionRequest()
     if (write_result.status != hardware::HardwareDriverStatus::Ok)
     {
       logResult("[REST] PCA9685 write failed");
-      body += "{\"status\":\"hardware_failed\",\"code\":\"";
-      body += toString(ApiResultCode::HardwareDriverFailure);
-      body += "\",\"mode\":\"joint_pwm_direct\",\"hardware\":\"";
-      body += toString(ApiCapabilityStatus::Available);
-      body += "\",\"driver\":";
-      appendHardwareDriverResultJson(body, write_result);
-      body += "}";
-      sendJson(503, body);
+      RestJsonDocument doc;
+      doc["status"] = "hardware_failed";
+      doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
+      doc["mode"] = "joint_pwm_direct";
+      doc["hardware"] = toString(ApiCapabilityStatus::Available);
+      setHardwareDriverResultJson(doc.createNestedObject("driver"), write_result);
+      sendJson(503, jsonBody(doc));
       return;
     }
 
     current_joint_pwm_state_ = parsed.joint_pwm_state;
     logResult("[REST] Joint PWM request written to hardware");
 
-    body += "{\"status\":\"accepted\",\"code\":\"";
-    body += toString(ApiResultCode::Ok);
-    body += "\",\"mode\":\"joint_pwm_direct\",\"hardware\":\"";
-    body += toString(ApiCapabilityStatus::Available);
-    body += "\",\"driver\":";
-    appendHardwareDriverResultJson(body, write_result);
-    body += ",\"jointPwmState\":";
-    appendJointPwmStateJson(body, current_joint_pwm_state_);
-    body += "}";
-    sendJson(202, body);
+    RestJsonDocument doc;
+    doc["status"] = "accepted";
+    doc["code"] = toString(ApiResultCode::Ok);
+    doc["mode"] = "joint_pwm_direct";
+    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    setHardwareDriverResultJson(doc.createNestedObject("driver"), write_result);
+    setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
+    sendJson(202, jsonBody(doc));
     return;
   }
 
   current_joint_pwm_state_ = parsed.joint_pwm_state;
   logResult("[REST] Joint PWM request accepted without hardware output");
 
-  body += "{\"status\":\"accepted\",\"code\":\"";
-  body += toString(ApiResultCode::Ok);
-  body += "\",\"mode\":\"joint_pwm_direct\",\"hardware\":\"";
-  body += toString(ApiCapabilityStatus::NotAvailable);
-  body += "\",\"jointPwmState\":";
-  appendJointPwmStateJson(body, current_joint_pwm_state_);
-  body +=
-      ",\"message\":\"Joint PWM state accepted as assumed low-level "
-      "target; hardware output is not connected yet.\"}";
+  RestJsonDocument doc;
+  doc["status"] = "accepted";
+  doc["code"] = toString(ApiResultCode::Ok);
+  doc["mode"] = "joint_pwm_direct";
+  doc["hardware"] = toString(ApiCapabilityStatus::NotAvailable);
+  setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
+  doc["message"] = "Joint PWM state accepted as assumed low-level target; hardware output is not connected yet.";
 
-  sendJson(202, body);
+  sendJson(202, jsonBody(doc));
 }
 
 void RestApiServer::handleMotionRequest()
 {
   logRequest("POST", "/api/motion");
 
-  String body;
-  body.reserve(192);
-  body += "{\"status\":\"not_implemented\",\"code\":\"";
-  body += toString(ApiResultCode::OrchestratorUnavailable);
-  body +=
-      "\",\"message\":\"Motion endpoint is reserved for Orchestrator "
-      "integration.\"}";
+  RestJsonDocument doc;
+  doc["status"] = "not_implemented";
+  doc["code"] = toString(ApiResultCode::OrchestratorUnavailable);
+  doc["message"] = "Motion endpoint is reserved for Orchestrator integration.";
 
-  sendJson(501, body);
+  sendJson(501, jsonBody(doc));
 }
 
 void RestApiServer::handleFavicon()
@@ -399,15 +335,12 @@ void RestApiServer::handleNotFound()
 {
   logRequest(server_.method() == HTTP_POST ? "POST" : "HTTP", server_.uri().c_str());
 
-  String body;
-  body.reserve(128);
-  body += "{\"status\":\"not_found\",\"code\":\"";
-  body += toString(ApiResultCode::UnknownRoute);
-  body += "\",\"path\":\"";
-  body += server_.uri();
-  body += "\"}";
+  RestJsonDocument doc;
+  doc["status"] = "not_found";
+  doc["code"] = toString(ApiResultCode::UnknownRoute);
+  doc["path"] = server_.uri();
 
-  sendJson(404, body);
+  sendJson(404, jsonBody(doc));
 }
 
 void RestApiServer::logRequest(const char *method, const char *path) const
