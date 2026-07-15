@@ -65,9 +65,8 @@ HardwareDriverResult Pca9685ServoDriver::write(const common::JointPwmState &stat
     return notInitialized();
   }
 
-  if (const auto *violation = common::findFirstLimitViolation(state))
+  if (!common::isWithinJointPwmLimits(state))
   {
-    (void)violation;
     return invalidPwmValue();
   }
 
@@ -122,7 +121,7 @@ HardwareDriverResult Pca9685ServoDriver::writeChannel(uint8_t channel, uint16_t 
     return invalidChannel();
   }
 
-  if (pwm_value > common::kPca9685MaxPwm)
+  if (pwm_value > common::kMaxPwm)
   {
     return invalidPwmValue();
   }

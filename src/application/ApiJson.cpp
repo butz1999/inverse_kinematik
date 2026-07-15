@@ -117,20 +117,13 @@ JointPwmMotionParseResult parseJointPwmMotionRequestJson(const char *body)
     }
 
     const auto parsed_value = value.as<long>();
-    if (parsed_value < common::kPca9685MinPwm || parsed_value > common::kPca9685MaxPwm)
+    if (parsed_value < common::kMinPwm || parsed_value > common::kMaxPwm)
     {
       return jointPwmMotionError(ApiResultCode::JointPwmLimitViolation, fields[i],
                                  "PWM value is outside the PCA9685 12-bit range 0..4095.");
     }
 
     *values[i] = static_cast<uint16_t>(parsed_value);
-  }
-
-  if (const auto *violation = common::findFirstLimitViolation(state))
-  {
-    return jointPwmMotionError(ApiResultCode::JointPwmLimitViolation, violation->field_name,
-                               "PWM value is outside its configured low-level "
-                               "limit.");
   }
 
   return JointPwmMotionParseResult{true, ApiResultCode::Ok, kEmptyField, kEmptyField, state};

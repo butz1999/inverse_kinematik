@@ -18,66 +18,19 @@ struct JointPwmState
   uint16_t g_pwm;
 };
 
-struct JointPwmLimit
-{
-  const char *field_name;
-  uint16_t min_value;
-  uint16_t max_value;
-};
-
-constexpr uint16_t kPca9685MinPwm = 0U;
-constexpr uint16_t kPca9685MaxPwm = 4095U;
-
-constexpr JointPwmLimit kJointPwmLimits[] = {
-    {"d_pwm", kPca9685MinPwm, kPca9685MaxPwm},  {"s_pwm", kPca9685MinPwm, kPca9685MaxPwm},
-    {"e_pwm", kPca9685MinPwm, kPca9685MaxPwm},  {"hp_pwm", kPca9685MinPwm, kPca9685MaxPwm},
-    {"hr_pwm", kPca9685MinPwm, kPca9685MaxPwm}, {"g_pwm", kPca9685MinPwm, kPca9685MaxPwm},
-};
-
-constexpr std::size_t kJointPwmAxisCount = sizeof(kJointPwmLimits) / sizeof(kJointPwmLimits[0]);
+constexpr uint16_t kMinPwm = 0U;
+constexpr uint16_t kMaxPwm = 4095U;
+constexpr std::size_t kJointPwmAxisCount = 6U;
 
 inline JointPwmState initialJointPwmState()
 {
   return JointPwmState{0U, 0U, 0U, 0U, 0U, 0U};
 }
 
-inline uint16_t valueForLimit(const JointPwmState &state, std::size_t index)
-{
-  switch (index)
-  {
-    case 0:
-      return state.d_pwm;
-    case 1:
-      return state.s_pwm;
-    case 2:
-      return state.e_pwm;
-    case 3:
-      return state.hp_pwm;
-    case 4:
-      return state.hr_pwm;
-    default:
-      return state.g_pwm;
-  }
-}
-
-inline const JointPwmLimit *findFirstLimitViolation(const JointPwmState &state)
-{
-  for (std::size_t i = 0; i < kJointPwmAxisCount; ++i)
-  {
-    const auto value = valueForLimit(state, i);
-    const auto &limit = kJointPwmLimits[i];
-    if (value < limit.min_value || value > limit.max_value)
-    {
-      return &limit;
-    }
-  }
-
-  return nullptr;
-}
-
 inline bool isWithinJointPwmLimits(const JointPwmState &state)
 {
-  return findFirstLimitViolation(state) == nullptr;
+  return state.d_pwm <= kMaxPwm && state.s_pwm <= kMaxPwm && state.e_pwm <= kMaxPwm && state.hp_pwm <= kMaxPwm &&
+         state.hr_pwm <= kMaxPwm && state.g_pwm <= kMaxPwm;
 }
 
 }  // namespace common

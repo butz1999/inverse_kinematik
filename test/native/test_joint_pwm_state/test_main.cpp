@@ -21,16 +21,13 @@ void test_joint_pwm_state_accepts_values_inside_pca9685_range()
   const common::JointPwmState state{0U, 1U, 1500U, 2048U, 3000U, 4095U};
 
   TEST_ASSERT_TRUE(common::isWithinJointPwmLimits(state));
-  TEST_ASSERT_NULL(common::findFirstLimitViolation(state));
 }
 
-void test_joint_pwm_limits_expose_pca9685_range_per_axis()
+void test_joint_pwm_limits_expose_shared_pca9685_range()
 {
-  TEST_ASSERT_EQUAL_UINT16(0U, common::kPca9685MinPwm);
-  TEST_ASSERT_EQUAL_UINT16(4095U, common::kPca9685MaxPwm);
+  TEST_ASSERT_EQUAL_UINT16(0U, common::kMinPwm);
+  TEST_ASSERT_EQUAL_UINT16(4095U, common::kMaxPwm);
   TEST_ASSERT_EQUAL_UINT(6U, common::kJointPwmAxisCount);
-  TEST_ASSERT_EQUAL_STRING("d_pwm", common::kJointPwmLimits[0].field_name);
-  TEST_ASSERT_EQUAL_STRING("g_pwm", common::kJointPwmLimits[5].field_name);
 }
 
 int main(int argc, char **argv)
@@ -38,6 +35,6 @@ int main(int argc, char **argv)
   UNITY_BEGIN();
   RUN_TEST(test_initial_joint_pwm_state_uses_zero_outputs);
   RUN_TEST(test_joint_pwm_state_accepts_values_inside_pca9685_range);
-  RUN_TEST(test_joint_pwm_limits_expose_pca9685_range_per_axis);
+  RUN_TEST(test_joint_pwm_limits_expose_shared_pca9685_range);
   return UNITY_END();
 }
