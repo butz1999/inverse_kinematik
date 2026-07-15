@@ -1,4 +1,4 @@
-// SerialLogger forwards formatted debug output to the configured UART.
+// SerialLogger forwards formatted debug output to the configured serial backend.
 
 #include "hardware/SerialLogger.h"
 

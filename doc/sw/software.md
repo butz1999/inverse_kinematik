@@ -58,17 +58,16 @@ Darüber hinaus verfolgt die Implementierung folgende Qualitätsziele:
 * in WSL prüfen, unter welchem Gerätenamen das Interface erscheint, z. B. `ls /dev/ttyUSB* /dev/ttyACM*`
 * für eine stabilere Identifikation zusätzlich Symlinks unter `ls -l /dev/serial/by-id` prüfen
 
-Im aktuellen Entwicklungsaufbau wurde unter WSL genau ein serielles Gerät sichtbar:
-`usb-1a86_USB_Single_Serial_... -> /dev/ttyACM0`
+Im aktuellen Entwicklungsaufbau wird unter WSL der serielle Board-Port als `/dev/ttyACM0` verwendet. Je nach USB-Aufzählung kann dieser Port über den CH343-USB-Seriell-Wandler oder über das native USB-CDC-Interface des ESP32-S3 bereitgestellt werden.
 
-Damit verläuft der funktionierende erste Bring-up-Pfad nicht über einen separaten nativen USB-CDC-Kanal des `ESP32-S3`, sondern über einen einzelnen USB-Seriell-Wandler, der Upload, Bootmeldungen und Firmware-Logs über denselben Port bereitstellt.
+Die Firmware aktiviert aktuell `ARDUINO_USB_CDC_ON_BOOT=1`. Dadurch kann Arduino-`Serial` auf dem ESP32-S3 als USB-CDC-Backend bereitstehen. Der `SerialLogger` unterstützt deshalb sowohl klassische `HardwareSerial`-Backends als auch das USB-CDC-Backend `HWCDC`.
 
 Für diesen Stand gelten daher die folgenden praktischen Annahmen:
 
 * `upload_port = /dev/ttyACM0`
 * `monitor_port = /dev/ttyACM0`
-* serielle Log-Ausgabe aus der Firmware über den normalen Arduino-Serial-Pfad
-* keine Aktivierung eines alternativen nativen USB-CDC-Debugpfads für den ersten WSL-Workflow
+* serielle Log-Ausgabe aus der Firmware über Arduino-`Serial`
+* `ARDUINO_USB_CDC_ON_BOOT=1` für den aktuellen ESP32-S3-Serial-Pfad
 
 Die Gerätenamen `/dev/ttyUSB0` und `/dev/ttyACM0` sind dabei nicht allein entscheidend. Maßgeblich ist, welches konkrete Gerät unter `/dev/serial/by-id` erscheint und ob Upload sowie Monitor darüber zuverlässig funktionieren.
 
@@ -121,10 +120,10 @@ Der aktuell bestätigte einfache Bring-up-Pfad basiert auf den folgenden Annahme
 * ein unter WSL sichtbarer serieller Board-Port für Upload und Monitoring
 * ein zusätzlich unter WSL sichtbares ESP32-S3 USB-JTAG-Gerät für Hardware-Debugging
 * Upload und Monitoring über denselben Port `/dev/ttyACM0`
-* serielle Log-Ausgabe der Firmware über den normalen Arduino-`Serial`-Pfad
+* serielle Log-Ausgabe der Firmware über Arduino-`Serial`, aktuell mit aktiviertem USB-CDC-on-boot
 * Hardware-Debugging über das native USB-JTAG-Interface des ESP32-S3
 
-Die aktuelle `platformio.ini` bildet diesen Stand mit `upload_port = /dev/ttyACM0`, `monitor_port = /dev/ttyACM0` und `debug_tool = esp-builtin` direkt ab.
+Die aktuelle `platformio.ini` bildet diesen Stand mit `upload_port = /dev/ttyACM0`, `monitor_port = /dev/ttyACM0`, `ARDUINO_USB_CDC_ON_BOOT=1` und `debug_tool = esp-builtin` direkt ab.
 
 ## Geplante Modulstruktur
 

@@ -8,7 +8,7 @@ Die API wird vom `RestApiServer` bereitgestellt und ist als Bring-up-Schnittstel
 
 - Protokoll: HTTP
 - Payload-Format: JSON
-- Response-Header: `Content-Type: application/json`
+- Response-Header: `Content-Type: application/json` für JSON-Antworten
 - Cache-Header: `Cache-Control: no-store`
 - API-Name: `inverse_kinematic`
 - API-Version: `v1`

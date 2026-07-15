@@ -1,4 +1,4 @@
-// Small wrapper around HardwareSerial to keep logging setup in one place.
+// Small wrapper around Arduino serial streams to keep logging setup in one place.
 
 #pragma once
 
