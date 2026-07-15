@@ -5,13 +5,27 @@
 namespace hardware
 {
 
-SerialLogger::SerialLogger(HardwareSerial &serial, unsigned long baudrate) : serial_(serial), baudrate_(baudrate)
+SerialLogger::SerialLogger(HardwareSerial &serial, unsigned long baudrate)
+    : serial_(serial), baudrate_(baudrate), backend_(SerialBackend::HardwareSerial)
+{
+}
+
+SerialLogger::SerialLogger(HWCDC &serial, unsigned long baudrate)
+    : serial_(serial), baudrate_(baudrate), backend_(SerialBackend::UsbCdc)
 {
 }
 
 void SerialLogger::begin() const
 {
-  serial_.begin(baudrate_);
+  switch (backend_)
+  {
+    case SerialBackend::HardwareSerial:
+      static_cast<HardwareSerial &>(serial_).begin(baudrate_);
+      break;
+    case SerialBackend::UsbCdc:
+      static_cast<HWCDC &>(serial_).begin(baudrate_);
+      break;
+  }
 }
 
 void SerialLogger::print(const char *message) const

@@ -11,6 +11,7 @@ class SerialLogger
 {
  public:
   SerialLogger(HardwareSerial &serial, unsigned long baudrate);
+  SerialLogger(HWCDC &serial, unsigned long baudrate);
 
   void begin() const;
   void print(const char *message) const;
@@ -18,8 +19,15 @@ class SerialLogger
   void println(const char *message) const;
 
  private:
-  HardwareSerial &serial_;
+  enum class SerialBackend
+  {
+    HardwareSerial,
+    UsbCdc,
+  };
+
+  Stream &serial_;
   unsigned long baudrate_;
+  SerialBackend backend_;
 };
 
 }  // namespace hardware
