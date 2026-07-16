@@ -48,6 +48,7 @@ constexpr HardwareDriverResult driverConfigurationFailed()
 
 constexpr uint8_t kPca9685GeneralCallAddress = 0x00U;
 constexpr uint8_t kPca9685SoftwareResetCommand = 0x06U;
+constexpr uint8_t kPca9685ServoMode2 = MODE2_OUTDRV;
 
 }  // namespace
 
@@ -83,23 +84,13 @@ HardwareDriverResult Pca9685ServoDriver::begin()
     return driverBeginFailed();
   }
 
-  const auto output_disable_result = configureOutputsHighImpedanceWhenDisabled();
-  if (output_disable_result.status != HardwareDriverStatus::Ok)
+  const auto mode2_result = configureMode2ForServoOutputs();
+  if (mode2_result.status != HardwareDriverStatus::Ok)
   {
-    return output_disable_result;
+    return mode2_result;
   }
 
   pwm_driver_.setPWMFreq(config_.pwm_frequency_hz);
-
-  return ok();
-}
-
-HardwareDriverResult Pca9685ServoDriver::init()
-{
-  if (initialized_)
-  {
-    return alreadyInitialized();
-  }
 
   const auto initial_write_result = writeChannels(common::initialJointPwmState());
   if (initial_write_result.status != HardwareDriverStatus::Ok)
@@ -110,6 +101,16 @@ HardwareDriverResult Pca9685ServoDriver::init()
   initialized_ = true;
   enableOutputs();
   return ok();
+}
+
+HardwareDriverResult Pca9685ServoDriver::init()
+{
+  if (initialized_)
+  {
+    return alreadyInitialized();
+  }
+
+  return begin();
 }
 
 HardwareDriverResult Pca9685ServoDriver::write(const common::JointPwmState &state)
@@ -162,39 +163,14 @@ HardwareDriverResult Pca9685ServoDriver::softwareReset()
   return ok();
 }
 
-HardwareDriverResult Pca9685ServoDriver::configureOutputsHighImpedanceWhenDisabled()
+HardwareDriverResult Pca9685ServoDriver::configureMode2ForServoOutputs()
 {
-  uint8_t mode2 = 0U;
-  if (!readRegister(PCA9685_MODE2, mode2))
-  {
-    return driverConfigurationFailed();
-  }
-
-  mode2 = (mode2 & ~static_cast<uint8_t>(MODE2_OUTNE_0 | MODE2_OUTNE_1)) | MODE2_OUTNE_1;
-  if (!writeRegister(PCA9685_MODE2, mode2))
+  if (!writeRegister(PCA9685_MODE2, kPca9685ServoMode2))
   {
     return driverConfigurationFailed();
   }
 
   return ok();
-}
-
-bool Pca9685ServoDriver::readRegister(uint8_t register_address, uint8_t &value) const
-{
-  Wire.beginTransmission(config_.i2c_address);
-  Wire.write(register_address);
-  if (Wire.endTransmission(false) != 0)
-  {
-    return false;
-  }
-
-  if (Wire.requestFrom(config_.i2c_address, static_cast<uint8_t>(1U)) != 1U)
-  {
-    return false;
-  }
-
-  value = static_cast<uint8_t>(Wire.read());
-  return true;
 }
 
 bool Pca9685ServoDriver::writeRegister(uint8_t register_address, uint8_t value) const

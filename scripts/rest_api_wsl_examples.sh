@@ -40,7 +40,7 @@ request "POST /api/servo-driver/init" \
 request "POST /api/joint-pwm-motion" \
   -X POST "$BASE_URL/api/joint-pwm-motion" \
   -H 'Content-Type: application/json' \
-  -d '{"d_pwm":1500,"s_pwm":1500,"e_pwm":1500,"hp_pwm":1500,"hr_pwm":1500,"g_pwm":1500}'
+  -d '{"d_pwm":307,"s_pwm":307,"e_pwm":307,"hp_pwm":307,"hr_pwm":307,"g_pwm":307}'
 
 request "GET /api/joint-pwm-state after POST /api/joint-pwm-motion" \
   "$BASE_URL/api/joint-pwm-state"
@@ -59,4 +59,4 @@ request "POST /api/joint-motion with missing s_deg" \
 request "POST /api/joint-pwm-motion with d_pwm outside 0..4095" \
   -X POST "$BASE_URL/api/joint-pwm-motion" \
   -H 'Content-Type: application/json' \
-  -d '{"d_pwm":4096,"s_pwm":1500,"e_pwm":1500,"hp_pwm":1500,"hr_pwm":1500,"g_pwm":1500}'
+  -d '{"d_pwm":4096,"s_pwm":307,"e_pwm":307,"hp_pwm":307,"hr_pwm":307,"g_pwm":307}'

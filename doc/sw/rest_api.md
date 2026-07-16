@@ -131,12 +131,12 @@ Beispiel:
 
 ```json
 {
-  "d_pwm": 1500,
-  "s_pwm": 1500,
-  "e_pwm": 1500,
-  "hp_pwm": 1500,
-  "hr_pwm": 1500,
-  "g_pwm": 1500
+  "d_pwm": 307,
+  "s_pwm": 307,
+  "e_pwm": 307,
+  "hp_pwm": 307,
+  "hr_pwm": 307,
+  "g_pwm": 307
 }
 ```
 
@@ -236,7 +236,7 @@ Response `200`:
 ```
 
 `jointPwmHardwareOutput` ist `available`, wenn der `RestApiServer` mit einem `Pca9685ServoDriver` konstruiert wurde. Andernfalls ist der Wert `not_available`.
-`jointPwmHardwareInitialized` ist `true`, nachdem `POST /api/servo-driver/init` erfolgreich ausgeführt wurde.
+`jointPwmHardwareInitialized` ist `true`, nachdem der PCA9685-Treiber erfolgreich initialisiert wurde. Im normalen Firmwarestart geschieht das direkt beim Boot über `servoDriver.begin()`.
 
 ### Gelenkzustand auslesen
 
@@ -396,12 +396,12 @@ Response `200`:
   "code": "ok",
   "source": "assumed_low_level_pwm_state",
   "jointPwmState": {
-    "d_pwm": 0,
-    "s_pwm": 0,
-    "e_pwm": 0,
-    "hp_pwm": 0,
-    "hr_pwm": 0,
-    "g_pwm": 0
+    "d_pwm": 307,
+    "s_pwm": 307,
+    "e_pwm": 307,
+    "hp_pwm": 307,
+    "hr_pwm": 307,
+    "g_pwm": 307
   }
 }
 ```
@@ -410,7 +410,7 @@ Response `200`:
 
 `POST /api/servo-driver/init`
 
-Initialisiert den PCA9685-Servo-Treiber für den Low-Level-Bring-up. Der Treiber setzt die PCA9685-Ausgänge zunächst über `OE` in den deaktivierten Zustand, führt die technische Initialisierung aus, schreibt den initialen `JointPwmState` und gibt die Ausgänge danach frei.
+Initialisiert den PCA9685-Servo-Treiber für Diagnose oder manuelle Initialisierung, falls der Boot-Init nicht erfolgreich war. Im normalen Firmwarestart wird dieser Schritt bereits beim Boot ausgeführt. Der Treiber setzt die PCA9685-Ausgänge zunächst über `OE` in den deaktivierten Zustand, führt die technische Initialisierung aus, schreibt den initialen `JointPwmState` und gibt die Ausgänge danach frei.
 
 #### Ausführen
 
@@ -446,12 +446,12 @@ Response `202`:
     "message": "ok"
   },
   "jointPwmState": {
-    "d_pwm": 0,
-    "s_pwm": 0,
-    "e_pwm": 0,
-    "hp_pwm": 0,
-    "hr_pwm": 0,
-    "g_pwm": 0
+    "d_pwm": 307,
+    "s_pwm": 307,
+    "e_pwm": 307,
+    "hp_pwm": 307,
+    "hr_pwm": 307,
+    "g_pwm": 307
   }
 }
 ```
@@ -471,18 +471,18 @@ Response `503`, wenn kein Hardwaretreiber eingebunden ist:
 
 `POST /api/joint-pwm-motion`
 
-Setzt einen direkten PWM-Zustand. Wenn ein `Pca9685ServoDriver` verfügbar ist, muss vorher `POST /api/servo-driver/init` erfolgreich ausgeführt worden sein. Erst danach wird der Zustand auf die Hardware geschrieben. Wenn kein Treiber verfügbar ist, wird der Zustand nur als angenommener Low-Level-Zielzustand gespeichert.
+Setzt einen direkten PWM-Zustand. Wenn ein `Pca9685ServoDriver` verfügbar ist, muss der Treiber initialisiert sein. Im normalen Firmwarestart geschieht das bereits beim Boot; der zusätzliche Aufruf von `POST /api/servo-driver/init` ist dafür nicht mehr erforderlich. Wenn kein Treiber verfügbar ist, wird der Zustand nur als angenommener Low-Level-Zielzustand gespeichert.
 
 Request:
 
 ```json
 {
-  "d_pwm": 1500,
-  "s_pwm": 1500,
-  "e_pwm": 1500,
-  "hp_pwm": 1500,
-  "hr_pwm": 1500,
-  "g_pwm": 1500
+  "d_pwm": 307,
+  "s_pwm": 307,
+  "e_pwm": 307,
+  "hp_pwm": 307,
+  "hr_pwm": 307,
+  "g_pwm": 307
 }
 ```
 
@@ -493,7 +493,7 @@ Linux, macOS:
 ```sh
 curl -X POST http://robot.local/api/joint-pwm-motion \
   -H 'Content-Type: application/json' \
-  -d '{"d_pwm":1500,"s_pwm":1500,"e_pwm":1500,"hp_pwm":1500,"hr_pwm":1500,"g_pwm":1500}'
+  -d '{"d_pwm":307,"s_pwm":307,"e_pwm":307,"hp_pwm":307,"hr_pwm":307,"g_pwm":307}'
 ```
 
 WSL:
@@ -501,13 +501,13 @@ WSL:
 ```sh
 curl -X POST http://robot.fritz.box/api/joint-pwm-motion \
   -H 'Content-Type: application/json' \
-  -d '{"d_pwm":1500,"s_pwm":1500,"e_pwm":1500,"hp_pwm":1500,"hr_pwm":1500,"g_pwm":1500}'
+  -d '{"d_pwm":307,"s_pwm":307,"e_pwm":307,"hp_pwm":307,"hr_pwm":307,"g_pwm":307}'
 ```
 
 PowerShell:
 
 ```powershell
-curl.exe -X POST http://robot.local/api/joint-pwm-motion -H "Content-Type: application/json" -d '{"d_pwm":1500,"s_pwm":1500,"e_pwm":1500,"hp_pwm":1500,"hr_pwm":1500,"g_pwm":1500}'
+curl.exe -X POST http://robot.local/api/joint-pwm-motion -H "Content-Type: application/json" -d '{"d_pwm":307,"s_pwm":307,"e_pwm":307,"hp_pwm":307,"hr_pwm":307,"g_pwm":307}'
 ```
 
 ```mermaid
@@ -552,12 +552,12 @@ Response `202`, ohne Hardware-Treiber:
   "mode": "joint_pwm_direct",
   "hardware": "not_available",
   "jointPwmState": {
-    "d_pwm": 1500,
-    "s_pwm": 1500,
-    "e_pwm": 1500,
-    "hp_pwm": 1500,
-    "hr_pwm": 1500,
-    "g_pwm": 1500
+    "d_pwm": 307,
+    "s_pwm": 307,
+    "e_pwm": 307,
+    "hp_pwm": 307,
+    "hr_pwm": 307,
+    "g_pwm": 307
   },
   "message": "Joint PWM state accepted as assumed low-level target; hardware output is not connected yet."
 }
@@ -576,12 +576,12 @@ Response `202`, mit erfolgreichem Hardware-Schreibzugriff:
     "message": "ok"
   },
   "jointPwmState": {
-    "d_pwm": 1500,
-    "s_pwm": 1500,
-    "e_pwm": 1500,
-    "hp_pwm": 1500,
-    "hr_pwm": 1500,
-    "g_pwm": 1500
+    "d_pwm": 307,
+    "s_pwm": 307,
+    "e_pwm": 307,
+    "hp_pwm": 307,
+    "hr_pwm": 307,
+    "g_pwm": 307
   }
 }
 ```
@@ -605,7 +605,7 @@ Response `503`, Beispiel bei noch nicht initialisiertem Hardwaretreiber:
   "code": "hardware_driver_failure",
   "mode": "joint_pwm_direct",
   "hardware": "available",
-  "message": "Call POST /api/servo-driver/init before writing joint PWM values."
+  "message": "PCA9685 servo driver is not initialized; check the boot log or call POST /api/servo-driver/init for diagnostics."
 }
 ```
 
@@ -753,7 +753,7 @@ Linux, macOS:
 ```sh
 curl -X POST http://robot.local/api/joint-pwm-motion \
   -H 'Content-Type: application/json' \
-  -d '{"d_pwm":4096,"s_pwm":1500,"e_pwm":1500,"hp_pwm":1500,"hr_pwm":1500,"g_pwm":1500}'
+  -d '{"d_pwm":4096,"s_pwm":307,"e_pwm":307,"hp_pwm":307,"hr_pwm":307,"g_pwm":307}'
 ```
 
 WSL:
@@ -761,13 +761,13 @@ WSL:
 ```sh
 curl -X POST http://robot.fritz.box/api/joint-pwm-motion \
   -H 'Content-Type: application/json' \
-  -d '{"d_pwm":4096,"s_pwm":1500,"e_pwm":1500,"hp_pwm":1500,"hr_pwm":1500,"g_pwm":1500}'
+  -d '{"d_pwm":4096,"s_pwm":307,"e_pwm":307,"hp_pwm":307,"hr_pwm":307,"g_pwm":307}'
 ```
 
 PowerShell:
 
 ```powershell
-curl.exe -X POST http://robot.local/api/joint-pwm-motion -H "Content-Type: application/json" -d '{"d_pwm":4096,"s_pwm":1500,"e_pwm":1500,"hp_pwm":1500,"hr_pwm":1500,"g_pwm":1500}'
+curl.exe -X POST http://robot.local/api/joint-pwm-motion -H "Content-Type: application/json" -d '{"d_pwm":4096,"s_pwm":307,"e_pwm":307,"hp_pwm":307,"hr_pwm":307,"g_pwm":307}'
 ```
 
 #### Antwort

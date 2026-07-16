@@ -252,19 +252,6 @@ void RestApiServer::handleServoDriverInitRequest()
     return;
   }
 
-  const auto begin_result = servo_driver_->begin();
-  if (begin_result.status != hardware::HardwareDriverStatus::Ok)
-  {
-    logResult("[REST] PCA9685 begin failed");
-    RestJsonDocument doc;
-    doc["status"] = "hardware_failed";
-    doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
-    doc["hardware"] = toString(ApiCapabilityStatus::Available);
-    setHardwareDriverResultJson(doc.createNestedObject("driver"), begin_result);
-    sendJson(503, jsonBody(doc));
-    return;
-  }
-
   const auto init_result = servo_driver_->init();
   if (init_result.status != hardware::HardwareDriverStatus::Ok &&
       init_result.status != hardware::HardwareDriverStatus::IsInitialized)
@@ -323,7 +310,7 @@ void RestApiServer::handleJointPwmMotionRequest()
       doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
       doc["mode"] = "joint_pwm_direct";
       doc["hardware"] = toString(ApiCapabilityStatus::Available);
-      doc["message"] = "Call POST /api/servo-driver/init before writing joint PWM values.";
+      doc["message"] = "PCA9685 servo driver is not initialized; check the boot log or call POST /api/servo-driver/init for diagnostics.";
       sendJson(503, jsonBody(doc));
       return;
     }

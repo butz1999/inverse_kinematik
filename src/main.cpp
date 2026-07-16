@@ -153,6 +153,19 @@ void setup()
   logger.println(kI2cSclPin);
   logger.print("[BOOT] PCA9685 OE disabled active-low on GPIO");
   logger.println(kPca9685OePin);
+  const auto servo_driver_begin_result = servoDriver.begin();
+  const bool servoDriverInitialized = servo_driver_begin_result.status == hardware::HardwareDriverStatus::Ok;
+  if (servoDriverInitialized)
+  {
+    logger.println("[BOOT] PCA9685 servo driver initialized");
+  }
+  else
+  {
+    logger.print("[BOOT] PCA9685 servo driver initialization failed: ");
+    logger.println(servo_driver_begin_result.message);
+    color = hardware::StatusLed::Color::Orange;
+    statusLed.show(color);
+  }
   delay(250);
   // Connect Wifi
   color = hardware::StatusLed::Color::Blue;
@@ -185,6 +198,10 @@ void setup()
   {
     logger.println("[BOOT] Wifi not started");
     color = hardware::StatusLed::Color::Red;
+  }
+  if (!servoDriverInitialized && wifiConnected)
+  {
+    color = hardware::StatusLed::Color::Orange;
   }
   // Register REST API
   restApi.begin();

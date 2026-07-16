@@ -20,11 +20,15 @@ struct JointPwmState
 
 constexpr uint16_t kMinPwm = 0U;
 constexpr uint16_t kMaxPwm = 4095U;
+constexpr uint16_t kServoMinPulsePwm = 205U;
+constexpr uint16_t kServoNeutralPulsePwm = 307U;
+constexpr uint16_t kServoMaxPulsePwm = 410U;
 constexpr std::size_t kJointPwmAxisCount = 6U;
 
 inline JointPwmState initialJointPwmState()
 {
-  return JointPwmState{0U, 0U, 0U, 0U, 0U, 0U};
+  return JointPwmState{kServoNeutralPulsePwm, kServoNeutralPulsePwm, kServoNeutralPulsePwm,
+                       kServoNeutralPulsePwm, kServoNeutralPulsePwm, kServoNeutralPulsePwm};
 }
 
 inline bool isWithinJointPwmLimits(const JointPwmState &state)

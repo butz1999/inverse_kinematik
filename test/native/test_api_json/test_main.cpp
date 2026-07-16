@@ -48,13 +48,13 @@ void test_parse_joint_motion_rejects_limit_violation()
 void test_parse_joint_pwm_motion_accepts_valid_json()
 {
   const auto result = application::parseJointPwmMotionRequestJson(
-      "{\"d_pwm\":0,\"s_pwm\":1,\"e_pwm\":1500,\"hp_pwm\":2048,"
-      "\"hr_pwm\":3000,\"g_pwm\":4095}");
+      "{\"d_pwm\":0,\"s_pwm\":1,\"e_pwm\":307,\"hp_pwm\":307,"
+      "\"hr_pwm\":307,\"g_pwm\":410}");
 
   TEST_ASSERT_TRUE(result.ok);
   TEST_ASSERT_EQUAL(application::ApiResultCode::Ok, result.code);
-  TEST_ASSERT_EQUAL_UINT16(1500U, result.joint_pwm_state.e_pwm);
-  TEST_ASSERT_EQUAL_UINT16(4095U, result.joint_pwm_state.g_pwm);
+  TEST_ASSERT_EQUAL_UINT16(307U, result.joint_pwm_state.e_pwm);
+  TEST_ASSERT_EQUAL_UINT16(410U, result.joint_pwm_state.g_pwm);
 }
 
 void test_parse_joint_pwm_motion_rejects_fractional_pwm()
