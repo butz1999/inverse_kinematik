@@ -1,9 +1,9 @@
 // PCA9685 implementation using the Adafruit PWM Servo Driver library.
 
+#include "hardware/Pca9685ServoDriver.h"
+
 #include <Arduino.h>
 #include <Wire.h>
-
-#include "hardware/Pca9685ServoDriver.h"
 
 namespace hardware
 {
