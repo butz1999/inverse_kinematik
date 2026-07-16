@@ -4,6 +4,7 @@
 #include <ESPmDNS.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <Wire.h>
 
 #include "application/RestApiServer.h"
 #include "hardware/Pca9685ServoDriver.h"
@@ -28,6 +29,10 @@ constexpr unsigned long kBlinkIntervalMs = 500;
 constexpr unsigned long kSerialBaudrate = 115200;
 constexpr unsigned long kWifiConnectTimeoutMs = 15000;
 constexpr const char *kDebugSerialName = "Serial";
+// I2C bus
+constexpr uint8_t kI2cSdaPin = 4;
+constexpr uint8_t kI2cSclPin = 5;
+constexpr uint8_t kI2cOePin = 6;
 // Webserver
 constexpr uint16_t kHttpPort = 80;
 // WiFi
@@ -133,6 +138,17 @@ void setup()
   logger.print("[BOOT] Debug serial ready on ");
   logger.println(kDebugSerialName);
   logger.println("[BOOT] Status LED configured for GRB order on GPIO38");
+  // Enable PCA9685 PWM outputs
+  pinMode(kI2cOePin, OUTPUT);
+  digitalWrite(kI2cOePin, LOW);
+  logger.print("[BOOT] PCA9685 OE configured active-low on GPIO");
+  logger.println(kI2cOePin);
+  // Start I2C bus
+  Wire.begin(kI2cSdaPin, kI2cSclPin);
+  logger.print("[BOOT] I2C bus configured: SDA GPIO");
+  logger.print(kI2cSdaPin);
+  logger.print(" SCL GPIO");
+  logger.println(kI2cSclPin);
   delay(250);
   // Connect Wifi
   color = hardware::StatusLed::Color::Blue;

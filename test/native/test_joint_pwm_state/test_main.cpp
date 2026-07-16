@@ -8,7 +8,7 @@ void test_initial_joint_pwm_state_uses_zero_outputs()
 {
   const auto state = common::initialJointPwmState();
 
-  TEST_ASSERT_EQUAL_UINT16(0U, state.d_pwm);
+  TEST_ASSERT_EQUAL_UINT16(1000U, state.d_pwm);
   TEST_ASSERT_EQUAL_UINT16(0U, state.s_pwm);
   TEST_ASSERT_EQUAL_UINT16(0U, state.e_pwm);
   TEST_ASSERT_EQUAL_UINT16(0U, state.hp_pwm);

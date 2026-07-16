@@ -24,7 +24,7 @@ constexpr std::size_t kJointPwmAxisCount = 6U;
 
 inline JointPwmState initialJointPwmState()
 {
-  return JointPwmState{0U, 0U, 0U, 0U, 0U, 0U};
+  return JointPwmState{1000U, 0U, 0U, 0U, 0U, 0U};
 }
 
 inline bool isWithinJointPwmLimits(const JointPwmState &state)

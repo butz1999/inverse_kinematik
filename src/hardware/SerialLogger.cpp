@@ -34,6 +34,30 @@ void SerialLogger::print(const char *message) const
   serial_.flush();
 }
 
+void SerialLogger::print(int number) const
+{
+  serial_.print(number);
+  serial_.flush();
+}
+
+void SerialLogger::print(unsigned int number) const
+{
+  serial_.print(number);
+  serial_.flush();
+}
+
+void SerialLogger::print(long number) const
+{
+  serial_.print(number);
+  serial_.flush();
+}
+
+void SerialLogger::print(unsigned long number) const
+{
+  serial_.print(number);
+  serial_.flush();
+}
+
 void SerialLogger::println() const
 {
   serial_.println();
@@ -43,6 +67,30 @@ void SerialLogger::println() const
 void SerialLogger::println(const char *message) const
 {
   serial_.println(message);
+  serial_.flush();
+}
+
+void SerialLogger::println(int number) const
+{
+  serial_.println(number);
+  serial_.flush();
+}
+
+void SerialLogger::println(unsigned int number) const
+{
+  serial_.println(number);
+  serial_.flush();
+}
+
+void SerialLogger::println(long number) const
+{
+  serial_.println(number);
+  serial_.flush();
+}
+
+void SerialLogger::println(unsigned long number) const
+{
+  serial_.println(number);
   serial_.flush();
 }
 

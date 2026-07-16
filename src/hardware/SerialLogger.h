@@ -15,8 +15,16 @@ class SerialLogger
 
   void begin() const;
   void print(const char *message) const;
+  void print(int number) const;
+  void print(unsigned int number) const;
+  void print(long number) const;
+  void print(unsigned long number) const;
   void println() const;
   void println(const char *message) const;
+  void println(int number) const;
+  void println(unsigned int number) const;
+  void println(long number) const;
+  void println(unsigned long number) const;
 
  private:
   enum class SerialBackend

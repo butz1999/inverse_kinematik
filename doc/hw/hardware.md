@@ -81,9 +81,8 @@ Daraus ergeben sich für den aktuellen Software- und Bring-up-Stand die folgende
 
 Für die weitere Spezifikation sind noch konkret festzulegen:
 
-* exakte Pinbelegung für SDA und SCL
 * Versorgungskonzept des Boards im Zusammenspiel mit der externen Servo-Versorgung
-* Nutzung zusätzlicher GPIOs, beispielsweise für Status-LED oder Enable-Signale
+* Nutzung zusätzlicher GPIOs, beispielsweise für Status-LED und das `OE`-Signal des PCA9685
 * Netzwerkanbindung und Betriebsart der REST-Schnittstelle im Entwicklungsaufbau
 * Boot- und Reset-relevante Pins, die bei der Verdrahtung nicht störend belegt werden dürfen
 
@@ -142,11 +141,14 @@ Die Servoansteuerung soll über das Modul [16-Kanal PWM / Servo Treiber I2C (PCA
 Für die erste Hardwareplanung sind dabei folgende Punkte relevant:
 
 * Ansteuerung über I2C mit nur zwei Steuerleitungen zwischen ESP32 und Treibermodul
+* I2C-Datenleitung `SDA` auf `GPIO4` des ESP32-S3
+* I2C-Taktleitung `SCL` auf `GPIO5` des ESP32-S3
 * Standard-I2C-Adresse `0x40`, sofern keine Adressbrücken gesetzt werden
 * 16 PWM-Kanäle, wodurch die 6 Achsen des Arms mit deutlicher Reserve angesteuert werden können
 * 12-Bit-Auflösung des PCA9685
 * Versorgung des Moduls mit `5V`
 * separate Servo-Versorgung über `5V`
+* Verwendung des `OE`-Pins des PCA9685 als Output-Enable-Signal für die PWM-Ausgänge
 
 Für die Softwareseite wird vorläufig davon ausgegangen, dass eine etablierte PCA9685-Bibliothek verwendet wird. Auf der Produktseite wird dazu explizit die Adafruit PWM Servo Driver Library genannt.
 
@@ -154,7 +156,7 @@ Noch offen beziehungsweise später zu verifizieren sind insbesondere:
 
 * konkrete PWM-Frequenz für die verwendeten Servos
 * exakte Zuordnung der sechs Achsen zu den PWM-Kanälen
-* Nutzung oder feste Beschaltung des `OE`-Signals
+* konkreter ESP32-GPIO für das `OE`-Signal, sofern es softwareseitig geschaltet wird
 * elektrische Qualität der Servo-Versorgung unter Last
 
 ## Stromversorgung
@@ -208,15 +210,16 @@ Konzeptionell ergeben sich daraus mindestens folgende elektrische Verbindungen:
 * `5V` vom Netzteil zu den Servos
 * Eingangsspannung zum `S09 3.3V DC/DC`
 * `3.3V` vom `S09 3.3V DC/DC` zum `ESP32`
-* `SDA` und `SCL` zwischen `ESP32` und `Servo Driver`
+* `SDA` zwischen `ESP32 GPIO4` und `Servo Driver`
+* `SCL` zwischen `ESP32 GPIO5` und `Servo Driver`
+* `OE` zwischen `ESP32` und `Servo Driver`, falls die PWM-Ausgänge softwareseitig freigegeben oder gesperrt werden
 * `GND` zwischen Netzteil, `S09 3.3V DC/DC`, `ESP32`, `Servo Driver` und Servos
 
 Für die weitere Detaillierung sind noch festzulegen:
 
-* konkrete I2C-Pins des `ESP32`
 * genaue Einspeisung der Eingangsspannung in den `S09 3.3V DC/DC`
 * Servo-Kanalzuordnung `0..5` oder vergleichbare Zuordnung auf dem `Servo Driver`
-* eventuelle Nutzung des `OE`-Pins des PCA9685
+* konkreter ESP32-GPIO für den `OE`-Pin des PCA9685
 * zusätzliche Pufferung oder Entstörung der Versorgung
 
 ## Signal- und Kommunikationsschnittstellen
@@ -291,9 +294,9 @@ Dieses Kapitel sammelt die zum aktuellen Zeitpunkt noch nicht abschliessend gekl
 * `230V -> 5V`-Netzteil: Hersteller, elektrische Daten und tatsächliche Belastbarkeit sind unbekannt und müssen für den realen Betrieb noch verifiziert werden.
 * Stromaufnahme unter Last: Die reale Last durch mehrere gleichzeitig bewegte Servos ist noch nicht gemessen und muss bei der Inbetriebnahme beobachtet werden.
 * tatsächlich nutzbarer Stellbereich der Servos: Die fachlich definierten Winkelbereiche sind festgelegt, die real sauber nutzbaren Bereiche ergeben sich jedoch erst aus der Kalibration.
-* Pinbelegung des `ESP32`: Die konkreten Pins für `SDA`, `SCL` und serielle Diagnose sind noch festzulegen.
+* Pinbelegung des `ESP32`: `SDA` ist auf `GPIO4` und `SCL` auf `GPIO5` festgelegt; die serielle Diagnose und der konkrete `OE`-GPIO sind noch festzulegen.
 * Servo-Kanalzuordnung auf dem `PCA9685`: Die feste Zuordnung der Achsen `d`, `s`, `e`, `hp`, `hr`, `g` auf konkrete PWM-Kanäle ist noch offen.
-* Umgang mit `OE`: Es ist noch nicht entschieden, ob der `OE`-Pin des `PCA9685` aktiv von der Software genutzt oder fest beschaltet wird.
+* Umgang mit `OE`: Der `OE`-Pin des `PCA9685` ist als Output-Enable-Signal vorgesehen; offen ist noch, über welchen ESP32-GPIO er softwareseitig geschaltet wird.
 * Versorgung des `ESP32`: Es ist noch festzulegen, ob das Board dauerhaft über den externen `3.3V`-Wandler oder über seine eigene Board-Versorgung betrieben werden soll.
 * Initialzustand aus Sicht der Software: Offen bleibt, wie die Software erkennt oder absichert, dass die manuell eingestellte Startlage tatsächlich zur angenommenen Initialposition passt.
 

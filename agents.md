@@ -18,6 +18,8 @@ Die Implementierung orientiert sich an der in `doc/sw/software.md` beschriebenen
 
 Entwicklungsumgebung: Die Entwicklung erfolgt in der WSL. Berücksichtige bei hardwarebezogenen Schritten insbesondere, dass USB-/Seriell-Zugriffe, Portnamen und Upload-Workflows von einem nativen Linux- oder Windows-Setup abweichen können. Wenn ein Schritt Flashen, Monitorzugriff oder Gerätedetektion betrifft, nenne die WSL-spezifischen Annahmen oder Voraussetzungen explizit.
 
+Für PlatformIO-CLI-Aufrufe in WSL immer den vorbereiteten Projekt-Interpreter `~/.platformio/penv/bin/pio` verwenden. Das Systemkommando `/usr/bin/pio` ist in diesem Setup veraltet und kann mit der lokalen Python-Umgebung fehlschlagen. Alternativ kann `scripts/env.sh` gesourct werden, um den passenden `pio` in den `PATH` zu setzen.
+
 Hinweis: Die Hardware-Doku zielt auf ein Waveshare ESP32-S3-Board. In `platformio.ini` wird dafür aktuell das generische PlatformIO-Boardprofil `esp32-s3-devkitc-1` im Environment `esp32s3` verwendet. Diese Zuordnung ist bei hardwarenahen Änderungen explizit zu prüfen.
 
 ## 4. Prioritäten bei Widersprüchen
@@ -98,4 +100,4 @@ Bevorzuge bei neuen Features diese Reihenfolge:
   * Nutze sprechende Testnamen: `test_[funktion]_[erwartetes_verhalten]`.
   * Nutze typsichere Unity-Makros passend zum C++-Standard (z. B. `TEST_ASSERT_EQUAL_UINT32`).
   * Mocke Hardware-Schnittstellen, um Kinematik, Validierung, Kalibrationsabbildung und Bewegungslogik isoliert zu testen.
-* **CLI-Befehle für Codex:** `pio test`, gezielt `pio test -e native` oder `pio test -e esp32s3`.
+* **CLI-Befehle für Codex:** Verwende in WSL immer `~/.platformio/penv/bin/pio`, z. B. `~/.platformio/penv/bin/pio run -e esp32s3`, `~/.platformio/penv/bin/pio test -e native` oder `~/.platformio/penv/bin/pio test -e esp32s3`.
