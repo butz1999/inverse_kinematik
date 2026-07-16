@@ -13,13 +13,18 @@ namespace hardware
 class Pca9685ServoDriver
 {
  public:
+  explicit Pca9685ServoDriver(uint8_t output_enable_pin);
   explicit Pca9685ServoDriver(const Pca9685ServoDriverConfig &config);
 
   HardwareDriverResult begin();
+  HardwareDriverResult init();
   HardwareDriverResult write(const common::JointPwmState &state);
   bool isInitialized() const;
 
  private:
+  void disableOutputs() const;
+  void enableOutputs() const;
+  HardwareDriverResult writeChannels(const common::JointPwmState &state);
   HardwareDriverResult writeChannel(uint8_t channel, uint16_t pwm_value);
 
   Pca9685ServoDriverConfig config_;

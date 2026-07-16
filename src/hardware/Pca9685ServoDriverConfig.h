@@ -24,6 +24,7 @@ struct ServoChannelMap
 struct Pca9685ServoDriverConfig
 {
   uint8_t i2c_address;
+  uint8_t output_enable_pin;
   uint16_t pwm_frequency_hz;
   ServoChannelMap channels;
 };
@@ -35,6 +36,7 @@ enum class HardwareDriverStatus
   InvalidChannel,
   InvalidPwmValue,
   NotInitialized,
+  IsInitialized,
 };
 
 struct HardwareDriverResult
@@ -43,10 +45,11 @@ struct HardwareDriverResult
   const char *message;
 };
 
-inline Pca9685ServoDriverConfig defaultPca9685ServoDriverConfig()
+inline Pca9685ServoDriverConfig defaultPca9685ServoDriverConfig(uint8_t output_enable_pin)
 {
   return Pca9685ServoDriverConfig{
       kPca9685DefaultI2cAddress,
+      output_enable_pin,
       kDefaultServoPwmFrequencyHz,
       ServoChannelMap{0U, 1U, 2U, 3U, 4U, 5U},
   };

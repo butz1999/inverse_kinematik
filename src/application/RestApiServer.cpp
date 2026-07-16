@@ -12,7 +12,7 @@ namespace application
 namespace
 {
 
-constexpr std::size_t kRestJsonCapacity = 512;
+constexpr std::size_t kRestJsonCapacity = 768;
 using RestJsonDocument = StaticJsonDocument<kRestJsonCapacity>;
 
 template <typename JsonDocumentType>
@@ -107,6 +107,11 @@ void RestApiServer::begin()
              {
                handleJointPwmState();
              });
+  server_.on("/api/servo-driver/init", HTTP_POST,
+             [this]()
+             {
+               handleServoDriverInitRequest();
+             });
   server_.on("/api/joint-pwm-motion", HTTP_POST,
              [this]()
              {
@@ -159,9 +164,11 @@ void RestApiServer::handleStatus()
   doc["jointStateEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["jointMotionEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["jointPwmStateEndpoint"] = toString(ApiCapabilityStatus::Available);
+  doc["servoDriverInitEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["jointPwmMotionEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["jointPwmHardwareOutput"] =
       toString(servo_driver_ != nullptr ? ApiCapabilityStatus::Available : ApiCapabilityStatus::NotAvailable);
+  doc["jointPwmHardwareInitialized"] = servo_driver_ != nullptr && servo_driver_->isInitialized();
   doc["motionEndpoint"] = "reserved";
   doc["uptimeMs"] = millis();
 
@@ -230,6 +237,60 @@ void RestApiServer::handleJointPwmState()
   sendJson(200, jsonBody(doc));
 }
 
+void RestApiServer::handleServoDriverInitRequest()
+{
+  logRequest("POST", "/api/servo-driver/init");
+
+  if (servo_driver_ == nullptr)
+  {
+    RestJsonDocument doc;
+    doc["status"] = "hardware_not_available";
+    doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
+    doc["hardware"] = toString(ApiCapabilityStatus::NotAvailable);
+    doc["message"] = "PCA9685 servo driver is not connected.";
+    sendJson(503, jsonBody(doc));
+    return;
+  }
+
+  const auto begin_result = servo_driver_->begin();
+  if (begin_result.status != hardware::HardwareDriverStatus::Ok)
+  {
+    logResult("[REST] PCA9685 begin failed");
+    RestJsonDocument doc;
+    doc["status"] = "hardware_failed";
+    doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
+    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    setHardwareDriverResultJson(doc.createNestedObject("driver"), begin_result);
+    sendJson(503, jsonBody(doc));
+    return;
+  }
+
+  const auto init_result = servo_driver_->init();
+  if (init_result.status != hardware::HardwareDriverStatus::Ok &&
+      init_result.status != hardware::HardwareDriverStatus::IsInitialized)
+  {
+    logResult("[REST] PCA9685 init failed");
+    RestJsonDocument doc;
+    doc["status"] = "hardware_failed";
+    doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
+    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    setHardwareDriverResultJson(doc.createNestedObject("driver"), init_result);
+    sendJson(503, jsonBody(doc));
+    return;
+  }
+
+  current_joint_pwm_state_ = common::initialJointPwmState();
+  logResult("[REST] PCA9685 initialized");
+
+  RestJsonDocument doc;
+  doc["status"] = "accepted";
+  doc["code"] = toString(ApiResultCode::Ok);
+  doc["hardware"] = toString(ApiCapabilityStatus::Available);
+  setHardwareDriverResultJson(doc.createNestedObject("driver"), init_result);
+  setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
+  sendJson(202, jsonBody(doc));
+}
+
 void RestApiServer::handleJointPwmMotionRequest()
 {
   logRequest("POST", "/api/joint-pwm-motion");
@@ -256,19 +317,15 @@ void RestApiServer::handleJointPwmMotionRequest()
   {
     if (!servo_driver_->isInitialized())
     {
-      const auto begin_result = servo_driver_->begin();
-      if (begin_result.status != hardware::HardwareDriverStatus::Ok)
-      {
-        logResult("[REST] PCA9685 begin failed");
-        RestJsonDocument doc;
-        doc["status"] = "hardware_failed";
-        doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
-        doc["mode"] = "joint_pwm_direct";
-        doc["hardware"] = toString(ApiCapabilityStatus::Available);
-        setHardwareDriverResultJson(doc.createNestedObject("driver"), begin_result);
-        sendJson(503, jsonBody(doc));
-        return;
-      }
+      logResult("[REST] Joint PWM request rejected because PCA9685 is not initialized");
+      RestJsonDocument doc;
+      doc["status"] = "hardware_not_initialized";
+      doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
+      doc["mode"] = "joint_pwm_direct";
+      doc["hardware"] = toString(ApiCapabilityStatus::Available);
+      doc["message"] = "Call POST /api/servo-driver/init before writing joint PWM values.";
+      sendJson(503, jsonBody(doc));
+      return;
     }
 
     const auto write_result = servo_driver_->write(parsed.joint_pwm_state);

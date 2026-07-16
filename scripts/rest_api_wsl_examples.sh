@@ -34,6 +34,9 @@ request "GET /api/joint-state after POST /api/joint-motion" \
 request "GET /api/joint-pwm-state" \
   "$BASE_URL/api/joint-pwm-state"
 
+request "POST /api/servo-driver/init" \
+  -X POST "$BASE_URL/api/servo-driver/init"
+
 request "POST /api/joint-pwm-motion" \
   -X POST "$BASE_URL/api/joint-pwm-motion" \
   -H 'Content-Type: application/json' \

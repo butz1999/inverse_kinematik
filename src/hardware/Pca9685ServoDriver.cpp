@@ -1,5 +1,7 @@
 // PCA9685 implementation using the Adafruit PWM Servo Driver library.
 
+#include <Arduino.h>
+
 #include "hardware/Pca9685ServoDriver.h"
 
 namespace hardware
@@ -16,6 +18,11 @@ constexpr HardwareDriverResult ok()
 constexpr HardwareDriverResult notInitialized()
 {
   return HardwareDriverResult{HardwareDriverStatus::NotInitialized, "PCA9685 servo driver is not initialized."};
+}
+
+constexpr HardwareDriverResult alreadyInitialized()
+{
+  return HardwareDriverResult{HardwareDriverStatus::IsInitialized, "PCA9685 servo driver is initialized."};
 }
 
 constexpr HardwareDriverResult invalidChannel()
@@ -35,6 +42,11 @@ constexpr HardwareDriverResult driverBeginFailed()
 
 }  // namespace
 
+Pca9685ServoDriver::Pca9685ServoDriver(uint8_t output_enable_pin)
+    : Pca9685ServoDriver(defaultPca9685ServoDriverConfig(output_enable_pin))
+{
+}
+
 Pca9685ServoDriver::Pca9685ServoDriver(const Pca9685ServoDriverConfig &config)
     : config_(config), pwm_driver_(config.i2c_address), initialized_(false)
 {
@@ -42,6 +54,9 @@ Pca9685ServoDriver::Pca9685ServoDriver(const Pca9685ServoDriverConfig &config)
 
 HardwareDriverResult Pca9685ServoDriver::begin()
 {
+  initialized_ = false;
+  disableOutputs();
+
   if (!isValidChannelMap(config_.channels))
   {
     return invalidChannel();
@@ -54,7 +69,25 @@ HardwareDriverResult Pca9685ServoDriver::begin()
   }
 
   pwm_driver_.setPWMFreq(config_.pwm_frequency_hz);
+
+  return ok();
+}
+
+HardwareDriverResult Pca9685ServoDriver::init()
+{
+  if (initialized_)
+  {
+    return alreadyInitialized();
+  }
+
+  const auto initial_write_result = writeChannels(common::initialJointPwmState());
+  if (initial_write_result.status != HardwareDriverStatus::Ok)
+  {
+    return initial_write_result;
+  }
+
   initialized_ = true;
+  enableOutputs();
   return ok();
 }
 
@@ -70,11 +103,34 @@ HardwareDriverResult Pca9685ServoDriver::write(const common::JointPwmState &stat
     return invalidPwmValue();
   }
 
-  const auto &channels = config_.channels;
-  if (!isValidChannelMap(channels))
+  if (!isValidChannelMap(config_.channels))
   {
     return invalidChannel();
   }
+
+  return writeChannels(state);
+}
+
+bool Pca9685ServoDriver::isInitialized() const
+{
+  return initialized_;
+}
+
+void Pca9685ServoDriver::disableOutputs() const
+{
+  digitalWrite(config_.output_enable_pin, HIGH);
+  pinMode(config_.output_enable_pin, OUTPUT);
+}
+
+void Pca9685ServoDriver::enableOutputs() const
+{
+  digitalWrite(config_.output_enable_pin, LOW);
+  pinMode(config_.output_enable_pin, OUTPUT);
+}
+
+HardwareDriverResult Pca9685ServoDriver::writeChannels(const common::JointPwmState &state)
+{
+  const auto &channels = config_.channels;
 
   auto result = writeChannel(channels.d, state.d_pwm);
   if (result.status != HardwareDriverStatus::Ok)
@@ -107,11 +163,6 @@ HardwareDriverResult Pca9685ServoDriver::write(const common::JointPwmState &stat
   }
 
   return writeChannel(channels.g, state.g_pwm);
-}
-
-bool Pca9685ServoDriver::isInitialized() const
-{
-  return initialized_;
 }
 
 HardwareDriverResult Pca9685ServoDriver::writeChannel(uint8_t channel, uint16_t pwm_value)

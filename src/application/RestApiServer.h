@@ -30,6 +30,7 @@ class RestApiServer
   void handleJointState();
   void handleJointMotionRequest();
   void handleJointPwmState();
+  void handleServoDriverInitRequest();
   void handleJointPwmMotionRequest();
   void handleMotionRequest();
   void handleFavicon();

@@ -148,7 +148,7 @@ Für die erste Hardwareplanung sind dabei folgende Punkte relevant:
 * 12-Bit-Auflösung des PCA9685
 * Versorgung des Moduls mit `5V`
 * separate Servo-Versorgung über `5V`
-* Verwendung des `OE`-Pins des PCA9685 als Output-Enable-Signal für die PWM-Ausgänge
+* `OE`-Pin des PCA9685 als Output-Enable-Signal auf `GPIO6` des ESP32-S3
 
 Für die Softwareseite wird vorläufig davon ausgegangen, dass eine etablierte PCA9685-Bibliothek verwendet wird. Auf der Produktseite wird dazu explizit die Adafruit PWM Servo Driver Library genannt.
 
@@ -156,7 +156,6 @@ Noch offen beziehungsweise später zu verifizieren sind insbesondere:
 
 * konkrete PWM-Frequenz für die verwendeten Servos
 * exakte Zuordnung der sechs Achsen zu den PWM-Kanälen
-* konkreter ESP32-GPIO für das `OE`-Signal, sofern es softwareseitig geschaltet wird
 * elektrische Qualität der Servo-Versorgung unter Last
 
 ## Stromversorgung
@@ -212,14 +211,13 @@ Konzeptionell ergeben sich daraus mindestens folgende elektrische Verbindungen:
 * `3.3V` vom `S09 3.3V DC/DC` zum `ESP32`
 * `SDA` zwischen `ESP32 GPIO4` und `Servo Driver`
 * `SCL` zwischen `ESP32 GPIO5` und `Servo Driver`
-* `OE` zwischen `ESP32` und `Servo Driver`, falls die PWM-Ausgänge softwareseitig freigegeben oder gesperrt werden
+* `OE` zwischen `ESP32 GPIO6` und `Servo Driver`
 * `GND` zwischen Netzteil, `S09 3.3V DC/DC`, `ESP32`, `Servo Driver` und Servos
 
 Für die weitere Detaillierung sind noch festzulegen:
 
 * genaue Einspeisung der Eingangsspannung in den `S09 3.3V DC/DC`
 * Servo-Kanalzuordnung `0..5` oder vergleichbare Zuordnung auf dem `Servo Driver`
-* konkreter ESP32-GPIO für den `OE`-Pin des PCA9685
 * zusätzliche Pufferung oder Entstörung der Versorgung
 
 ## Signal- und Kommunikationsschnittstellen
@@ -294,9 +292,9 @@ Dieses Kapitel sammelt die zum aktuellen Zeitpunkt noch nicht abschliessend gekl
 * `230V -> 5V`-Netzteil: Hersteller, elektrische Daten und tatsächliche Belastbarkeit sind unbekannt und müssen für den realen Betrieb noch verifiziert werden.
 * Stromaufnahme unter Last: Die reale Last durch mehrere gleichzeitig bewegte Servos ist noch nicht gemessen und muss bei der Inbetriebnahme beobachtet werden.
 * tatsächlich nutzbarer Stellbereich der Servos: Die fachlich definierten Winkelbereiche sind festgelegt, die real sauber nutzbaren Bereiche ergeben sich jedoch erst aus der Kalibration.
-* Pinbelegung des `ESP32`: `SDA` ist auf `GPIO4` und `SCL` auf `GPIO5` festgelegt; die serielle Diagnose und der konkrete `OE`-GPIO sind noch festzulegen.
+* Pinbelegung des `ESP32`: `SDA` ist auf `GPIO4`, `SCL` auf `GPIO5` und `OE` des PCA9685 auf `GPIO6` festgelegt; die serielle Diagnose ist noch festzulegen.
 * Servo-Kanalzuordnung auf dem `PCA9685`: Die feste Zuordnung der Achsen `d`, `s`, `e`, `hp`, `hr`, `g` auf konkrete PWM-Kanäle ist noch offen.
-* Umgang mit `OE`: Der `OE`-Pin des `PCA9685` ist als Output-Enable-Signal vorgesehen; offen ist noch, über welchen ESP32-GPIO er softwareseitig geschaltet wird.
+* Umgang mit `OE`: Der `OE`-Pin des `PCA9685` wird softwareseitig über `GPIO6` geschaltet. Das Signal ist active-low; `HIGH` sperrt die PWM-Ausgänge, `LOW` gibt sie frei. Die Firmware setzt `OE` beim Boot zunächst auf `HIGH`; der Servo-Treiber gibt die Ausgänge erst beim Initialisieren frei. Damit die Ausgänge auch während eines ESP32-Resets sicher gesperrt bleiben, soll `OE` zusätzlich hardwareseitig mit einem Pull-up gegen `3.3V` versehen werden.
 * Versorgung des `ESP32`: Es ist noch festzulegen, ob das Board dauerhaft über den externen `3.3V`-Wandler oder über seine eigene Board-Versorgung betrieben werden soll.
 * Initialzustand aus Sicht der Software: Offen bleibt, wie die Software erkennt oder absichert, dass die manuell eingestellte Startlage tatsächlich zur angenommenen Initialposition passt.
 

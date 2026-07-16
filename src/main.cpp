@@ -32,7 +32,8 @@ constexpr const char *kDebugSerialName = "Serial";
 // I2C bus
 constexpr uint8_t kI2cSdaPin = 4;
 constexpr uint8_t kI2cSclPin = 5;
-constexpr uint8_t kI2cOePin = 6;
+// PCA9685
+constexpr uint8_t kPca9685OePin = 6;
 // Webserver
 constexpr uint16_t kHttpPort = 80;
 // WiFi
@@ -50,13 +51,18 @@ hardware::StatusColor color = hardware::StatusColor::Off;
 hardware::SerialLogger logger(Serial, kSerialBaudrate);
 hardware::StatusLed statusLed(kRgbLedPin, kRgbBrightness);
 WebServer webServer(kHttpPort);
-auto servoDriverConfig = hardware::defaultPca9685ServoDriverConfig();
-hardware::Pca9685ServoDriver servoDriver(servoDriverConfig);
+hardware::Pca9685ServoDriver servoDriver(kPca9685OePin);
 application::RestApiServer restApi(webServer, servoDriver, logger);
 
 bool isConfigured(const char *value)
 {
   return value != nullptr && value[0] != '\0';
+}
+
+void disablePca9685Outputs()
+{
+  digitalWrite(kPca9685OePin, HIGH);
+  pinMode(kPca9685OePin, OUTPUT);
 }
 
 bool connectWifi()
@@ -128,6 +134,7 @@ bool startMdns()
 
 void setup()
 {
+  disablePca9685Outputs();
   // Start logger
   color = hardware::StatusLed::Color::Yellow;
   statusLed.show(color);
@@ -138,17 +145,14 @@ void setup()
   logger.print("[BOOT] Debug serial ready on ");
   logger.println(kDebugSerialName);
   logger.println("[BOOT] Status LED configured for GRB order on GPIO38");
-  // Enable PCA9685 PWM outputs
-  pinMode(kI2cOePin, OUTPUT);
-  digitalWrite(kI2cOePin, LOW);
-  logger.print("[BOOT] PCA9685 OE configured active-low on GPIO");
-  logger.println(kI2cOePin);
   // Start I2C bus
   Wire.begin(kI2cSdaPin, kI2cSclPin);
   logger.print("[BOOT] I2C bus configured: SDA GPIO");
   logger.print(kI2cSdaPin);
   logger.print(" SCL GPIO");
   logger.println(kI2cSclPin);
+  logger.print("[BOOT] PCA9685 OE disabled active-low on GPIO");
+  logger.println(kPca9685OePin);
   delay(250);
   // Connect Wifi
   color = hardware::StatusLed::Color::Blue;

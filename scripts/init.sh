@@ -13,6 +13,10 @@ request() {
   curl --max-time "$CURL_TIMEOUT_SECONDS" -i "$@"
   printf '\n'
 }
+
+request "POST /api/servo-driver/init" \
+  -X POST "$BASE_URL/api/servo-driver/init"
+
 request "POST /api/joint-pwm-motion" \
   -X POST "$BASE_URL/api/joint-pwm-motion" \
   -H 'Content-Type: application/json' \
