@@ -145,14 +145,14 @@ Für die Abhängigkeitsrichtung der Module gelten in der ersten Ausbaustufe folg
 * `hardware` kennt keine fachliche Ablaufsteuerung, sondern nur freigegebene hardwarenahe Eingangsdaten und technische Rückgabemodelle
 * `common` enthält nur solche Typen, die tatsächlich modulübergreifend gebraucht werden
 
-Die konkrete Umsetzung einer Komponente kann je nach Reifegrad unterschiedlich klein oder gross ausfallen. Für frühe Bring-up-Schritte darf ein Baustein zunächst auch nur aus wenigen Dateien oder sogar aus einer noch schlanken Verdrahtung in `src/main.cpp` bestehen, solange die fachliche Zielstruktur erkennbar bleibt. Das ist insbesondere für den ersten Software-Slice relevant, in dem zunächst nur serielle Debug-Ausgaben und eine kleine REST-Schnittstelle aufgebaut werden, bevor `Run Engine`, `Orchestrator`, Robotik und die PCA9685-Ansteuerung vollständig umgesetzt sind.
+Die konkrete Umsetzung einer Komponente kann je nach Reifegrad unterschiedlich klein oder gross ausfallen. Für frühe Bring-up-Schritte darf ein Baustein zunächst auch nur aus wenigen Dateien oder sogar aus einer noch schlanken Verdrahtung in `src/main.cpp` bestehen, solange die fachliche Zielstruktur erkennbar bleibt. Das ist insbesondere für den ersten Software-Slice relevant, in dem zunächst serielle Debug-Ausgaben, eine kleine REST-Schnittstelle und der direkte PCA9685-Bring-up aufgebaut werden, bevor `Run Engine`, `Orchestrator`, Robotik und die vollständige Hardware-Abstraktion umgesetzt sind.
 
 Für die REST-Schnittstelle bedeutet dies konkret:
 
 * sie gehört fachlich zur `application`-Schicht
 * sie nutzt den `Orchestrator` als späteren fachlichen Einstiegspunkt
 * sie kapselt HTTP-, JSON- und Netzwerkdetails gegenüber den übrigen Modulen
-* sie darf in einem frühen Startzustand zunächst noch klein bleiben und beispielsweise nur Gesundheits- oder Test-Endpunkte sowie serielle Debug-Ausgaben bereitstellen
+* sie darf in einem frühen Startzustand zunächst noch klein bleiben und beispielsweise nur Gesundheits-, Test- und Low-Level-Bring-up-Endpunkte sowie serielle Debug-Ausgaben bereitstellen
 
 ## Verzeichnisstruktur
 
@@ -203,7 +203,7 @@ Für den ersten lauffähigen Stand werden mindestens folgende Dateien oder gleic
 * ein erster Netzwerk- und REST-Initialisierungspfad für Entwicklungs- und Integrationstests
 * erste, noch kleine Strukturen in `application/` für REST- oder Statuslogik, sobald der reine Bring-up-Schritt aus `main.cpp` herausgelöst wird
 * grundlegende Datenmodelle für spätere Zielbeschreibung, Gelenksollzustand, Bewegungsanforderung und Bewegungsergebnis
-* ein später nachziehbarer Hardwarezugang für PCA9685 und Servo-Ausgabe
+* ein erster hardwarenaher PCA9685-Zugang für Servo-Init und direkte PWM-Ausgabe
 * erste Testdateien unter `test/native/` für fachliche Kernlogik
 
 Ein separater Hauptordner `include/` ist für die erste Ausbaustufe bewusst nicht vorgesehen. Sollte sich später eine klarere Trennung zwischen öffentlicher Schnittstelle und interner Implementierung als hilfreich erweisen, kann diese Struktur zu einem späteren Zeitpunkt gezielt nachgeschärft werden.
@@ -722,7 +722,8 @@ Für den frühen Bring-up ist zusätzlich ein bewusst niedriger angesetzter REST
 * `GET /api/joint-state` liefert den aktuell angenommenen fachlichen `JointState`
 * `POST /api/joint-motion` nimmt einen direkten Zielzustand im Joint Space entgegen
 * `GET /api/joint-pwm-state` liefert den aktuell angenommenen hardwarenahen `JointPwmState`
-* `POST /api/joint-pwm-motion` nimmt direkte PWM-Zielwerte für die einzelnen Aktorkanäle entgegen
+* `POST /api/servo-driver/init` initialisiert den PCA9685-Servo-Treiber und gibt die PWM-Ausgänge über `OE` frei
+* `POST /api/joint-pwm-motion` nimmt direkte PWM-Zielwerte für die einzelnen Aktorkanäle entgegen; bei angeschlossenem Hardwaretreiber ist vorher `POST /api/servo-driver/init` erforderlich
 
 Diese Endpunkte sind ausdrücklich als Low-Level- und Inbetriebnahme-Pfad zu verstehen. Der reguläre, höherliegende Bewegungsrequest bleibt weiterhin der dokumentierte `MotionRequest` mit `TargetPose` und `MotionProfile`. Sobald `Orchestrator`, `Validation`, `Motion Profile Generator` und `Hardware Abstraction` verfügbar sind, sollen die direkten Joint- und PWM-Endpunkte nicht die fachliche Bewegungslogik ersetzen, sondern als Diagnose- und Bring-up-Werkzeuge dienen.
 
@@ -886,12 +887,19 @@ Der Treiber kennt dabei:
 * I2C-Kommunikation
 * PCA9685-Zugriffe
 * konkrete Ausgabedetails einzelner Kanäle
+* das `OE`-Signal zur Freigabe oder Sperrung der PWM-Ausgänge
 
 Der Treiber kennt dabei nicht:
 
 * fachliche Zielzustände
 * Gelenkmodelle
 * Kalibrationslogik auf höherer Ebene
+
+Im aktuellen PCA9685-Treiber ist die hardwarenahe Initialisierung bewusst zweistufig:
+
+* `begin()` setzt den Treiberzustand auf nicht initialisiert, deaktiviert die Ausgänge über `OE`, sendet den PCA9685 Software Reset Call, konfiguriert `MODE2.OUTNE[1:0]` für hochohmige Ausgänge bei deaktiviertem `OE` und setzt die PWM-Frequenz.
+* `init()` schreibt den definierten initialen `JointPwmState`, markiert den Treiber als initialisiert und gibt die Ausgänge anschließend über `OE` frei.
+* `write()` akzeptiert direkte `JointPwmState`-Ausgaben erst nach erfolgreichem `init()`.
 
 ## Initialisierung und Laufzeitmodell
 
@@ -919,6 +927,8 @@ Die Initialisierung selbst sollte in einer festen Reihenfolge erfolgen:
 4. Setzen des internen Softwarezustands auf die angenommene `Init Position`.
 5. Initialisieren von `Orchestrator`, `Run Engine` und `SequenceState`.
 6. Übergang in einen betriebsbereiten Zustand, in dem Bewegungsanforderungen verarbeitet werden dürfen.
+
+Im aktuellen Bring-up-Stand ist dieser Ablauf für die direkte PCA9685-Ausgabe noch niedriger angesetzt: Beim Boot setzt `main.cpp` das PCA9685-`OE`-Signal zunächst deaktiviert. Der REST-Endpunkt `POST /api/servo-driver/init` führt anschließend die technische Treiberinitialisierung aus, schreibt den initialen `JointPwmState` und gibt erst danach die PWM-Ausgänge frei. Direkte Requests auf `POST /api/joint-pwm-motion` werden bei angeschlossenem Hardwaretreiber abgewiesen, solange dieser Init-Schritt noch nicht erfolgt ist.
 
 Wesentlich ist dabei, dass die Software nicht versucht, aus einem unbekannten physischen Zustand eine implizite Korrektur abzuleiten. Nach Reset, Neustart oder Spannungsunterbruch wird deshalb erneut dieselbe Initialisierungsannahme benötigt. Wenn nicht sichergestellt ist, dass sich der Arm wieder in der definierten `Home Position` befindet, darf die normale Ablaufsteuerung fachlich nicht als konsistent betrachtet werden.
 

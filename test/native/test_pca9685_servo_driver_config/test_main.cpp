@@ -43,6 +43,8 @@ void test_hardware_driver_status_values_are_stable_api_strings()
   TEST_ASSERT_EQUAL_STRING("ok", hardware::toString(hardware::HardwareDriverStatus::Ok));
   TEST_ASSERT_EQUAL_STRING("driver_begin_failed",
                            hardware::toString(hardware::HardwareDriverStatus::DriverBeginFailed));
+  TEST_ASSERT_EQUAL_STRING("driver_configuration_failed",
+                           hardware::toString(hardware::HardwareDriverStatus::DriverConfigurationFailed));
   TEST_ASSERT_EQUAL_STRING("invalid_channel", hardware::toString(hardware::HardwareDriverStatus::InvalidChannel));
   TEST_ASSERT_EQUAL_STRING("invalid_pwm_value", hardware::toString(hardware::HardwareDriverStatus::InvalidPwmValue));
   TEST_ASSERT_EQUAL_STRING("not_initialized", hardware::toString(hardware::HardwareDriverStatus::NotInitialized));

@@ -20,4 +20,4 @@ request "POST /api/servo-driver/init" \
 request "POST /api/joint-pwm-motion" \
   -X POST "$BASE_URL/api/joint-pwm-motion" \
   -H 'Content-Type: application/json' \
-  -d '{"d_pwm":1500,"s_pwm":1500,"e_pwm":1500,"hp_pwm":1500,"hr_pwm":1500,"g_pwm":1500}'
+  -d '{"d_pwm":2000,"s_pwm":2000,"e_pwm":2000,"hp_pwm":2000,"hr_pwm":2000,"g_pwm":2000}'

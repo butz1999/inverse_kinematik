@@ -1,6 +1,7 @@
 // PCA9685 implementation using the Adafruit PWM Servo Driver library.
 
 #include <Arduino.h>
+#include <Wire.h>
 
 #include "hardware/Pca9685ServoDriver.h"
 
@@ -40,6 +41,14 @@ constexpr HardwareDriverResult driverBeginFailed()
   return HardwareDriverResult{HardwareDriverStatus::DriverBeginFailed, "PCA9685 driver begin failed."};
 }
 
+constexpr HardwareDriverResult driverConfigurationFailed()
+{
+  return HardwareDriverResult{HardwareDriverStatus::DriverConfigurationFailed, "PCA9685 driver configuration failed."};
+}
+
+constexpr uint8_t kPca9685GeneralCallAddress = 0x00U;
+constexpr uint8_t kPca9685SoftwareResetCommand = 0x06U;
+
 }  // namespace
 
 Pca9685ServoDriver::Pca9685ServoDriver(uint8_t output_enable_pin)
@@ -62,10 +71,22 @@ HardwareDriverResult Pca9685ServoDriver::begin()
     return invalidChannel();
   }
 
+  const auto reset_result = softwareReset();
+  if (reset_result.status != HardwareDriverStatus::Ok)
+  {
+    return reset_result;
+  }
+
   if (!pwm_driver_.begin())
   {
     initialized_ = false;
     return driverBeginFailed();
+  }
+
+  const auto output_disable_result = configureOutputsHighImpedanceWhenDisabled();
+  if (output_disable_result.status != HardwareDriverStatus::Ok)
+  {
+    return output_disable_result;
   }
 
   pwm_driver_.setPWMFreq(config_.pwm_frequency_hz);
@@ -126,6 +147,62 @@ void Pca9685ServoDriver::enableOutputs() const
 {
   digitalWrite(config_.output_enable_pin, LOW);
   pinMode(config_.output_enable_pin, OUTPUT);
+}
+
+HardwareDriverResult Pca9685ServoDriver::softwareReset()
+{
+  Wire.beginTransmission(kPca9685GeneralCallAddress);
+  Wire.write(kPca9685SoftwareResetCommand);
+  if (Wire.endTransmission() != 0)
+  {
+    return driverConfigurationFailed();
+  }
+
+  delay(1);
+  return ok();
+}
+
+HardwareDriverResult Pca9685ServoDriver::configureOutputsHighImpedanceWhenDisabled()
+{
+  uint8_t mode2 = 0U;
+  if (!readRegister(PCA9685_MODE2, mode2))
+  {
+    return driverConfigurationFailed();
+  }
+
+  mode2 = (mode2 & ~static_cast<uint8_t>(MODE2_OUTNE_0 | MODE2_OUTNE_1)) | MODE2_OUTNE_1;
+  if (!writeRegister(PCA9685_MODE2, mode2))
+  {
+    return driverConfigurationFailed();
+  }
+
+  return ok();
+}
+
+bool Pca9685ServoDriver::readRegister(uint8_t register_address, uint8_t &value) const
+{
+  Wire.beginTransmission(config_.i2c_address);
+  Wire.write(register_address);
+  if (Wire.endTransmission(false) != 0)
+  {
+    return false;
+  }
+
+  if (Wire.requestFrom(config_.i2c_address, static_cast<uint8_t>(1U)) != 1U)
+  {
+    return false;
+  }
+
+  value = static_cast<uint8_t>(Wire.read());
+  return true;
+}
+
+bool Pca9685ServoDriver::writeRegister(uint8_t register_address, uint8_t value) const
+{
+  Wire.beginTransmission(config_.i2c_address);
+  Wire.write(register_address);
+  Wire.write(value);
+  return Wire.endTransmission() == 0;
 }
 
 HardwareDriverResult Pca9685ServoDriver::writeChannels(const common::JointPwmState &state)

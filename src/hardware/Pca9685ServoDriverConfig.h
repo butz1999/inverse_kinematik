@@ -33,6 +33,7 @@ enum class HardwareDriverStatus
 {
   Ok,
   DriverBeginFailed,
+  DriverConfigurationFailed,
   InvalidChannel,
   InvalidPwmValue,
   NotInitialized,

@@ -24,6 +24,10 @@ class Pca9685ServoDriver
  private:
   void disableOutputs() const;
   void enableOutputs() const;
+  HardwareDriverResult softwareReset();
+  HardwareDriverResult configureOutputsHighImpedanceWhenDisabled();
+  bool readRegister(uint8_t register_address, uint8_t &value) const;
+  bool writeRegister(uint8_t register_address, uint8_t value) const;
   HardwareDriverResult writeChannels(const common::JointPwmState &state);
   HardwareDriverResult writeChannel(uint8_t channel, uint16_t pwm_value);
 

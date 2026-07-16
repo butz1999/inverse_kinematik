@@ -10,6 +10,18 @@ void test_api_contracts_expose_stable_name_and_version()
   TEST_ASSERT_EQUAL_STRING("v1", application::kApiVersion);
 }
 
+void test_api_contracts_expose_stable_endpoint_paths()
+{
+  TEST_ASSERT_EQUAL_STRING("/api/health", application::kHealthPath);
+  TEST_ASSERT_EQUAL_STRING("/api/status", application::kStatusPath);
+  TEST_ASSERT_EQUAL_STRING("/api/joint-state", application::kJointStatePath);
+  TEST_ASSERT_EQUAL_STRING("/api/joint-motion", application::kJointMotionPath);
+  TEST_ASSERT_EQUAL_STRING("/api/joint-pwm-state", application::kJointPwmStatePath);
+  TEST_ASSERT_EQUAL_STRING("/api/servo-driver/init", application::kServoDriverInitPath);
+  TEST_ASSERT_EQUAL_STRING("/api/joint-pwm-motion", application::kJointPwmMotionPath);
+  TEST_ASSERT_EQUAL_STRING("/api/motion", application::kMotionPath);
+}
+
 void test_api_contracts_map_capability_status_to_json_values()
 {
   TEST_ASSERT_EQUAL_STRING("available", application::toString(application::ApiCapabilityStatus::Available));
@@ -36,6 +48,7 @@ int main(int argc, char **argv)
 {
   UNITY_BEGIN();
   RUN_TEST(test_api_contracts_expose_stable_name_and_version);
+  RUN_TEST(test_api_contracts_expose_stable_endpoint_paths);
   RUN_TEST(test_api_contracts_map_capability_status_to_json_values);
   RUN_TEST(test_api_contracts_map_result_codes_to_json_values);
   return UNITY_END();

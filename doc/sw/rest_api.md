@@ -25,7 +25,8 @@ Der Server ist nach erfolgreicher WLAN-Initialisierung über die IP-Adresse des 
 | `GET` | `/api/joint-state` | Aktueller angenommener Gelenkzustand in Grad/Prozent | `200` |
 | `POST` | `/api/joint-motion` | Direkten Gelenkzustand setzen | `202` |
 | `GET` | `/api/joint-pwm-state` | Aktueller angenommener PWM-Zustand | `200` |
-| `POST` | `/api/joint-pwm-motion` | Direkten PWM-Zustand setzen und optional an Hardware schreiben | `202` |
+| `POST` | `/api/servo-driver/init` | PCA9685-Servo-Treiber initialisieren und Ausgänge freigeben | `202` |
+| `POST` | `/api/joint-pwm-motion` | Direkten PWM-Zustand setzen und an initialisierte Hardware schreiben | `202` |
 | `POST` | `/api/motion` | Reservierter Orchestrator-Endpunkt | `501` |
 | `GET` | `/favicon.ico` | Browser-Favicon unterdrücken | `204` |
 | alle | sonstige Pfade | Unbekannter Pfad | `404` |
@@ -40,13 +41,15 @@ flowchart TD
   Server --> JointState["GET /api/joint-state"]
   Server --> JointMotion["POST /api/joint-motion"]
   Server --> PwmState["GET /api/joint-pwm-state"]
+  Server --> ServoInit["POST /api/servo-driver/init"]
   Server --> PwmMotion["POST /api/joint-pwm-motion"]
   Server --> Motion["POST /api/motion"]
   Server --> NotFound[Not Found Handler]
 
   JointMotion --> AssumedJointState[Assumed joint state]
+  ServoInit --> Driver[PCA9685 servo driver]
   PwmMotion --> AssumedPwmState[Assumed PWM state]
-  PwmMotion --> Driver[PCA9685 servo driver]
+  PwmMotion --> Driver
 ```
 
 ## Status- und Fehlerwerte
@@ -67,7 +70,7 @@ flowchart TD
 | `missing_field` | Pflichtfeld fehlt oder hat den falschen Typ |
 | `joint_limit_violation` | Gelenkwert liegt außerhalb der konfigurierten Grenzen |
 | `joint_pwm_limit_violation` | PWM-Wert liegt außerhalb `0..4095` |
-| `hardware_driver_failure` | PCA9685-Treiber konnte nicht initialisiert oder beschrieben werden |
+| `hardware_driver_failure` | PCA9685-Treiber konnte nicht initialisiert werden, ist noch nicht initialisiert oder konnte nicht beschrieben werden |
 | `orchestrator_unavailable` | Orchestrator-Endpunkt ist reserviert, aber noch nicht implementiert |
 | `unknown_route` | Pfad ist nicht registriert |
 
@@ -77,6 +80,8 @@ flowchart TD
 | --- | --- |
 | `ok` | Hardware-Operation erfolgreich |
 | `driver_begin_failed` | Initialisierung des PCA9685-Treibers fehlgeschlagen |
+| `driver_configuration_failed` | PCA9685-Treiberkonfiguration fehlgeschlagen |
+| `is_initialized` | PCA9685-Treiber war bereits initialisiert |
 | `invalid_channel` | PCA9685-Kanal liegt außerhalb `0..15` |
 | `invalid_pwm_value` | PWM-Wert liegt außerhalb `0..4095` |
 | `not_initialized` | Treiber wurde vor dem Schreiben nicht initialisiert |
@@ -221,14 +226,17 @@ Response `200`:
   "jointStateEndpoint": "available",
   "jointMotionEndpoint": "available",
   "jointPwmStateEndpoint": "available",
+  "servoDriverInitEndpoint": "available",
   "jointPwmMotionEndpoint": "available",
   "jointPwmHardwareOutput": "available",
+  "jointPwmHardwareInitialized": false,
   "motionEndpoint": "reserved",
   "uptimeMs": 12345
 }
 ```
 
 `jointPwmHardwareOutput` ist `available`, wenn der `RestApiServer` mit einem `Pca9685ServoDriver` konstruiert wurde. Andernfalls ist der Wert `not_available`.
+`jointPwmHardwareInitialized` ist `true`, nachdem `POST /api/servo-driver/init` erfolgreich ausgeführt wurde.
 
 ### Gelenkzustand auslesen
 
@@ -398,11 +406,72 @@ Response `200`:
 }
 ```
 
+### Servo-Treiber initialisieren
+
+`POST /api/servo-driver/init`
+
+Initialisiert den PCA9685-Servo-Treiber für den Low-Level-Bring-up. Der Treiber setzt die PCA9685-Ausgänge zunächst über `OE` in den deaktivierten Zustand, führt die technische Initialisierung aus, schreibt den initialen `JointPwmState` und gibt die Ausgänge danach frei.
+
+#### Ausführen
+
+Linux, macOS:
+
+```sh
+curl -X POST http://robot.local/api/servo-driver/init
+```
+
+WSL:
+
+```sh
+curl -X POST http://robot.fritz.box/api/servo-driver/init
+```
+
+PowerShell:
+
+```powershell
+curl.exe -X POST http://robot.local/api/servo-driver/init
+```
+
+#### Antworten
+
+Response `202`:
+
+```json
+{
+  "status": "accepted",
+  "code": "ok",
+  "hardware": "available",
+  "driver": {
+    "status": "ok",
+    "message": "ok"
+  },
+  "jointPwmState": {
+    "d_pwm": 0,
+    "s_pwm": 0,
+    "e_pwm": 0,
+    "hp_pwm": 0,
+    "hr_pwm": 0,
+    "g_pwm": 0
+  }
+}
+```
+
+Response `503`, wenn kein Hardwaretreiber eingebunden ist:
+
+```json
+{
+  "status": "hardware_not_available",
+  "code": "hardware_driver_failure",
+  "hardware": "not_available",
+  "message": "PCA9685 servo driver is not connected."
+}
+```
+
 ### PWM Zustand setzen
 
 `POST /api/joint-pwm-motion`
 
-Setzt einen direkten PWM-Zustand. Wenn ein `Pca9685ServoDriver` verfügbar ist, wird der Zustand auf die Hardware geschrieben. Wenn kein Treiber verfügbar ist, wird der Zustand nur als angenommener Low-Level-Zielzustand gespeichert.
+Setzt einen direkten PWM-Zustand. Wenn ein `Pca9685ServoDriver` verfügbar ist, muss vorher `POST /api/servo-driver/init` erfolgreich ausgeführt worden sein. Erst danach wird der Zustand auf die Hardware geschrieben. Wenn kein Treiber verfügbar ist, wird der Zustand nur als angenommener Low-Level-Zielzustand gespeichert.
 
 Request:
 
@@ -456,9 +525,11 @@ sequenceDiagram
   else valid request and driver unavailable
     Parser-->>REST: JointPwmState
     REST-->>Client: 202 accepted, hardware not_available
-  else valid request and driver available
+  else valid request and driver available but not initialized
     Parser-->>REST: JointPwmState
-    REST->>Driver: begin() if needed
+    REST-->>Client: 503 hardware_not_initialized
+  else valid request and initialized driver available
+    Parser-->>REST: JointPwmState
     REST->>Driver: write(state)
     alt hardware failure
       Driver-->>REST: failure
@@ -526,6 +597,18 @@ Response `400`, Beispiel bei Grenzwertverletzung:
 }
 ```
 
+Response `503`, Beispiel bei noch nicht initialisiertem Hardwaretreiber:
+
+```json
+{
+  "status": "hardware_not_initialized",
+  "code": "hardware_driver_failure",
+  "mode": "joint_pwm_direct",
+  "hardware": "available",
+  "message": "Call POST /api/servo-driver/init before writing joint PWM values."
+}
+```
+
 Response `503`, Beispiel bei Hardwarefehler:
 
 ```json
@@ -535,8 +618,8 @@ Response `503`, Beispiel bei Hardwarefehler:
   "mode": "joint_pwm_direct",
   "hardware": "available",
   "driver": {
-    "status": "driver_begin_failed",
-    "message": "PCA9685 driver begin failed."
+    "status": "invalid_channel",
+    "message": "PCA9685 channel is outside 0..15."
   }
 }
 ```

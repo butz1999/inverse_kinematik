@@ -82,42 +82,42 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
 
 void RestApiServer::begin()
 {
-  server_.on("/api/health", HTTP_GET,
+  server_.on(kHealthPath, HTTP_GET,
              [this]()
              {
                handleHealth();
              });
-  server_.on("/api/status", HTTP_GET,
+  server_.on(kStatusPath, HTTP_GET,
              [this]()
              {
                handleStatus();
              });
-  server_.on("/api/joint-state", HTTP_GET,
+  server_.on(kJointStatePath, HTTP_GET,
              [this]()
              {
                handleJointState();
              });
-  server_.on("/api/joint-motion", HTTP_POST,
+  server_.on(kJointMotionPath, HTTP_POST,
              [this]()
              {
                handleJointMotionRequest();
              });
-  server_.on("/api/joint-pwm-state", HTTP_GET,
+  server_.on(kJointPwmStatePath, HTTP_GET,
              [this]()
              {
                handleJointPwmState();
              });
-  server_.on("/api/servo-driver/init", HTTP_POST,
+  server_.on(kServoDriverInitPath, HTTP_POST,
              [this]()
              {
                handleServoDriverInitRequest();
              });
-  server_.on("/api/joint-pwm-motion", HTTP_POST,
+  server_.on(kJointPwmMotionPath, HTTP_POST,
              [this]()
              {
                handleJointPwmMotionRequest();
              });
-  server_.on("/api/motion", HTTP_POST,
+  server_.on(kMotionPath, HTTP_POST,
              [this]()
              {
                handleMotionRequest();
@@ -142,7 +142,7 @@ void RestApiServer::handleClient()
 
 void RestApiServer::handleHealth()
 {
-  logRequest("GET", "/api/health");
+  logRequest("GET", kHealthPath);
 
   RestJsonDocument doc;
   doc["service"] = kApiName;
@@ -156,7 +156,7 @@ void RestApiServer::handleHealth()
 
 void RestApiServer::handleStatus()
 {
-  logRequest("GET", "/api/status");
+  logRequest("GET", kStatusPath);
 
   RestJsonDocument doc;
   doc["restApi"] = toString(ApiCapabilityStatus::Available);
@@ -177,7 +177,7 @@ void RestApiServer::handleStatus()
 
 void RestApiServer::handleJointState()
 {
-  logRequest("GET", "/api/joint-state");
+  logRequest("GET", kJointStatePath);
 
   RestJsonDocument doc;
   doc["status"] = toString(ApiResultCode::Ok);
@@ -190,7 +190,7 @@ void RestApiServer::handleJointState()
 
 void RestApiServer::handleJointMotionRequest()
 {
-  logRequest("POST", "/api/joint-motion");
+  logRequest("POST", kJointMotionPath);
 
   const auto body_arg = server_.arg("plain");
   const auto parsed = parseJointMotionRequestJson(body_arg.c_str());
@@ -226,7 +226,7 @@ void RestApiServer::handleJointMotionRequest()
 
 void RestApiServer::handleJointPwmState()
 {
-  logRequest("GET", "/api/joint-pwm-state");
+  logRequest("GET", kJointPwmStatePath);
 
   RestJsonDocument doc;
   doc["status"] = toString(ApiResultCode::Ok);
@@ -239,7 +239,7 @@ void RestApiServer::handleJointPwmState()
 
 void RestApiServer::handleServoDriverInitRequest()
 {
-  logRequest("POST", "/api/servo-driver/init");
+  logRequest("POST", kServoDriverInitPath);
 
   if (servo_driver_ == nullptr)
   {
@@ -293,7 +293,7 @@ void RestApiServer::handleServoDriverInitRequest()
 
 void RestApiServer::handleJointPwmMotionRequest()
 {
-  logRequest("POST", "/api/joint-pwm-motion");
+  logRequest("POST", kJointPwmMotionPath);
 
   const auto body_arg = server_.arg("plain");
   const auto parsed = parseJointPwmMotionRequestJson(body_arg.c_str());
@@ -372,7 +372,7 @@ void RestApiServer::handleJointPwmMotionRequest()
 
 void RestApiServer::handleMotionRequest()
 {
-  logRequest("POST", "/api/motion");
+  logRequest("POST", kMotionPath);
 
   RestJsonDocument doc;
   doc["status"] = "not_implemented";

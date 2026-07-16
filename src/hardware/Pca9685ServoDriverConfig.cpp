@@ -13,6 +13,8 @@ const char *toString(HardwareDriverStatus status)
       return "ok";
     case HardwareDriverStatus::DriverBeginFailed:
       return "driver_begin_failed";
+    case HardwareDriverStatus::DriverConfigurationFailed:
+      return "driver_configuration_failed";
     case HardwareDriverStatus::InvalidChannel:
       return "invalid_channel";
     case HardwareDriverStatus::InvalidPwmValue:
