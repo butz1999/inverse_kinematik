@@ -7,12 +7,13 @@
 void test_parse_joint_motion_accepts_valid_json()
 {
   const auto result = application::parseJointMotionRequestJson(
-      "{\"d_deg\":1,\"s_deg\":2,\"e_deg\":3,\"hp_deg\":4,\"hr_deg\":5,"
+      "{\"d_deg\":1,\"s_deg\":2,\"e_deg\":3,\"hp_deg\":-4,\"hr_deg\":5,"
       "\"g_pct\":6}");
 
   TEST_ASSERT_TRUE(result.ok);
   TEST_ASSERT_EQUAL(application::ApiResultCode::Ok, result.code);
   TEST_ASSERT_EQUAL_FLOAT(1.0F, result.joint_state.d_deg);
+  TEST_ASSERT_EQUAL_FLOAT(-4.0F, result.joint_state.hp_deg);
   TEST_ASSERT_EQUAL_FLOAT(6.0F, result.joint_state.g_pct);
 }
 

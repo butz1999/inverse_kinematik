@@ -21,7 +21,7 @@ JointMotionParseResult jointMotionError(ApiResultCode code, const char *field_na
 
 JointPwmMotionParseResult jointPwmMotionError(ApiResultCode code, const char *field_name, const char *message)
 {
-  return JointPwmMotionParseResult{false, code, field_name, message, common::initialJointPwmState()};
+  return JointPwmMotionParseResult{false, code, field_name, message, common::JointPwmState{}};
 }
 
 bool isMissingOrNonNumeric(JsonVariantConst value)
@@ -103,7 +103,7 @@ JointPwmMotionParseResult parseJointPwmMotionRequestJson(const char *body)
     return jointPwmMotionError(ApiResultCode::InvalidJson, kEmptyField, "Request body must be a JSON object.");
   }
 
-  common::JointPwmState state = common::initialJointPwmState();
+  common::JointPwmState state{};
   const char *fields[] = {"d_pwm", "s_pwm", "e_pwm", "hp_pwm", "hr_pwm", "g_pwm"};
   uint16_t *values[] = {&state.d_pwm, &state.s_pwm, &state.e_pwm, &state.hp_pwm, &state.hr_pwm, &state.g_pwm};
 

@@ -34,6 +34,7 @@ struct HardwareCalibration
   ServoAxisCalibration hp;
   ServoAxisCalibration hr;
   GripperCalibration g;
+  common::JointPwmState initial_pwm_state;
 };
 
 enum class HardwareCalibrationStatus

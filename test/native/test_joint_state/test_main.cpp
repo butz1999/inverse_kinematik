@@ -20,7 +20,7 @@ void test_initial_joint_state_uses_documented_zero_position()
 
 void test_joint_state_accepts_values_inside_hardware_ranges()
 {
-  const common::JointState state{-180.0F, 90.0F, 50.0F, 135.0F, -180.0F, 100.0F};
+  const common::JointState state{-90.0F, 90.0F, 50.0F, -45.0F, -90.0F, 100.0F};
 
   TEST_ASSERT_TRUE(common::isWithinJointLimits(state));
   TEST_ASSERT_NULL(common::findFirstLimitViolation(state));
@@ -35,7 +35,7 @@ void test_joint_state_rejects_first_axis_outside_limit()
   TEST_ASSERT_FALSE(common::isWithinJointLimits(state));
   TEST_ASSERT_NOT_NULL(violation);
   TEST_ASSERT_EQUAL_STRING("d_deg", violation->field_name);
-  TEST_ASSERT_EQUAL_FLOAT(-180.0F, violation->min_value);
+  TEST_ASSERT_EQUAL_FLOAT(-90.0F, violation->min_value);
   TEST_ASSERT_EQUAL_FLOAT(90.0F, violation->max_value);
 }
 

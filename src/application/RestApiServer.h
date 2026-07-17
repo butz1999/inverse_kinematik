@@ -34,10 +34,12 @@ class RestApiServer
   void handleServoDriverInitRequest();
   void handleJointPwmMotionRequest();
   void handleMotionRequest();
+  void handleCorsPreflight();
   void handleFavicon();
   void handleNotFound();
   void logRequest(const char *method, const char *path) const;
   void logResult(const char *message) const;
+  void sendCorsHeaders();
   void sendJson(int status_code, const String &body);
 
   WebServer &server_;

@@ -58,7 +58,7 @@ RestApiServer::RestApiServer(WebServer &server)
       logger_(nullptr),
       hardware_calibration_(hardware::defaultHardwareCalibration()),
       current_joint_state_(common::initialJointState()),
-      current_joint_pwm_state_(common::initialJointPwmState())
+      current_joint_pwm_state_(hardware_calibration_.initial_pwm_state)
 {
 }
 
@@ -68,7 +68,7 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
       logger_(nullptr),
       hardware_calibration_(hardware::defaultHardwareCalibration()),
       current_joint_state_(common::initialJointState()),
-      current_joint_pwm_state_(common::initialJointPwmState())
+      current_joint_pwm_state_(hardware_calibration_.initial_pwm_state)
 {
 }
 
@@ -79,7 +79,7 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
       logger_(&logger),
       hardware_calibration_(hardware::defaultHardwareCalibration()),
       current_joint_state_(common::initialJointState()),
-      current_joint_pwm_state_(common::initialJointPwmState())
+      current_joint_pwm_state_(hardware_calibration_.initial_pwm_state)
 {
 }
 
@@ -105,6 +105,11 @@ void RestApiServer::begin()
              {
                handleJointMotionRequest();
              });
+  server_.on(kJointMotionPath, HTTP_OPTIONS,
+             [this]()
+             {
+               handleCorsPreflight();
+             });
   server_.on(kJointPwmStatePath, HTTP_GET,
              [this]()
              {
@@ -115,10 +120,20 @@ void RestApiServer::begin()
              {
                handleServoDriverInitRequest();
              });
+  server_.on(kServoDriverInitPath, HTTP_OPTIONS,
+             [this]()
+             {
+               handleCorsPreflight();
+             });
   server_.on(kJointPwmMotionPath, HTTP_POST,
              [this]()
              {
                handleJointPwmMotionRequest();
+             });
+  server_.on(kJointPwmMotionPath, HTTP_OPTIONS,
+             [this]()
+             {
+               handleCorsPreflight();
              });
   server_.on(kMotionPath, HTTP_POST,
              [this]()
@@ -335,7 +350,7 @@ void RestApiServer::handleServoDriverInitRequest()
     return;
   }
 
-  current_joint_pwm_state_ = common::initialJointPwmState();
+  current_joint_pwm_state_ = hardware_calibration_.initial_pwm_state;
   logResult("[REST] PCA9685 initialized");
 
   RestJsonDocument doc;
@@ -440,8 +455,16 @@ void RestApiServer::handleMotionRequest()
   sendJson(501, jsonBody(doc));
 }
 
+void RestApiServer::handleCorsPreflight()
+{
+  logRequest("OPTIONS", server_.uri().c_str());
+  sendCorsHeaders();
+  server_.send(204);
+}
+
 void RestApiServer::handleFavicon()
 {
+  sendCorsHeaders();
   server_.sendHeader("Cache-Control", "no-store");
   server_.send(204);
 }
@@ -483,8 +506,16 @@ void RestApiServer::logResult(const char *message) const
 
 void RestApiServer::sendJson(int status_code, const String &body)
 {
+  sendCorsHeaders();
   server_.sendHeader("Cache-Control", "no-store");
   server_.send(status_code, "application/json", body);
+}
+
+void RestApiServer::sendCorsHeaders()
+{
+  server_.sendHeader("Access-Control-Allow-Origin", "*");
+  server_.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  server_.sendHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
 }  // namespace application

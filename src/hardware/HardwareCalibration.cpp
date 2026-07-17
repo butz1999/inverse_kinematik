@@ -20,7 +20,7 @@ HardwareCalibrationResult ok(common::JointPwmState state)
 HardwareCalibrationResult invalidCalibration(const char *field_name, const char *message)
 {
   return HardwareCalibrationResult{false, HardwareCalibrationStatus::InvalidCalibration, field_name, message,
-                                   common::initialJointPwmState()};
+                                   common::JointPwmState{}};
 }
 
 float clampFloat(float value, float min_value, float max_value)
@@ -99,12 +99,16 @@ HardwareCalibration defaultHardwareCalibration()
 {
   // clang-format off
   return HardwareCalibration{
-      ServoAxisCalibration{-180.0F,  90.0F, common::kServoMinPulsePwm, common::kServoMaxPulsePwm},
-      ServoAxisCalibration{ -90.0F,  90.0F, common::kServoMinPulsePwm, common::kServoMaxPulsePwm},
-      ServoAxisCalibration{-100.0F, 100.0F, common::kServoMinPulsePwm, common::kServoMaxPulsePwm},
-      ServoAxisCalibration{   0.0F, 135.0F, common::kServoMinPulsePwm, common::kServoMaxPulsePwm},
-      ServoAxisCalibration{-180.0F, 180.0F, common::kServoMinPulsePwm, common::kServoMaxPulsePwm},
-      GripperCalibration{     0.0F, 100.0F, common::kServoMaxPulsePwm, common::kServoMinPulsePwm},
+      // Axis calibration:
+      ServoAxisCalibration{ -90.0F,  90.0F, 530U,  90U}, // d
+      ServoAxisCalibration{ -90.0F,  90.0F, 490U,  80U}, // s
+      ServoAxisCalibration{ -90.0F,  90.0F,  90U, 500U}, // e
+      ServoAxisCalibration{ -90.0F,   0.0F, 110U, 320U}, // hp
+      ServoAxisCalibration{ -90.0F,  90.0F, 100U, 500U}, // hr
+      GripperCalibration{     0.0F, 100.0F, 130U, 375U}, // g
+      // Inital PWM State per axis:
+      //                    d,    s,    e,    hp,   hr,   g
+      common::JointPwmState{310U, 290U, 290U, 320U, 310U, 130U},
   };
   // clang-format on
 }

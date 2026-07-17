@@ -94,11 +94,11 @@ Gelenkwerte werden als JSON-Zahlen übertragen. Responses geben Werte mit drei N
 
 | Feld | Einheit | Minimum | Maximum |
 | --- | --- | ---: | ---: |
-| `d_deg` | Grad | `-180.0` | `90.0` |
+| `d_deg` | Grad | `-90.0` | `90.0` |
 | `s_deg` | Grad | `-90.0` | `90.0` |
-| `e_deg` | Grad | `-100.0` | `100.0` |
-| `hp_deg` | Grad | `0.0` | `135.0` |
-| `hr_deg` | Grad | `-180.0` | `180.0` |
+| `e_deg` | Grad | `-90.0` | `90.0` |
+| `hp_deg` | Grad | `-90.0` | `0.0` |
+| `hr_deg` | Grad | `-90.0` | `90.0` |
 | `g_pct` | Prozent | `0.0` | `100.0` |
 
 Beispiel:
@@ -108,7 +108,7 @@ Beispiel:
   "d_deg": 0,
   "s_deg": 15.5,
   "e_deg": -20,
-  "hp_deg": 45,
+  "hp_deg": -45,
   "hr_deg": 0,
   "g_pct": 50
 }
@@ -297,7 +297,7 @@ Request:
   "d_deg": 0,
   "s_deg": 15,
   "e_deg": -20,
-  "hp_deg": 45,
+  "hp_deg": -45,
   "hr_deg": 0,
   "g_pct": 50
 }
@@ -310,7 +310,7 @@ Linux, macOS:
 ```sh
 curl -X POST http://robot.local/api/joint-motion \
   -H 'Content-Type: application/json' \
-  -d '{"d_deg":0,"s_deg":15,"e_deg":-20,"hp_deg":45,"hr_deg":0,"g_pct":50}'
+  -d '{"d_deg":0,"s_deg":15,"e_deg":-20,"hp_deg":-45,"hr_deg":0,"g_pct":50}'
 ```
 
 WSL:
@@ -318,13 +318,13 @@ WSL:
 ```sh
 curl -X POST http://robot.fritz.box/api/joint-motion \
   -H 'Content-Type: application/json' \
-  -d '{"d_deg":0,"s_deg":15,"e_deg":-20,"hp_deg":45,"hr_deg":0,"g_pct":50}'
+  -d '{"d_deg":0,"s_deg":15,"e_deg":-20,"hp_deg":-45,"hr_deg":0,"g_pct":50}'
 ```
 
 PowerShell:
 
 ```powershell
-curl.exe -X POST http://robot.local/api/joint-motion -H "Content-Type: application/json" -d '{"d_deg":0,"s_deg":15,"e_deg":-20,"hp_deg":45,"hr_deg":0,"g_pct":50}'
+curl.exe -X POST http://robot.local/api/joint-motion -H "Content-Type: application/json" -d '{"d_deg":0,"s_deg":15,"e_deg":-20,"hp_deg":-45,"hr_deg":0,"g_pct":50}'
 ```
 
 #### Antworten
@@ -341,7 +341,7 @@ Response `202`:
     "d_deg": 0.000,
     "s_deg": 15.000,
     "e_deg": -20.000,
-    "hp_deg": 45.000,
+    "hp_deg": -45.000,
     "hr_deg": 0.000,
     "g_pct": 50.000
   },
@@ -714,7 +714,7 @@ Linux, macOS:
 ```sh
 curl -X POST http://robot.local/api/joint-motion \
   -H 'Content-Type: application/json' \
-  -d '{"d_deg":0,"e_deg":-20,"hp_deg":45,"hr_deg":0,"g_pct":50}'
+  -d '{"d_deg":0,"e_deg":-20,"hp_deg":-45,"hr_deg":0,"g_pct":50}'
 ```
 
 WSL:
@@ -722,13 +722,13 @@ WSL:
 ```sh
 curl -X POST http://robot.fritz.box/api/joint-motion \
   -H 'Content-Type: application/json' \
-  -d '{"d_deg":0,"e_deg":-20,"hp_deg":45,"hr_deg":0,"g_pct":50}'
+  -d '{"d_deg":0,"e_deg":-20,"hp_deg":-45,"hr_deg":0,"g_pct":50}'
 ```
 
 PowerShell:
 
 ```powershell
-curl.exe -X POST http://robot.local/api/joint-motion -H "Content-Type: application/json" -d '{"d_deg":0,"e_deg":-20,"hp_deg":45,"hr_deg":0,"g_pct":50}'
+curl.exe -X POST http://robot.local/api/joint-motion -H "Content-Type: application/json" -d '{"d_deg":0,"e_deg":-20,"hp_deg":-45,"hr_deg":0,"g_pct":50}'
 ```
 
 Erwartete Response:

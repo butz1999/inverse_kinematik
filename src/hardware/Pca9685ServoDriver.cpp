@@ -5,6 +5,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+#include "hardware/HardwareCalibration.h"
+
 namespace hardware
 {
 
@@ -92,7 +94,8 @@ HardwareDriverResult Pca9685ServoDriver::begin()
 
   pwm_driver_.setPWMFreq(config_.pwm_frequency_hz);
 
-  const auto initial_write_result = writeChannels(common::initialJointPwmState());
+  const auto calibration = defaultHardwareCalibration();
+  const auto initial_write_result = writeChannels(calibration.initial_pwm_state);
   if (initial_write_result.status != HardwareDriverStatus::Ok)
   {
     return initial_write_result;
