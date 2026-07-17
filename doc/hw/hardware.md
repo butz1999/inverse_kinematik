@@ -269,8 +269,8 @@ Aus dieser schrittweisen Kalibration ergeben sich pro Achse insbesondere:
 
 * die mechanisch sinnvolle 0-Position
 * die Zuordnung zwischen logischem Winkelwert und realer Achsstellung
-* die Drehrichtung des Servos bezogen auf das fachliche Modell
-* minimale und maximale PWM-Werte für die zulässige Ansteuerung
+* die Drehrichtung des Servos bezogen auf das fachliche Modell, ausgedrückt über die Reihenfolge der PWM-Endpunkte
+* PWM-Werte an den minimalen und maximalen Fachwerten der zulässigen Ansteuerung
 * achsspezifische Besonderheiten wie Offsets oder asymmetrische Fahrbereiche
 
 Die Kalibration ist damit ein praktischer Bestandteil der Inbetriebnahme und bildet die Grundlage dafür, dass die in der Software verwendeten Gelenkwinkel konsistent auf reale Servo-Stellwerte abgebildet werden können.

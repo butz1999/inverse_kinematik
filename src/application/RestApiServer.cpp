@@ -56,6 +56,7 @@ RestApiServer::RestApiServer(WebServer &server)
     : server_(server),
       servo_driver_(nullptr),
       logger_(nullptr),
+      hardware_calibration_(hardware::defaultHardwareCalibration()),
       current_joint_state_(common::initialJointState()),
       current_joint_pwm_state_(common::initialJointPwmState())
 {
@@ -65,6 +66,7 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
     : server_(server),
       servo_driver_(&servo_driver),
       logger_(nullptr),
+      hardware_calibration_(hardware::defaultHardwareCalibration()),
       current_joint_state_(common::initialJointState()),
       current_joint_pwm_state_(common::initialJointPwmState())
 {
@@ -75,6 +77,7 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
     : server_(server),
       servo_driver_(&servo_driver),
       logger_(&logger),
+      hardware_calibration_(hardware::defaultHardwareCalibration()),
       current_joint_state_(common::initialJointState()),
       current_joint_pwm_state_(common::initialJointPwmState())
 {
@@ -210,16 +213,82 @@ void RestApiServer::handleJointMotionRequest()
     return;
   }
 
+  const auto calibration_result = hardware::mapJointStateToPwm(parsed.joint_state, hardware_calibration_);
+  if (!calibration_result.ok)
+  {
+    RestJsonDocument doc;
+    doc["status"] = "calibration_failed";
+    doc["code"] = hardware::toString(calibration_result.status);
+    if (calibration_result.field_name[0] != '\0')
+    {
+      doc["field"] = calibration_result.field_name;
+    }
+    doc["message"] = calibration_result.message;
+    logResult("[REST] Joint motion request rejected by calibration");
+    sendJson(500, jsonBody(doc));
+    return;
+  }
+
+  if (servo_driver_ != nullptr)
+  {
+    if (!servo_driver_->isInitialized())
+    {
+      logResult("[REST] Joint motion request rejected because PCA9685 is not initialized");
+      RestJsonDocument doc;
+      doc["status"] = "hardware_not_initialized";
+      doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
+      doc["mode"] = "joint_space_calibrated";
+      doc["hardware"] = toString(ApiCapabilityStatus::Available);
+      doc["message"] =
+          "PCA9685 servo driver is not initialized; check the boot log or call POST /api/servo-driver/init for "
+          "diagnostics.";
+      sendJson(503, jsonBody(doc));
+      return;
+    }
+
+    const auto write_result = servo_driver_->write(calibration_result.joint_pwm_state);
+    if (write_result.status != hardware::HardwareDriverStatus::Ok)
+    {
+      logResult("[REST] PCA9685 calibrated joint write failed");
+      RestJsonDocument doc;
+      doc["status"] = "hardware_failed";
+      doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
+      doc["mode"] = "joint_space_calibrated";
+      doc["hardware"] = toString(ApiCapabilityStatus::Available);
+      setHardwareDriverResultJson(doc.createNestedObject("driver"), write_result);
+      sendJson(503, jsonBody(doc));
+      return;
+    }
+
+    current_joint_state_ = parsed.joint_state;
+    current_joint_pwm_state_ = calibration_result.joint_pwm_state;
+    logResult("[REST] Joint motion request mapped and written to hardware");
+
+    RestJsonDocument doc;
+    doc["status"] = "accepted";
+    doc["code"] = toString(ApiResultCode::Ok);
+    doc["mode"] = "joint_space_calibrated";
+    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    setHardwareDriverResultJson(doc.createNestedObject("driver"), write_result);
+    setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
+    setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
+    sendJson(202, jsonBody(doc));
+    return;
+  }
+
   current_joint_state_ = parsed.joint_state;
-  logResult("[REST] Joint motion request accepted");
+  current_joint_pwm_state_ = calibration_result.joint_pwm_state;
+  logResult("[REST] Joint motion request mapped without hardware output");
 
   RestJsonDocument doc;
   doc["status"] = "accepted";
   doc["code"] = toString(ApiResultCode::Ok);
-  doc["mode"] = "joint_space_direct";
+  doc["mode"] = "joint_space_calibrated";
   doc["hardware"] = toString(ApiCapabilityStatus::NotAvailable);
   setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
-  doc["message"] = "Joint state accepted as assumed low-level target; hardware output is not connected yet.";
+  setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
+  doc["message"] =
+      "Joint state accepted and mapped through default hardware calibration; hardware output is not connected yet.";
 
   sendJson(202, jsonBody(doc));
 }
@@ -310,7 +379,9 @@ void RestApiServer::handleJointPwmMotionRequest()
       doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
       doc["mode"] = "joint_pwm_direct";
       doc["hardware"] = toString(ApiCapabilityStatus::Available);
-      doc["message"] = "PCA9685 servo driver is not initialized; check the boot log or call POST /api/servo-driver/init for diagnostics.";
+      doc["message"] =
+          "PCA9685 servo driver is not initialized; check the boot log or call POST /api/servo-driver/init for "
+          "diagnostics.";
       sendJson(503, jsonBody(doc));
       return;
     }

@@ -21,3 +21,8 @@ request "POST /api/joint-pwm-motion" \
   -X POST "$BASE_URL/api/joint-pwm-motion" \
   -H 'Content-Type: application/json' \
   -d '{"d_pwm":207,"s_pwm":307,"e_pwm":307,"hp_pwm":307,"hr_pwm":307,"g_pwm":307}'
+
+#request "POST /api/joint-motion" \
+#  -X POST "$BASE_URL/api/joint-motion" \
+#  -H 'Content-Type: application/json' \
+#  -d '{"d_deg":0,"s_deg":0,"e_deg":0,"hp_deg":0,"hr_deg":0,"g_pct":0}'

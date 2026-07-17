@@ -83,7 +83,7 @@ Ziel der Servo-Kalibration ist es daher, für jede Achse eine eindeutige Zuordnu
 
 * die Bestimmung einer mechanisch sinnvollen Nullstellung
 * die Ermittlung von Minimal- und Maximalwerten pro Achse
-* die Berücksichtigung eines möglichen Vorzeichenwechsels der Drehrichtung
+* die Berücksichtigung eines möglichen Vorzeichenwechsels der Drehrichtung über die Reihenfolge der kalibrierten PWM-Endpunkte
 * die Erfassung fester Offsets zwischen idealem Modell und realer Montage
 
 Konzeptionell kann die Kalibration als Transformationsschritt zwischen Gelenkraum und Hardwareansteuerung verstanden werden. Die Kinematik arbeitet dabei weiterhin mit idealisierten Winkeln und Grenzwerten, während die hardwarenahe Ansteuerung diese Werte mithilfe der Kalibrationsdaten in konkrete Servosignale umsetzt.
@@ -335,7 +335,7 @@ Zusätzlich zum idealisierten Robotermodell sind modellbezogene Offsets (`Robot 
 
 #### Hardware Calibration
 
-Für die hardwarenahe Ausgabe sind zusätzlich [Hardware-Kalibrationsdaten](#calibration) (`Hardware Calibration`) erforderlich, welche die Abbildung zwischen fachlichen Gelenkwinkeln beziehungsweise Greiferwerten und realer Servoansteuerung beschreiben. Dazu gehören beispielsweise Nullpunktkorrekturen, Minimal- und Maximalwerte, Drehrichtungen und PWM-bezogene Aktorgrenzen.
+Für die hardwarenahe Ausgabe sind zusätzlich [Hardware-Kalibrationsdaten](#calibration) (`Hardware Calibration`) erforderlich, welche die Abbildung zwischen fachlichen Gelenkwinkeln beziehungsweise Greiferwerten und realer Servoansteuerung beschreiben. Dazu gehören beispielsweise Minimal- und Maximalwerte sowie gerichtete PWM-Endpunkte pro Aktor. Eine gegenläufige Servo- oder Greiferrichtung wird dadurch ausgedrückt, dass der PWM-Wert am minimalen Fachwert größer sein kann als der PWM-Wert am maximalen Fachwert.
 
 #### Joint PWM State
 
@@ -821,7 +821,7 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 | <a id="application"></a>Application | Softwarebaustein der Anwendungsebene. Er umfasst im Projekt insbesondere `Run Engine`, `Sequence Definition`, `Sequence Step`, `Sequence State`, `LED Action`, `Robot Action` und `Target Pose`. |
 | CCD | Cyclic Coordinate Descent. Iteratives Verfahren zur Lösung inverser Kinematik, bei dem Gelenke nacheinander so angepasst werden, dass sich der Endeffektor schrittweise an ein Ziel annähert. |
 | <a id="common"></a>Common | Gemeinsamer Softwarebaustein für fachliche Datenmodelle, die von mehreren anderen Komponenten verwendet werden. |
-| <a id="calibration"></a>Hardware Calibration | Datenmodell zur Abbildung fachlicher Gelenk- und Greiferwerte auf hardwarenahe Stellwerte unter Berücksichtigung von Nullpunkten, Drehrichtungen und PWM-Grenzen. |
+| <a id="calibration"></a>Hardware Calibration | Datenmodell zur Abbildung fachlicher Gelenk- und Greiferwerte auf hardwarenahe Stellwerte unter Berücksichtigung fachlicher Grenzen und gerichteter PWM-Endpunkte. |
 | <a id="calibration-data"></a>Robot Model Offset | Modellbezogene Offsets und Korrekturwerte, welche das reale Robotermodell gegenüber dem idealisierten Modell beschreiben. |
 | Endeffektor | Das funktionale Ende des Roboterarms. Im vorliegenden Projekt besteht der Endeffektor aus Handgelenk und Greifer. |
 | ESP32 | Mikrocontroller-Plattform, auf der die Steuerungssoftware des Projekts ausgeführt wird. |

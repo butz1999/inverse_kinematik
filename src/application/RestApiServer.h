@@ -8,6 +8,7 @@
 #include "application/ApiContracts.h"
 #include "common/JointPwmState.h"
 #include "common/JointState.h"
+#include "hardware/HardwareCalibration.h"
 #include "hardware/Pca9685ServoDriver.h"
 #include "hardware/SerialLogger.h"
 
@@ -42,6 +43,7 @@ class RestApiServer
   WebServer &server_;
   hardware::Pca9685ServoDriver *servo_driver_;
   const hardware::SerialLogger *logger_;
+  hardware::HardwareCalibration hardware_calibration_;
   common::JointState current_joint_state_;
   common::JointPwmState current_joint_pwm_state_;
 };

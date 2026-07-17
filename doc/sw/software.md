@@ -219,7 +219,7 @@ Für die Benennung der zentralen Zustandsmodelle werden bewusst die Begriffe `Ta
 Für den Begriff Kalibration wird in diesem Dokument bewusst zwischen zwei Ebenen unterschieden:
 
 * `RobotModelOffset` beschreibt modellbezogene Offsets und Korrekturwerte, welche das geometrische und fachliche Robotermodell betreffen. Dazu gehören beispielsweise Schulter-Offsets oder weitere Korrekturen, die `Kinematics` und `Validation` berücksichtigen müssen.
-* `HardwareCalibration` beschreibt die Abbildung von logischen Aktorzuständen auf konkrete hardwarebezogene Stellwerte. Dazu gehören insbesondere Drehrichtung, PWM-Minimum, PWM-Maximum und weitere Parameter, die erst bei der hardwarenahen Ausgabe relevant werden.
+* `HardwareCalibration` beschreibt die Abbildung von logischen Aktorzuständen auf konkrete hardwarebezogene Stellwerte. Dazu gehören insbesondere fachliche Minimal- und Maximalwerte sowie die zugeordneten PWM-Endpunkte, die erst bei der hardwarenahen Ausgabe relevant werden.
 
 Damit wird klar abgegrenzt, dass nicht jede Korrektur dieselbe Bedeutung hat: `RobotModelOffset` gehört zur Robotik- und Modellseite, `HardwareCalibration` zur Hardware Abstraction und zur Ansteuerung der realen Aktoren.
 
@@ -309,20 +309,17 @@ classDiagram
     }
 
     class AxisCalibration {
-        +float zero_deg
         +float min_deg
         +float max_deg
-        +uint16 pwm_min
-        +uint16 pwm_max
-        +bool inverted
+        +uint16 min_pwm
+        +uint16 max_pwm
     }
 
     class GripperCalibration {
         +float min_pct
         +float max_pct
-        +uint16 pwm_min
-        +uint16 pwm_max
-        +bool inverted
+        +uint16 min_pwm
+        +uint16 max_pwm
     }
 
     MotionRequest --> TargetPose
@@ -568,12 +565,10 @@ Für Rotationsachsen wird jeweils ein `AxisCalibration`-Eintrag verwendet:
 ```mermaid
 classDiagram
     class AxisCalibration {
-        +float zero_deg
         +float min_deg
         +float max_deg
-        +uint16 pwm_min
-        +uint16 pwm_max
-        +bool inverted
+        +uint16 min_pwm
+        +uint16 max_pwm
     }
 ```
 
@@ -584,13 +579,12 @@ classDiagram
     class GripperCalibration {
         +float min_pct
         +float max_pct
-        +uint16 pwm_min
-        +uint16 pwm_max
-        +bool inverted
+        +uint16 min_pwm
+        +uint16 max_pwm
     }
 ```
 
-Damit bleibt die Kalibration konsistent mit der fachlichen Entscheidung, dass `g` in Task Space und Joint Space dieselbe Größe beschreibt, während die interne Abbildung auf PWM-Werte dennoch separat dokumentiert wird. `HardwareCalibration` ist damit ausdrücklich von `RobotModelOffset` abgegrenzt und gehört zur hardwarenahen Abbildung in der `Hardware Abstraction`.
+Die PWM-Endpunkte sind gerichtete Kalibrationswerte. `min_pwm` muss deshalb nicht kleiner als `max_pwm` sein: Wenn kleinere fachliche Werte größere PWM-Ticks benötigen, wird diese Richtung direkt durch `min_pwm > max_pwm` ausgedrückt. Damit bleibt die Kalibration konsistent mit der fachlichen Entscheidung, dass `g` in Task Space und Joint Space dieselbe Größe beschreibt, während die interne Abbildung auf PWM-Werte dennoch separat dokumentiert wird. `HardwareCalibration` ist damit ausdrücklich von `RobotModelOffset` abgegrenzt und gehört zur hardwarenahen Abbildung in der `Hardware Abstraction`.
 
 
 ## Schnittstellen der Kernmodule
@@ -1045,8 +1039,8 @@ Der logische Abbildungsweg ist dabei wie folgt:
 1. Der `Orchestrator` übergibt einen `TimedJointState` aus dem aktuellen `MotionPlan` an die `Hardware Abstraction`.
 2. Für jede Achse wird der zugehörige Kalibrationseintrag aus `HardwareCalibration` ausgewählt.
 3. Der fachliche Sollwert in `[°]` beziehungsweise `[%]` wird auf den zulässigen kalibrierten Arbeitsbereich begrenzt.
-4. Eine eventuell invertierte Drehrichtung wird berücksichtigt.
-5. Der begrenzte Fachwert wird auf den PWM-Bereich der Achse abgebildet.
+4. Der begrenzte Fachwert wird linear auf die gerichteten PWM-Endpunkte der Achse abgebildet.
+5. Eine gegenläufige mechanische Richtung ergibt sich aus `min_pwm > max_pwm` und benötigt keinen separaten Schalter.
 6. Aus allen resultierenden Achswerten wird ein vollständiger `JointPwmState` erzeugt.
 7. Erst dieser `JointPwmState` wird an den `Hardware Driver` übergeben.
 
@@ -1056,19 +1050,17 @@ Diese Struktur stellt sicher, dass die darüberliegenden Softwarebausteine keine
 
 Für Rotationsachsen wie `d`, `s`, `e`, `hp` und `hr` werden pro Achse mindestens folgende Kalibrationsparameter benötigt:
 
-* fachlicher Nullbezug `zero_deg`
 * minimal zulässiger Fachwert `min_deg`
 * maximal zulässiger Fachwert `max_deg`
-* minimal zulässiger PWM-Wert `pwm_min`
-* maximal zulässiger PWM-Wert `pwm_max`
-* Drehrichtung `inverted`
+* PWM-Wert am minimalen Fachwert `min_pwm`
+* PWM-Wert am maximalen Fachwert `max_pwm`
 
 Für den Greifer `g` wird ein separates Prozentmodell verwendet. Dafür werden mindestens benötigt:
 
 * minimal zulässiger Öffnungswert `min_pct`
 * maximal zulässiger Öffnungswert `max_pct`
-* minimal zulässiger PWM-Wert `pwm_min`
-* maximal zulässiger PWM-Wert `pwm_max`
+* PWM-Wert am minimalen Öffnungswert `min_pwm`
+* PWM-Wert am maximalen Öffnungswert `max_pwm`
 
 Die konkrete Kanalzuordnung der Aktoren zum PCA9685 gehört konzeptionell ebenfalls zur Hardwareseite. Sie kann entweder Teil der `HardwareCalibration` sein oder als separate, aber eng benachbarte Konfiguration der `Hardware Abstraction` geführt werden. Für die erste Ausbaustufe ist wichtig, dass diese Zuordnung nicht in `Kinematics` oder `Orchestrator` eingestreut wird.
 
@@ -1079,8 +1071,9 @@ Die Kalibrationsabbildung soll in der ersten Ausbaustufe bewusst einfach und det
 Dabei gelten folgende Regeln:
 
 * fachliche Grenzwerte werden vor der PWM-Erzeugung geprüft und nötigenfalls begrenzt
-* die Drehrichtung wird über den Kalibrationsparameter `inverted` abgebildet und nicht durch verstreute Sonderfälle im Aufrufcode
-* `zero_deg` beschreibt den Bezug zwischen fachlicher Nullstellung und mechanisch kalibrierter Servomitte
+* die Abbildung erfolgt in der ersten Ausbaustufe linear zwischen `min_deg` und `max_deg` beziehungsweise `min_pct` und `max_pct`
+* die PWM-Endpunkte sind gerichtet; `min_pwm > max_pwm` bildet eine gegenläufige Servo- oder Greiferrichtung ab
+* ein separater Parameter wie `inverted` wird bewusst nicht verwendet, damit die Richtung direkt aus den kalibrierten Endpunkten hervorgeht
 * die PWM-Erzeugung erfolgt erst nach Anwendung aller fachlich relevanten Begrenzungen
 * die Ausgabe an den Treiber erfolgt ausschließlich über vollständig gebildete `JointPwmState`-Objekte
 
@@ -1254,7 +1247,7 @@ Für die erste Ausbaustufe gelten deshalb folgende Regeln:
 * kartesische Längen erhalten das Suffix `_mm`
 * Greiferwerte in Prozent erhalten das Suffix `_pct`
 * PWM-Werte erhalten das Suffix `_pwm`
-* boolesche Zustände werden als fachliche Aussagen formuliert, zum Beispiel `has_wait` oder `inverted`
+* boolesche Zustände werden als fachliche Aussagen formuliert, zum Beispiel `has_wait`
 
 Beispiele dafür sind bereits in den Datenmodellen verankert:
 
