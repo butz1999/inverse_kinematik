@@ -32,6 +32,19 @@ function readPwmState() {
   return readNumericState(pwmForm, (value) => Number.parseInt(value, 10));
 }
 
+function updateJointForm(jointState) {
+  if (!jointState) {
+    return;
+  }
+
+  for (const [name, value] of Object.entries(jointState)) {
+    const input = jointForm.elements.namedItem(name);
+    if (input instanceof HTMLInputElement) {
+      input.value = String(value);
+    }
+  }
+}
+
 function updatePwmForm(jointPwmState) {
   if (!jointPwmState) {
     return;
@@ -43,6 +56,11 @@ function updatePwmForm(jointPwmState) {
       input.value = String(value);
     }
   }
+}
+
+function updateFormsFromResponse(body) {
+  updateJointForm(body.jointState);
+  updatePwmForm(body.jointPwmState);
 }
 
 async function postJson(path, payload) {
@@ -66,7 +84,7 @@ async function sendJointState(source) {
   try {
     setStatus(`${source} position...`, state);
     const body = await postJson("/api/joint-motion", state);
-    updatePwmForm(body.jointPwmState);
+    updateFormsFromResponse(body);
     setStatus("Position accepted.", body);
   } finally {
     sendJointButton.disabled = false;
@@ -79,6 +97,7 @@ async function sendPwmState(source) {
   try {
     setStatus(`${source} PWM...`, state);
     const body = await postJson("/api/joint-pwm-motion", state);
+    updateFormsFromResponse(body);
     setStatus("PWM accepted.", body);
   } finally {
     sendButton.disabled = false;
@@ -89,6 +108,7 @@ initButton.addEventListener("click", async () => {
   try {
     setStatus("Initializing...");
     const body = await postJson("/api/servo-driver/init");
+    updateFormsFromResponse(body);
     setStatus("Initialized.", body);
   } catch (error) {
     setStatus(`Init failed: ${error.message}`);

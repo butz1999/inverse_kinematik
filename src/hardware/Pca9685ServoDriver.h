@@ -19,11 +19,10 @@ class Pca9685ServoDriver
   HardwareDriverResult begin();
   HardwareDriverResult init();
   HardwareDriverResult write(const common::JointPwmState &state);
+  common::JointPwmState jointPwmState() const;
   bool isInitialized() const;
 
  private:
-  void disableOutputs() const;
-  void enableOutputs() const;
   HardwareDriverResult softwareReset();
   HardwareDriverResult configureMode2ForServoOutputs();
   bool writeRegister(uint8_t register_address, uint8_t value) const;
@@ -32,6 +31,7 @@ class Pca9685ServoDriver
 
   Pca9685ServoDriverConfig config_;
   Adafruit_PWMServoDriver pwm_driver_;
+  common::JointPwmState current_pwm_state_;
   bool initialized_;
 };
 

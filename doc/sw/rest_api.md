@@ -364,7 +364,7 @@ Response `400`, Beispiel bei fehlendem Feld:
 
 `GET /api/joint-pwm-state`
 
-Liefert den aktuell angenommenen PWM-Zustand. Dieser Zustand wird durch erfolgreiche Requests auf `/api/joint-pwm-motion` aktualisiert.
+Liefert den aktuellen hardwarenahen PWM-Zustand. Wenn der PCA9685-Treiber initialisiert ist, stammt der Zustand aus dem Treiber und entspricht dem zuletzt vollständig erfolgreich geschriebenen `JointPwmState`. Ohne Hardwaretreiber wird der angenommene Low-Level-Zustand des REST-Servers zurückgegeben.
 
 #### Ausführen
 
@@ -394,7 +394,7 @@ Response `200`:
 {
   "status": "ok",
   "code": "ok",
-  "source": "assumed_low_level_pwm_state",
+  "source": "hardware_driver_pwm_state",
   "jointPwmState": {
     "d_pwm": 307,
     "s_pwm": 307,
@@ -410,7 +410,7 @@ Response `200`:
 
 `POST /api/servo-driver/init`
 
-Initialisiert den PCA9685-Servo-Treiber für Diagnose oder manuelle Initialisierung, falls der Boot-Init nicht erfolgreich war. Im normalen Firmwarestart wird dieser Schritt bereits beim Boot ausgeführt. Der Treiber setzt die PCA9685-Ausgänge zunächst über `OE` in den deaktivierten Zustand, führt die technische Initialisierung aus, schreibt den initialen `JointPwmState` und gibt die Ausgänge danach frei.
+Initialisiert den PCA9685-Servo-Treiber für Diagnose oder manuelle Initialisierung, falls der Boot-Init nicht erfolgreich war. Im normalen Firmwarestart wird dieser Schritt bereits beim Boot ausgeführt. Wenn der Treiber schon initialisiert ist, schreibt der Endpoint den initialen `JointPwmState` erneut und fährt damit bewusst wieder zur Init-PWM-Position. Nach erfolgreichem Schreiben setzt der REST-Handler den fachlichen `JointState` auf die Init-Position zurück, liest den zuletzt erfolgreich geschriebenen `JointPwmState` aus dem Treiber zurück und liefert beide Zustände in der Antwort. Separate Enable-/Disable-Endpunkte gibt es bewusst nicht mehr.
 
 #### Ausführen
 
@@ -445,13 +445,21 @@ Response `202`:
     "status": "ok",
     "message": "ok"
   },
+  "jointState": {
+    "d_deg": 0,
+    "s_deg": 0,
+    "e_deg": 0,
+    "hp_deg": 0,
+    "hr_deg": 0,
+    "g_pct": 0
+  },
   "jointPwmState": {
-    "d_pwm": 307,
-    "s_pwm": 307,
-    "e_pwm": 307,
-    "hp_pwm": 307,
-    "hr_pwm": 307,
-    "g_pwm": 307
+    "d_pwm": 310,
+    "s_pwm": 290,
+    "e_pwm": 290,
+    "hp_pwm": 320,
+    "hr_pwm": 310,
+    "g_pwm": 130
   }
 }
 ```
