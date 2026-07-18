@@ -137,6 +137,37 @@ async function sendPwmState(source) {
   }
 }
 
+function addInstantSend(form, sendState) {
+  let inFlight = false;
+  let pending = false;
+
+  async function sendLatestState() {
+    if (!form.checkValidity()) {
+      return;
+    }
+
+    if (inFlight) {
+      pending = true;
+      return;
+    }
+
+    inFlight = true;
+    try {
+      do {
+        pending = false;
+        await sendState("Updating");
+      } while (pending && form.checkValidity());
+    } catch (error) {
+      setStatus(`Update failed: ${error.message}`);
+    } finally {
+      inFlight = false;
+    }
+  }
+
+  form.addEventListener("input", sendLatestState);
+  form.addEventListener("change", sendLatestState);
+}
+
 initButton.addEventListener("click", async () => {
   try {
     setStatus("Initializing...");
@@ -171,3 +202,6 @@ sendButton.addEventListener("click", async () => {
     setStatus(`Send failed: ${error.message}`);
   }
 });
+
+addInstantSend(jointForm, sendJointState);
+addInstantSend(pwmForm, sendPwmState);

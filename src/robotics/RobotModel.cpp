@@ -15,18 +15,28 @@ bool isPositiveFinite(float value)
 
 }  // namespace
 
-// ToDo: Measure segment lengths on the robot.
 RobotModel defaultRobotModel()
 {
-  const SegmentLengths segments{100.0F, 100.0F, 60.0F};
+  const SegmentLengths segments{105.0F, 100.0F, 100.0F};
   const CartesianWorkspace workspace{0.0F, 260.0F, maxReachFromSegments(segments)};
   return RobotModel{segments, workspace};
 }
 
-// ToDo: Measure offsets on the robot.
 RobotModelOffset defaultRobotModelOffset()
 {
-  return RobotModelOffset{0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
+  // clang-format off
+  return RobotModelOffset{
+      .o_d_offset_x_mm =           0.0F,
+      .o_d_offset_y_mm =        -105.0F,
+      .o_d_offset_z_mm =          77.5F,
+      .d_s_offset_x_mm =         -12.5F,
+      .d_s_offset_y_mm =         -11.0F,
+      .d_s_offset_z_mm =          12.5F,
+      .hp_hr_offset_up_mm =       28.0F,
+      .hp_hr_offset_side_mm =      0.0F,
+      .hp_hr_offset_forward_mm =  45.0F,
+  };
+  // clang-format on
 }
 
 bool isValidRobotModel(const RobotModel &model)
