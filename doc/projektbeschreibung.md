@@ -447,20 +447,24 @@ Der Baustein `Common` wird in diesem High-Level-Diagramm bewusst nicht separat d
 
 #### Komponentendiagramm
 
-Die folgenden Komponentendiagramme verfeinern die vier Hauptbereiche des High-Level-Diagramms jeweils separat. Dabei orientieren sie sich an den in der statischen Struktur beschriebenen Softwarebausteinen `Application`, `Orchestration`, `Kinematics`, `Robot Model`, `Robot Model Offset`, `Validation`, `Hardware`, `Common` und `Hardware Calibration`. Die Bezeichnungen innerhalb der Diagramme sind bewusst englisch gehalten und in einer schreibweisenahen Form gewählt, damit sie näher an späteren Modul-, Typ- oder Verzeichnisnamen bleiben. Dadurch werden die internen Bausteine und ihre Beziehungen innerhalb eines Bereichs besser lesbar, auch wenn die Querverbindungen zwischen den Hauptkomponenten hier bewusst nicht im Mittelpunkt stehen.
+Die folgenden Komponentendiagramme verfeinern die vier Hauptbereiche des High-Level-Diagramms jeweils separat. Dabei orientieren sie sich an den in der statischen Struktur beschriebenen Softwarebausteinen `Application`, `Orchestration`, `Kinematics`, `Robot Model`, `Robot Model Offset`, `Validation`, `Hardware`, `Common` und `HardwareCalibration`. Die Bezeichnungen innerhalb der Diagramme sind bewusst englisch gehalten und in einer schreibweisenahen Form gewählt, damit sie näher an spätere oder bereits vorhandene Modul-, Typ- und Verzeichnisnamen bleiben. Begriffe ohne Leerzeichen wie `JointState`, `JointPwmState`, `RestApiServer` oder `HardwareCalibrationResult` bezeichnen dabei code-nahe Datenmodelle oder Implementierungsbausteine; Begriffe mit Leerzeichen beschreiben weiterhin fachliche Architekturkonzepte.
 
 #### Applikation
 
 ```mermaid
 flowchart LR
     subgraph APP["<<component>> Application"]
-        A1[Run Engine]
-        A2[Sequence Definition]
-        A3[Sequence Step]
-        A4[Sequence State]
-        A5[LED Action]
-        A6[Robot Action]
-        A7[Target Pose]
+        A1[RunEngine]
+        A2[SequenceDefinition]
+        A3[SequenceStep]
+        A4[SequenceState]
+        A5[LedAction]
+        A6[RobotAction]
+        A7[TargetPose]
+        A8[REST Interface]
+        A9[RestApiServer]
+        A10[Calibration HMI]
+        A11[ApiContracts]
 
         A2 -->|contains| A3
         A1 -->|uses| A2
@@ -469,6 +473,9 @@ flowchart LR
         A3 -->|contains| A7
         A3 -->|may trigger| A5
         A3 -->|may trigger| A6
+        A10 -->|calls| A8
+        A8 -->|is implemented by| A9
+        A9 -->|uses| A11
     end
 ```
 
@@ -478,9 +485,9 @@ flowchart LR
 flowchart LR
     subgraph CTRL["<<component>> Orchestration"]
         B1[Orchestrator]
-        B2[Motion Request]
-        B3[Motion Result]
-        B4[Motion Request\nProcessing]
+        B2[MotionRequest]
+        B3[MotionResult]
+        B4[MotionRequestProcessing]
 
         B2 -->|is handled in| B4
         B4 -->|is coordinated by| B1
@@ -495,21 +502,21 @@ flowchart LR
     subgraph ROB["<<component>> Robotics"]
         C1[Kinematics]
         C2[Validation]
-        C3[Robot Model]
-        C4[Robot Model Offset]
-        C5[Motion Constraints]
-        C6[Joint State]
-        C7[Offset Target Pose]
-        C8[Math Utilities]
-        C9[Segment Lengths,\nOffsets,\nJoint Limits]
+        C3[RobotModel]
+        C4[RobotModelOffset]
+        C5[MotionConstraints]
+        C6[JointState]
+        C7[OffsetTargetPose]
+        C8[MathUtilities]
+        C9[SegmentLengths,\nOffsets,\nJointLimits]
 
         C1 -.->|uses| C3
+        C4 -->|produces| C7
         C1 -.->|receives| C7
         C1 -.->|uses| C8
         C2 -.->|uses| C3
         C2 -.->|considers| C5
         C3 -->|contains| C9
-        C4 -->|produces| C7
         C1 -->|computes| C6
         C6 -->|is checked by| C2
     end
@@ -521,18 +528,26 @@ flowchart LR
 flowchart LR
     subgraph HW["<<component>> Hardware"]
         D1[Hardware Abstraction]
-        D2[Hardware Driver]
+        D2[Pca9685ServoDriver]
         D3[PCA9685]
         D4[Servo Actuators]
-        D5[Hardware Calibration]
-        D6[Joint PWM State]
-        D7[Serial Output]
-        D8[RGB-LED]
+        D5[HardwareCalibration]
+        D6[JointPwmState]
+        D7[SerialLogger]
+        D8[StatusLed / RGB-LED]
+        D9[ServoAxisCalibration]
+        D10[GripperCalibration]
+        D11[initial_pwm_state]
+        D12[HardwareCalibrationResult]
 
-        D1 -->|uses| D6
-        D1 -->|uses| D7
+        D1 -->|maps to| D6
+        D1 -->|reports| D12
+        D1 -->|logs via| D7
         D1 -.->|uses| D5
-        D6 -->|is passed to| D2
+        D5 -->|contains| D9
+        D5 -->|contains| D10
+        D5 -->|contains| D11
+        D6 -->|is written by| D2
         D2 -->|controls| D3
         D3 -->|generates signals for| D4
         D1 -->|controls| D8
@@ -544,19 +559,24 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph COM["<<component>> Common"]
-        E1[Target Pose]
-        E2[Motion Request]
-        E3[Joint State]
-        E4[Motion Result]
-        E5[Sequence State]
-        E6[Target Pose Result]
-        E7[Joint State Result]
+        E1[TargetPose]
+        E2[MotionRequest]
+        E3[JointState]
+        E4[MotionResult]
+        E5[SequenceState]
+        E6[TargetPoseResult]
+        E7[JointStateResult]
+        E8[JointPwmState]
+        E9[JointLimit]
+        E10[PWM Limits]
 
         E2 -->|contains or references| E1
         E4 -->|refers to| E2
         E4 -->|may contain| E3
         E6 -->|refers to| E1
         E7 -->|refers to| E3
+        E3 -->|is constrained by| E9
+        E8 -->|is constrained by| E10
     end
 ```
 
@@ -566,24 +586,24 @@ Das folgende Ablaufdiagramm beschreibt den typischen fachlichen und technischen 
 
 ```mermaid
 flowchart TD
-    A[Run Engine
-    Selects next Step] --> B[Orchestrator
-    Generates Move Request]
-    B --> C[Target Pose Validation]
-    C -->|invalid Pose| D[Motion Result rejected]
-    C -->|valid| E[Apply Robot Model Offset]
-    E --> F[Offset Target Pose]
-    F --> G[Kinematics
-    Computes Joint State]
-    G --> H[Validation
-    Validates Joint State]
+    A[RunEngine selects next SequenceStep] --> B[Create MotionRequest]
+    N[REST Interface receives external request] --> B
+    B --> O[Orchestrator coordinates processing]
+    O --> C[TargetPose validation]
+    C -->|invalid TargetPose| D[MotionResult rejected]
+    C -->|valid| E[Apply RobotModelOffset]
+    E --> F[OffsetTargetPose]
+    F --> G[Kinematics computes JointState]
+    G --> H[Validation validates JointState]
     H -->|not approved| D
-    H -->|approved| I[Hardware Abstraction
-    Applies Hardware Calibration]
-    I --> J[Joint PWM State to Hardware Driver]
+    H -->|approved| I[Hardware Abstraction applies HardwareCalibration]
+    I --> P[HardwareCalibrationResult]
+    P -->|ok| J[JointPwmState to Pca9685ServoDriver]
+    P -->|invalid calibration| D
     J --> K[Status to Orchestrator]
-    K --> L[Motion Result to Run Engine]
-    L --> M[Run Engine handles wait]
+    K --> L[MotionResult to RunEngine]
+    K --> Q[REST response]
+    L --> M[RunEngine handles wait]
     M --> A
 ```
 
