@@ -294,9 +294,15 @@ classDiagram
     }
 
     class RobotModelOffset {
-        +float shoulder_offset_y_mm
-        +float pitch_roll_offset_deg
-        +float roll_gripper_offset_mm
+        +float o_d_offset_x_mm
+        +float o_d_offset_y_mm
+        +float o_d_offset_z_mm
+        +float d_s_offset_x_mm
+        +float d_s_offset_y_mm
+        +float d_s_offset_z_mm
+        +float hp_hr_offset_up_mm
+        +float hp_hr_offset_side_mm
+        +float hp_hr_offset_forward_mm
     }
 
     class HardwareCalibration {
@@ -536,13 +542,19 @@ Dieses Modell bildet die Brücke zwischen logischem Gelenkzustand und konkreter 
 ```mermaid
 classDiagram
     class RobotModelOffset {
-        +float shoulder_offset_y_mm
-        +float pitch_roll_offset_deg
-        +float roll_gripper_offset_mm
+        +float o_d_offset_x_mm
+        +float o_d_offset_y_mm
+        +float o_d_offset_z_mm
+        +float d_s_offset_x_mm
+        +float d_s_offset_y_mm
+        +float d_s_offset_z_mm
+        +float hp_hr_offset_up_mm
+        +float hp_hr_offset_side_mm
+        +float hp_hr_offset_forward_mm
     }
 ```
 
-Diese Werte werden nicht zur direkten PWM-Erzeugung verwendet, sondern zur Korrektur und Präzisierung des mathematischen Modells. Sie gehören damit auf die Robotik-Seite und müssen von `Kinematics`, `Validation` und gegebenenfalls einem `Robot Model` berücksichtigt werden. Wird die Korrektur als eigener Verarbeitungsschritt modelliert, entsteht daraus eine `OffsetTargetPose`.
+Diese Werte werden nicht zur direkten PWM-Erzeugung verwendet, sondern zur Korrektur und Präzisierung des mathematischen Modells. Sie gehören damit auf die Robotik-Seite und müssen von `Kinematics`, `Validation` und gegebenenfalls einem `Robot Model` berücksichtigt werden. Wird die Korrektur als eigener Verarbeitungsschritt modelliert, entsteht daraus eine `OffsetTargetPose`. Die Länge vom Handgelenk-Roll zum Greifer wird nicht als separater Offset geführt, sondern als Segmentlänge `hr_g_length_mm` im `RobotModel`.
 
 ### HardwareCalibration
 

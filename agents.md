@@ -55,7 +55,12 @@ Wenn diese Quellen einander widersprechen, weise explizit darauf hin und triff k
 * Führe nach Möglichkeit passende Verifikation aus, mindestens Build oder Tests.
 * Wenn Verifikation in WSL, durch Tooling-Probleme oder wegen fehlender Hardware nicht möglich ist, benenne das explizit.
 
-## 7. Implementationsreihenfolge
+## 7. Git-Arbeitsregeln
+* Codex darf Änderungen vorbereiten, prüfen und erklären.
+* Staging (`git add`) und Commits (`git commit`) führt ausschließlich der Benutzer aus.
+* Codex nennt bei Bedarf die passenden Git-Befehle, führt sie aber nicht selbst aus.
+
+## 8. Implementationsreihenfolge
 Bevorzuge bei neuen Features diese Reihenfolge:
 1. Datenmodelle und fachliche Typen
 2. reine Logik in `robotics/`, `application/` oder `orchestration/`
@@ -63,27 +68,27 @@ Bevorzuge bei neuen Features diese Reihenfolge:
 4. hardwarenahe Anbindung in `hardware/`
 5. Einbindung in `src/main.cpp`
 
-## 8. Abhängigkeitsregeln
+## 9. Abhängigkeitsregeln
 * `hardware/` kennt keine fachliche Ablauflogik.
 * `robotics/` kennt keine konkreten Treiber oder serielle Ausgabe.
 * `src/main.cpp` verdrahtet Komponenten, enthält aber keine fachliche Kernlogik.
 * Gemeinsame Datentypen kommen nur nach `common/`, wenn sie wirklich modulübergreifend gebraucht werden.
 
-## 9. Externe Bibliotheken
+## 10. Externe Bibliotheken
 * Füge nur Bibliotheken hinzu, wenn sie für die aktuelle Aufgabe wirklich nötig sind.
 * Bevorzuge etablierte, kleine Bibliotheken mit klarer ESP32-/PlatformIO-Unterstützung.
 * Wenn eine neue Bibliothek eingeführt wird, begründe kurz, warum Eigenimplementierung oder bestehende Mittel nicht ausreichen.
 
-## 10. Standard-Konfigurationen
+## 11. Standard-Konfigurationen
 * **Tests:** `native` ist aktuell die Default-Umgebung.
 * **Serielle Diagnose:** Wenn serielle Ausgabe auf dem Target genutzt wird, `Serial.begin(115200)` und `monitor_speed = 115200` konsistent halten.
 
-## 11. Erwartetes Antwort-Format
+## 12. Erwartetes Antwort-Format
 * Liefere bei neuen Dateien immer die vollständige Ordnerstruktur als Kommentar.
 * Erkläre kurz die Pins, falls neue Hardware eingebunden wird.
 * Zeige bei Updates der `platformio.ini` exakt, welche Zeilen unter `lib_deps` hinzugefügt werden müssen.
 
-## 12. Unit-Testing (Unity Framework)
+## 13. Unit-Testing (Unity Framework)
 * **Framework:** Unity (in PlatformIO integriert).
 * **Code-Zuschnitt:** 
   * Testbare Logik bleibt in den fachlichen Komponenten unter `src/`.

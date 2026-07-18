@@ -41,8 +41,8 @@ beschrieben.
 
 Damit wird festgelegt, an welcher Position (x,y,z) sich der Greifer relativ zum Nullpunkt befinden soll. Zusätzlich werden seine Neigung (p), seine Drehung (r) sowie seine Öffnung (g) beschrieben.
 
-Die Positionen werden in [mm] gemessen. Der Bezugspunkt ist (0,0,0) auf der Standfläche des Motors, genau unterhalb der Achse des Drehtellers.
-Pitch und Roll werden in [°] gemessen; Bezugsebene ist die Horizontalebene.
+Die Positionen werden in [mm] gemessen. Der Bezugspunkt `O(0,0,0)` liegt auf der Grundplatte vor dem Roboter und kann damit als praktisch messbarer Arbeitsursprung gewählt werden. Die Lage des Drehtellers relativ zu diesem Ursprung wird als fester Origin-Drehteller-Offset modelliert.
+Pitch und Roll werden in [°] gemessen; Bezugsebene ist die Horizontalebene. Ein Kippen nach unten ist eine Änderung in negativer Richtung. Ein Kippen nach oben in positiver Richtung.
 Die Greiferöffnung wird in [%] gemessen, 0% entspricht vollständig geschlossen, 100% entspricht vollständig geöffnet.
 
 #### Definition des Arbeitsraumes (cartesian space)
@@ -50,18 +50,19 @@ Die Greiferöffnung wird in [%] gemessen, 0% entspricht vollständig geschlossen
 Der Arbeitsraum beschreibt die Positionen der einzelnen Gelenkpunkte in kartesischen Koordinaten (x,y,z).
 
 Für die Modellierung werden folgende Positionen als kartesische 3D-Vektoren benötigt:
-* Drehteller D liegt fest bei (0,0,0)
+* Arbeitsursprung O(0,0,0)
+* Drehteller D(x,y,z)
 * Ellenbogen E(x,y,z)
 * Handgelenk H(x,y,z)
 * Greiferspitze G(x,y,z)
 
 #### Definition des Gelenkraumes (joint space)
 Abschließend wird der Gelenkraum definiert. Die Rotationsachsen werden in [°] angegeben, die Greiferöffnung in [%].
-* Drehteller d (-180°..90°), 0° zeigt in Richtung der y-Achse des Welt-Koordinatensystems.
+* Drehteller d (-90°..90°), 0° zeigt in Richtung der y-Achse des Welt-Koordinatensystems.
 * Schulter s (-90°..90°), -90° ist horizontal in Richtung der y-Achse, 0° zeigt vertikal nach oben (Richtung der z-Achse) und 90° kippt die Schulter in Richtung der negativen z-Achse.
-* Ellenbogen e (-100°..100°). Hier ist die 0°-Position, wenn Oberarm und Unterarm in dieselbe Richtung zeigen. -100° kippt nach unten, +100° kippt nach oben.
-* Handgelenk-Pitch hp (0°..135°) analog zur Ellenbogenachse.
-* Handgelenk-Roll hr (-180°..180°): Bei -180° dreht das Handgelenk nach links, bei 180° dreht das Handgelenk nach rechts. Blickrichtung: vom Drehteller nach vorne.
+* Ellenbogen e (-90°..90°). Hier ist die 0°-Position, wenn Oberarm und Unterarm in dieselbe Richtung zeigen. -90° kippt nach unten, +90° kippt nach oben.
+* Handgelenk-Pitch hp (-90°..0°) analog zur Ellenbogenachse.
+* Handgelenk-Roll hr (-90°..90°): Bei -90° dreht das Handgelenk nach links, bei 90° dreht das Handgelenk nach rechts. Blickrichtung: vom Drehteller nach vorne.
 * Greifer g (0%..100%): 0% entspricht vollständig geschlossen, 100% vollständig geöffnet.
 
 ### Beschreibung des realen Roboterarms
@@ -81,7 +82,6 @@ Solche Abweichungen entstehen beispielsweise durch unterschiedlich montierte Ser
 
 Ziel der Servo-Kalibration ist es daher, für jede Achse eine eindeutige Zuordnung zwischen dem fachlichen Gelenkwinkel und dem realen Ansteuersignal herzustellen. Dazu gehören insbesondere:
 
-* die Bestimmung einer mechanisch sinnvollen Nullstellung
 * die Ermittlung von Minimal- und Maximalwerten pro Achse
 * die Berücksichtigung eines möglichen Vorzeichenwechsels der Drehrichtung über die Reihenfolge der kalibrierten PWM-Endpunkte
 * die Erfassung fester Offsets zwischen idealem Modell und realer Montage
