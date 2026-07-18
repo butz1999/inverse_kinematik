@@ -1,4 +1,4 @@
-// Lightweight math helpers for robotics geometry.
+// Lightweight math utilities for robotics geometry.
 
 #pragma once
 
@@ -31,6 +31,11 @@ inline Vector3 add(const Vector3 &left, const Vector3 &right)
   return Vector3{left.x_mm + right.x_mm, left.y_mm + right.y_mm, left.z_mm + right.z_mm};
 }
 
+inline Vector3 subtract(const Vector3 &left, const Vector3 &right)
+{
+  return Vector3{left.x_mm - right.x_mm, left.y_mm - right.y_mm, left.z_mm - right.z_mm};
+}
+
 /**
  * Converts a vector from the vertical arm plane into world coordinates.
  *
@@ -51,6 +56,26 @@ inline Vector3 vectorFromRadialZ(float radial_mm, float z_mm, float d_deg)
 {
   const auto d_rad = degreesToRadians(d_deg);
   return Vector3{radial_mm * std::sin(d_rad), radial_mm * std::cos(d_rad), z_mm};
+}
+
+/**
+ * Converts a vector from turntable-local coordinates into world coordinates.
+ *
+ * At d_deg = 0 the local x axis matches world +x and the local y axis matches
+ * world +y. Positive d_deg rotates the local y axis toward world +x, matching
+ * the turntable convention used by vectorFromRadialZ().
+ *
+ * @param local_x_mm Local side offset in millimeters.
+ * @param local_y_mm Local forward/radial offset in millimeters.
+ * @param local_z_mm Local vertical offset in millimeters.
+ * @param d_deg Turntable angle in degrees.
+ * @return Rotated vector in world coordinates, in millimeters.
+ */
+inline Vector3 vectorFromTurntableLocal(float local_x_mm, float local_y_mm, float local_z_mm, float d_deg)
+{
+  const auto d_rad = degreesToRadians(d_deg);
+  return Vector3{(local_x_mm * std::cos(d_rad)) + (local_y_mm * std::sin(d_rad)),
+                 (-local_x_mm * std::sin(d_rad)) + (local_y_mm * std::cos(d_rad)), local_z_mm};
 }
 
 }  // namespace robotics

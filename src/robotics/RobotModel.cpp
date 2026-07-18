@@ -47,11 +47,11 @@ float maxReachFromSegments(const SegmentLengths &segments)
 
 OffsetTargetPose applyRobotModelOffset(const common::TargetPose &pose, const RobotModelOffset &offset)
 {
-  // ToDo: Do not linearly add offsets behind joints; transform them through the joint chain
-  // into the target frame.
-  auto x_mm = pose.x_mm - offset.o_d_offset_x_mm - offset.d_s_offset_x_mm - offset.hp_hr_offset_up_mm;
-  auto y_mm = pose.y_mm - offset.o_d_offset_y_mm - offset.d_s_offset_y_mm - offset.hp_hr_offset_side_mm;
-  auto z_mm = pose.z_mm - offset.o_d_offset_z_mm - offset.d_s_offset_z_mm - offset.hp_hr_offset_forward_mm;
+  // Only static origin-to-turntable offsets can be applied before kinematics.
+  // Joint-dependent offsets must be transformed inside the kinematic chain.
+  auto x_mm = pose.x_mm - offset.o_d_offset_x_mm;
+  auto y_mm = pose.y_mm - offset.o_d_offset_y_mm;
+  auto z_mm = pose.z_mm - offset.o_d_offset_z_mm;
 
   return OffsetTargetPose{x_mm, y_mm, z_mm, pose.p_deg, pose.r_deg, pose.g_pct};
 }
