@@ -10,71 +10,77 @@
     <main>
       <header>
         <h1>PWM Calibration</h1>
-        <input id="base-url" type="url" value="http://robot.fritz.box" aria-label="Base URL" />
       </header>
 
+      <h2>Initialisation</h2>
       <section class="toolbar">
         <button id="init-button" type="button">Init</button>
-        <button id="send-joint-button" type="button">Send Position</button>
-        <button id="send-button" type="button">Send PWM</button>
+        <input id="base-url" type="url" value="http://robot.fritz.box" aria-label="Base URL" />
       </section>
 
       <h2>Position</h2>
       <form id="joint-form">
         <label>
-          d deg
+          d [°]
           <input name="d_deg" type="number" min="-90" max="90" step="5" value="0" />
         </label>
         <label>
-          s deg
+          s [°]
           <input name="s_deg" type="number" min="-90" max="90" step="5" value="0" />
         </label>
         <label>
-          e deg
+          e [°]
           <input name="e_deg" type="number" min="-90" max="90" step="5" value="0" />
         </label>
         <label>
-          hp deg
+          hp [°]
           <input name="hp_deg" type="number" min="-90" max="0" step="5" value="0" />
         </label>
         <label>
-          hr deg
+          hr [°]
           <input name="hr_deg" type="number" min="-90" max="90" step="5" value="0" />
         </label>
         <label>
-          g pct
+          g [%]
           <input name="g_pct" type="number" min="0" max="100" step="10" value="0" />
         </label>
       </form>
+      <section class="toolbar">
+        <button id="send-joint-button" type="button">Send Position</button>
+      </section>
 
       <h2>PWM</h2>
       <form id="pwm-form">
         <label>
-          d
+          d [-]
           <input name="d_pwm" type="number" min="90" max="530" step="10" value="310" />
         </label>
         <label>
-          s
+          s [-]
           <input name="s_pwm" type="number" min="80" max="490" step="10" value="290" />
         </label>
         <label>
-          e
+          e [-]
           <input name="e_pwm" type="number" min="90" max="500" step="10" value="290" />
         </label>
         <label>
-          hp
+          hp [-]
           <input name="hp_pwm" type="number" min="110" max="320" step="10" value="320" />
         </label>
         <label>
-          hr
+          hr [-]
           <input name="hr_pwm" type="number" min="100" max="500" step="10" value="310" />
         </label>
         <label>
-          g
+          g [-]
           <input name="g_pwm" type="number" min="130" max="375" step="10" value="130" />
         </label>
       </form>
+      <section class="toolbar">
+        <button id="send-button" type="button">Send PWM</button>
+      </section>
 
+      <h2>REST response</h2>
       <pre id="status" aria-live="polite">Ready.</pre>
     </main>
 
