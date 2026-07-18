@@ -10,7 +10,7 @@ body {
 }
 
 main {
-  width: min(720px, calc(100vw - 32px));
+  width: min(860px, calc(100vw - 32px));
   margin: 32px auto;
 }
 
@@ -44,6 +44,8 @@ input {
 
 .toolbar {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 10px;
 }
@@ -53,9 +55,14 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
   gap: 12px;
   margin-bottom: 10px;
 }

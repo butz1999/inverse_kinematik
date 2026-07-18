@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Robot PWM Calibration</title>
-    <link rel="stylesheet" href="calibration.css" />
+    <title>Dilbert Robot Helper</title>
+    <link rel="stylesheet" href="dilbert.css" />
   </head>
   <body>
     <main>
       <header>
-        <h1>PWM Calibration</h1>
+        <h1>Dilbert Robot Helper</h1>
       </header>
 
       <h2>Initialisation</h2>
@@ -18,7 +18,38 @@
         <input id="base-url" type="url" value="http://robot.fritz.box" aria-label="Base URL" />
       </section>
 
-      <h2>Position</h2>
+      <h2>Pose</h2>
+      <form id="pose-form">
+        <label>
+          x [mm]
+          <input name="x_mm" type="number" min="-260" max="260" step="10" value="0" />
+        </label>
+        <label>
+          y [mm]
+          <input name="y_mm" type="number" min="-260" max="260" step="10" value="260" />
+        </label>
+        <label>
+          z [mm]
+          <input name="z_mm" type="number" min="0" max="260" step="10" value="0" />
+        </label>
+        <label>
+          p [°]
+          <input name="p_deg" type="number" min="-90" max="90" step="5" value="0" />
+        </label>
+        <label>
+          r [°]
+          <input name="r_deg" type="number" min="-90" max="90" step="5" value="0" />
+        </label>
+        <label>
+          g [%]
+          <input name="g_pct" type="number" min="0" max="100" step="10" value="50" />
+        </label>
+      </form>
+      <section class="toolbar">
+        <button id="send-pose-button" type="button">Send Pose</button>
+      </section>
+
+      <h2>Joint Position</h2>
       <form id="joint-form">
         <label>
           d [°]
@@ -46,7 +77,7 @@
         </label>
       </form>
       <section class="toolbar">
-        <button id="send-joint-button" type="button">Send Position</button>
+        <button id="send-joint-button" type="button">Send Joint Position</button>
       </section>
 
       <h2>PWM</h2>
@@ -84,6 +115,6 @@
       <pre id="status" aria-live="polite">Ready.</pre>
     </main>
 
-    <script src="calibration.js"></script>
+    <script src="dilbert.js"></script>
   </body>
 </html>

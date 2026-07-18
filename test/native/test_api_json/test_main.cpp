@@ -80,6 +80,40 @@ void test_parse_joint_pwm_motion_rejects_pwm_limit_violation()
   TEST_ASSERT_EQUAL_STRING("d_pwm", result.field_name);
 }
 
+void test_parse_target_pose_accepts_valid_json()
+{
+  const auto result = application::parseTargetPoseRequestJson(
+      "{\"x_mm\":1,\"y_mm\":2,\"z_mm\":3,\"p_deg\":4,\"r_deg\":5,"
+      "\"g_pct\":6}");
+
+  TEST_ASSERT_TRUE(result.ok);
+  TEST_ASSERT_EQUAL(application::ApiResultCode::Ok, result.code);
+  TEST_ASSERT_EQUAL_FLOAT(1.0F, result.target_pose.x_mm);
+  TEST_ASSERT_EQUAL_FLOAT(4.0F, result.target_pose.p_deg);
+  TEST_ASSERT_EQUAL_FLOAT(6.0F, result.target_pose.g_pct);
+}
+
+void test_parse_target_pose_rejects_missing_field()
+{
+  const auto result =
+      application::parseTargetPoseRequestJson("{\"x_mm\":1,\"y_mm\":2,\"z_mm\":3,\"p_deg\":4,\"r_deg\":5}");
+
+  TEST_ASSERT_FALSE(result.ok);
+  TEST_ASSERT_EQUAL(application::ApiResultCode::MissingField, result.code);
+  TEST_ASSERT_EQUAL_STRING("g_pct", result.field_name);
+}
+
+void test_parse_target_pose_rejects_gripper_limit_violation()
+{
+  const auto result = application::parseTargetPoseRequestJson(
+      "{\"x_mm\":1,\"y_mm\":2,\"z_mm\":3,\"p_deg\":4,\"r_deg\":5,"
+      "\"g_pct\":101}");
+
+  TEST_ASSERT_FALSE(result.ok);
+  TEST_ASSERT_EQUAL(application::ApiResultCode::InvalidTargetPose, result.code);
+  TEST_ASSERT_EQUAL_STRING("g_pct", result.field_name);
+}
+
 int main(int argc, char **argv)
 {
   UNITY_BEGIN();
@@ -90,5 +124,8 @@ int main(int argc, char **argv)
   RUN_TEST(test_parse_joint_pwm_motion_accepts_valid_json);
   RUN_TEST(test_parse_joint_pwm_motion_rejects_fractional_pwm);
   RUN_TEST(test_parse_joint_pwm_motion_rejects_pwm_limit_violation);
+  RUN_TEST(test_parse_target_pose_accepts_valid_json);
+  RUN_TEST(test_parse_target_pose_rejects_missing_field);
+  RUN_TEST(test_parse_target_pose_rejects_gripper_limit_violation);
   return UNITY_END();
 }

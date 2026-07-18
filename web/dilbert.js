@@ -1,8 +1,10 @@
+const poseForm = document.querySelector("#pose-form");
 const jointForm = document.querySelector("#joint-form");
 const pwmForm = document.querySelector("#pwm-form");
 const statusBox = document.querySelector("#status");
 const baseUrlInput = document.querySelector("#base-url");
 const initButton = document.querySelector("#init-button");
+const sendPoseButton = document.querySelector("#send-pose-button");
 const sendJointButton = document.querySelector("#send-joint-button");
 const sendButton = document.querySelector("#send-button");
 
@@ -28,8 +30,25 @@ function readJointState() {
   return readNumericState(jointForm, Number.parseFloat);
 }
 
+function readPoseState() {
+  return readNumericState(poseForm, Number.parseFloat);
+}
+
 function readPwmState() {
   return readNumericState(pwmForm, (value) => Number.parseInt(value, 10));
+}
+
+function updatePoseForm(targetPose) {
+  if (!targetPose) {
+    return;
+  }
+
+  for (const [name, value] of Object.entries(targetPose)) {
+    const input = poseForm.elements.namedItem(name);
+    if (input instanceof HTMLInputElement) {
+      input.value = String(value);
+    }
+  }
 }
 
 function updateJointForm(jointState) {
@@ -59,6 +78,7 @@ function updatePwmForm(jointPwmState) {
 }
 
 function updateFormsFromResponse(body) {
+  updatePoseForm(body.targetPose);
   updateJointForm(body.jointState);
   updatePwmForm(body.jointPwmState);
 }
@@ -76,6 +96,19 @@ async function postJson(path, payload) {
     throw new Error(`${response.status} ${response.statusText}: ${text}`);
   }
   return body;
+}
+
+async function sendPoseState(source) {
+  const state = readPoseState();
+  sendPoseButton.disabled = true;
+  try {
+    setStatus(`${source} pose...`, state);
+    const body = await postJson("/api/motion", state);
+    updateFormsFromResponse(body);
+    setStatus("Pose accepted.", body);
+  } finally {
+    sendPoseButton.disabled = false;
+  }
 }
 
 async function sendJointState(source) {
@@ -115,6 +148,14 @@ initButton.addEventListener("click", async () => {
   }
 });
 
+sendPoseButton.addEventListener("click", async () => {
+  try {
+    await sendPoseState("Sending");
+  } catch (error) {
+    setStatus(`Send failed: ${error.message}`);
+  }
+});
+
 sendJointButton.addEventListener("click", async () => {
   try {
     await sendJointState("Sending");
@@ -126,30 +167,6 @@ sendJointButton.addEventListener("click", async () => {
 sendButton.addEventListener("click", async () => {
   try {
     await sendPwmState("Sending");
-  } catch (error) {
-    setStatus(`Send failed: ${error.message}`);
-  }
-});
-
-pwmForm.addEventListener("change", async (event) => {
-  if (!(event.target instanceof HTMLInputElement) || event.target.name === "") {
-    return;
-  }
-
-  try {
-    await sendPwmState(`Changed ${event.target.name}, sending`);
-  } catch (error) {
-    setStatus(`Send failed: ${error.message}`);
-  }
-});
-
-jointForm.addEventListener("change", async (event) => {
-  if (!(event.target instanceof HTMLInputElement) || event.target.name === "") {
-    return;
-  }
-
-  try {
-    await sendJointState(`Changed ${event.target.name}, sending`);
   } catch (error) {
     setStatus(`Send failed: ${error.message}`);
   }

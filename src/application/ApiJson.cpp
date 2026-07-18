@@ -24,6 +24,11 @@ JointPwmMotionParseResult jointPwmMotionError(ApiResultCode code, const char *fi
   return JointPwmMotionParseResult{false, code, field_name, message, common::JointPwmState{}};
 }
 
+TargetPoseParseResult targetPoseError(ApiResultCode code, const char *field_name, const char *message)
+{
+  return TargetPoseParseResult{false, code, field_name, message, common::initialTargetPose()};
+}
+
 bool isMissingOrNonNumeric(JsonVariantConst value)
 {
   return value.isNull() || !value.is<float>();
@@ -127,6 +132,53 @@ JointPwmMotionParseResult parseJointPwmMotionRequestJson(const char *body)
   }
 
   return JointPwmMotionParseResult{true, ApiResultCode::Ok, kEmptyField, kEmptyField, state};
+}
+
+TargetPoseParseResult parseTargetPoseRequestJson(const char *body)
+{
+  if (body == nullptr || body[0] == '\0')
+  {
+    return targetPoseError(ApiResultCode::InvalidJson, kEmptyField, kRequestBodyRequired);
+  }
+
+  StaticJsonDocument<384> doc;
+  const auto error = deserializeJson(doc, body);
+  if (error)
+  {
+    return targetPoseError(ApiResultCode::InvalidJson, kEmptyField, kMalformedJson);
+  }
+
+  JsonObjectConst root = doc.as<JsonObjectConst>();
+  if (root.isNull())
+  {
+    return targetPoseError(ApiResultCode::InvalidJson, kEmptyField, "Request body must be a JSON object.");
+  }
+
+  const char *fields[] = {"x_mm", "y_mm", "z_mm", "p_deg", "r_deg", "g_pct"};
+  for (const auto *field : fields)
+  {
+    if (isMissingOrNonNumeric(root[field]))
+    {
+      return targetPoseError(ApiResultCode::MissingField, field,
+                             "Target pose request is missing a numeric target pose field.");
+    }
+  }
+
+  common::TargetPose pose{root["x_mm"].as<float>(),  root["y_mm"].as<float>(),  root["z_mm"].as<float>(),
+                          root["p_deg"].as<float>(), root["r_deg"].as<float>(), root["g_pct"].as<float>()};
+
+  if (!common::isFinite(pose))
+  {
+    return targetPoseError(ApiResultCode::InvalidJson, kEmptyField, "Target pose values must be finite numbers.");
+  }
+
+  if (!common::isWithinTargetGripperLimits(pose))
+  {
+    return targetPoseError(ApiResultCode::InvalidTargetPose, "g_pct",
+                           "Target gripper value is outside 0..100 percent.");
+  }
+
+  return TargetPoseParseResult{true, ApiResultCode::Ok, kEmptyField, kEmptyField, pose};
 }
 
 }  // namespace application
