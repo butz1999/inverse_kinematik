@@ -91,9 +91,9 @@ void test_parse_target_pose_accepts_valid_json()
   TEST_ASSERT_EQUAL_FLOAT(1.0F, result.target_pose.x_mm);
   TEST_ASSERT_EQUAL_FLOAT(4.0F, result.target_pose.p_deg);
   TEST_ASSERT_EQUAL_FLOAT(6.0F, result.target_pose.g_pct);
-  TEST_ASSERT_EQUAL(common::MotionProfileType::ConstantVelocity, result.motion_profile.type);
-  TEST_ASSERT_EQUAL_FLOAT(30.0F, result.motion_profile.target_velocity_deg_s);
-  TEST_ASSERT_EQUAL_UINT32(20U, result.motion_profile.sample_time_ms);
+  TEST_ASSERT_EQUAL(common::MotionProfileType::SmoothStartStop, result.motion_profile.type);
+  TEST_ASSERT_EQUAL_FLOAT(60.0F, result.motion_profile.target_velocity_deg_s);
+  TEST_ASSERT_EQUAL_UINT32(common::defaultMotionProfile().sample_time_ms, result.motion_profile.sample_time_ms);
 }
 
 void test_parse_target_pose_accepts_motion_profile_options()

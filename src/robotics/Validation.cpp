@@ -20,11 +20,6 @@ ValidationResult error(ValidationStatus status, const char *field_name, const ch
   return ValidationResult{false, status, field_name, message};
 }
 
-float distanceFromBaseMm(const common::TargetPose &pose)
-{
-  return std::sqrt((pose.x_mm * pose.x_mm) + (pose.y_mm * pose.y_mm) + (pose.z_mm * pose.z_mm));
-}
-
 const char *firstNonFiniteTargetField(const common::TargetPose &pose)
 {
   if (!std::isfinite(pose.x_mm))
@@ -72,17 +67,6 @@ TargetPoseResult validateTargetPose(const common::TargetPose &pose, const RobotM
   if (!common::isWithinTargetGripperLimits(pose))
   {
     return error(ValidationStatus::InvalidTargetPose, "g_pct", "Target gripper value is outside 0..100 percent.");
-  }
-
-  if (pose.z_mm < model.workspace.min_z_mm || pose.z_mm > model.workspace.max_z_mm)
-  {
-    return error(ValidationStatus::TargetPoseOutOfWorkspace, "z_mm", "Target z position is outside the workspace.");
-  }
-
-  if (distanceFromBaseMm(pose) > model.workspace.max_reach_mm)
-  {
-    return error(ValidationStatus::TargetPoseOutOfWorkspace, "position_mm",
-                 "Target position is outside the configured maximum reach.");
   }
 
   return ok();

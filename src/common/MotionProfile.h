@@ -43,7 +43,7 @@ struct MotionPlan
 
 inline MotionProfile defaultMotionProfile()
 {
-  return MotionProfile{MotionProfileType::ConstantVelocity, 30.0F, 20U};
+  return MotionProfile{MotionProfileType::SmoothStartStop, 60.0F, 10U};
 }
 
 inline const char *toString(MotionProfileType type)

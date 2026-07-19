@@ -6,14 +6,14 @@
 
 #include "common/TargetPose.h"
 
-void test_initial_target_pose_uses_documented_zero_position()
+void test_initial_target_pose_uses_default_pose()
 {
   const auto pose = common::initialTargetPose();
 
-  TEST_ASSERT_EQUAL_FLOAT(0.0F, pose.x_mm);
-  TEST_ASSERT_EQUAL_FLOAT(0.0F, pose.y_mm);
-  TEST_ASSERT_EQUAL_FLOAT(0.0F, pose.z_mm);
-  TEST_ASSERT_EQUAL_FLOAT(0.0F, pose.p_deg);
+  TEST_ASSERT_EQUAL_FLOAT(-20.0F, pose.x_mm);
+  TEST_ASSERT_EQUAL_FLOAT(50.0F, pose.y_mm);
+  TEST_ASSERT_EQUAL_FLOAT(30.0F, pose.z_mm);
+  TEST_ASSERT_EQUAL_FLOAT(-90.0F, pose.p_deg);
   TEST_ASSERT_EQUAL_FLOAT(0.0F, pose.r_deg);
   TEST_ASSERT_EQUAL_FLOAT(0.0F, pose.g_pct);
 }
@@ -40,7 +40,7 @@ void test_target_pose_accepts_gripper_percent_range()
 int main(int argc, char **argv)
 {
   UNITY_BEGIN();
-  RUN_TEST(test_initial_target_pose_uses_documented_zero_position);
+  RUN_TEST(test_initial_target_pose_uses_default_pose);
   RUN_TEST(test_target_pose_rejects_non_finite_values);
   RUN_TEST(test_target_pose_accepts_gripper_percent_range);
   return UNITY_END();

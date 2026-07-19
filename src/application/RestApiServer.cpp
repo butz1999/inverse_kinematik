@@ -6,6 +6,7 @@
 
 #include "application/ApiJson.h"
 #include "orchestration/MotionOrchestrator.h"
+#include "robotics/Kinematics.h"
 #include "robotics/Validation.h"
 
 namespace application
@@ -54,6 +55,17 @@ void setOffsetTargetPoseJson(JsonObject object, const robotics::OffsetTargetPose
   object["p_deg"] = serialized(String(pose.p_deg, 3));
   object["r_deg"] = serialized(String(pose.r_deg, 3));
   object["g_pct"] = serialized(String(pose.g_pct, 3));
+}
+
+common::TargetPose targetPoseFromForwardKinematics(const robotics::ForwardKinematicsResult &fk,
+                                                   const robotics::RobotModelOffset &offset)
+{
+  return common::TargetPose{fk.g_mm.x_mm + offset.o_d_offset_x_mm,
+                            fk.g_mm.y_mm + offset.o_d_offset_y_mm,
+                            fk.g_mm.z_mm + offset.o_d_offset_z_mm,
+                            fk.p_deg,
+                            fk.r_deg,
+                            fk.g_pct};
 }
 
 void setJointPwmStateJson(JsonObject object, const common::JointPwmState &state)
@@ -191,6 +203,16 @@ void RestApiServer::begin()
              {
                handleCorsPreflight();
              });
+  server_.on(kForwardKinematicsPath, HTTP_POST,
+             [this]()
+             {
+               handleForwardKinematicsRequest();
+             });
+  server_.on(kForwardKinematicsPath, HTTP_OPTIONS,
+             [this]()
+             {
+               handleCorsPreflight();
+             });
   server_.on("/favicon.ico", HTTP_GET,
              [this]()
              {
@@ -298,6 +320,7 @@ void RestApiServer::handleStatus()
   doc["jointPwmStateEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["servoDriverInitEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["jointPwmMotionEndpoint"] = toString(ApiCapabilityStatus::Available);
+  doc["forwardKinematicsEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["jointPwmHardwareOutput"] =
       toString(servo_driver_ != nullptr ? ApiCapabilityStatus::Available : ApiCapabilityStatus::NotAvailable);
   doc["jointPwmHardwareInitialized"] = servo_driver_ != nullptr && servo_driver_->isInitialized();
@@ -423,6 +446,45 @@ void RestApiServer::handleJointMotionRequest()
       "Joint state accepted and mapped through default hardware calibration; hardware output is not connected yet.";
 
   sendJson(202, jsonBody(doc));
+}
+
+void RestApiServer::handleForwardKinematicsRequest()
+{
+  logRequest("POST", kForwardKinematicsPath);
+
+  const auto body_arg = server_.arg("plain");
+  const auto parsed = parseJointMotionRequestJson(body_arg.c_str());
+
+  if (!parsed.ok)
+  {
+    RestJsonDocument doc;
+    doc["status"] = "rejected";
+    doc["code"] = toString(parsed.code);
+    if (parsed.field_name[0] != '\0')
+    {
+      doc["field"] = parsed.field_name;
+    }
+    doc["message"] = parsed.message;
+    logResult("[REST] Forward kinematics request rejected");
+    sendJson(400, jsonBody(doc));
+    return;
+  }
+
+  const auto robot_model = robotics::defaultRobotModel();
+  const auto robot_offset = robotics::defaultRobotModelOffset();
+  const auto fk = robotics::forwardKinematics(parsed.joint_state, robot_model, robot_offset);
+  const robotics::OffsetTargetPose offset_target_pose{fk.g_mm.x_mm, fk.g_mm.y_mm, fk.g_mm.z_mm,
+                                                      fk.p_deg,     fk.r_deg,     fk.g_pct};
+  const auto target_pose = targetPoseFromForwardKinematics(fk, robot_offset);
+
+  RestJsonDocument doc;
+  doc["status"] = "accepted";
+  doc["code"] = toString(ApiResultCode::Ok);
+  doc["mode"] = "forward_kinematics";
+  setJointStateJson(doc.createNestedObject("jointState"), parsed.joint_state);
+  setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), offset_target_pose);
+  setTargetPoseJson(doc.createNestedObject("targetPose"), target_pose);
+  sendJson(200, jsonBody(doc));
 }
 
 void RestApiServer::handleJointPwmState()

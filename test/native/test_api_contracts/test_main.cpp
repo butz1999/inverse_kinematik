@@ -20,6 +20,7 @@ void test_api_contracts_expose_stable_endpoint_paths()
   TEST_ASSERT_EQUAL_STRING("/api/servo-driver/init", application::kServoDriverInitPath);
   TEST_ASSERT_EQUAL_STRING("/api/joint-pwm-motion", application::kJointPwmMotionPath);
   TEST_ASSERT_EQUAL_STRING("/api/motion", application::kMotionPath);
+  TEST_ASSERT_EQUAL_STRING("/api/forward-kinematics", application::kForwardKinematicsPath);
 }
 
 void test_api_contracts_map_capability_status_to_json_values()

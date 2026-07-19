@@ -22,7 +22,7 @@ constexpr float kMaxTargetGripperPct = 100.0F;
 
 inline TargetPose initialTargetPose()
 {
-  return TargetPose{0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
+  return TargetPose{-20.0F, 50.0F, 30.0F, -90.0F, 0.0F, 0.0F};
 }
 
 inline bool isFinite(const TargetPose &pose)

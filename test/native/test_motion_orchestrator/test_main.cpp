@@ -48,15 +48,15 @@ void test_motion_orchestrator_rejects_invalid_target_pose()
 {
   const orchestration::MotionOrchestrator orchestrator(robotics::defaultRobotModel(),
                                                        robotics::defaultRobotModelOffset());
-  const orchestration::MotionRequest request{common::TargetPose{0.0F, 0.0F, 1000.0F, 0.0F, 0.0F, 0.0F},
+  const orchestration::MotionRequest request{common::TargetPose{0.0F, 0.0F, 1000.0F, 0.0F, 0.0F, 101.0F},
                                              common::defaultMotionProfile()};
 
   const auto result = orchestrator.processMotionRequest(request, common::initialJointState());
 
   TEST_ASSERT_FALSE(result.ok);
   TEST_ASSERT_EQUAL(orchestration::MotionStatus::InvalidTargetPose, result.status);
-  TEST_ASSERT_EQUAL(robotics::ValidationStatus::TargetPoseOutOfWorkspace, result.target_validation_status);
-  TEST_ASSERT_EQUAL_STRING("z_mm", result.field_name.c_str());
+  TEST_ASSERT_EQUAL(robotics::ValidationStatus::InvalidTargetPose, result.target_validation_status);
+  TEST_ASSERT_EQUAL_STRING("g_pct", result.field_name.c_str());
 }
 
 void test_motion_orchestrator_rejects_unreachable_ik_target()

@@ -42,7 +42,7 @@
         </label>
         <label>
           g [%]
-          <input name="g_pct" type="number" min="0" max="100" step="10" value="50" />
+          <input name="g_pct" type="number" min="0" max="100" step="10" value="0" />
         </label>
       </form>
       <section class="toolbar">
@@ -56,6 +56,8 @@
         </label>
         <button id="send-pose-button" type="button">Send Pose</button>
       </section>
+      <h2>Pose History</h2>
+      <ol id="pose-history" class="pose-history"></ol>
 
       <h2>Joint Position</h2>
       <form id="joint-form">

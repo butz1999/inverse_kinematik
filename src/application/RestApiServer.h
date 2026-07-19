@@ -36,6 +36,7 @@ class RestApiServer
   void handleServoDriverInitRequest();
   void handleJointPwmMotionRequest();
   void handleMotionRequest();
+  void handleForwardKinematicsRequest();
   void handleCorsPreflight();
   void handleFavicon();
   void handleNotFound();

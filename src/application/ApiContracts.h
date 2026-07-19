@@ -36,6 +36,7 @@ constexpr const char *kJointPwmStatePath = "/api/joint-pwm-state";
 constexpr const char *kServoDriverInitPath = "/api/servo-driver/init";
 constexpr const char *kJointPwmMotionPath = "/api/joint-pwm-motion";
 constexpr const char *kMotionPath = "/api/motion";
+constexpr const char *kForwardKinematicsPath = "/api/forward-kinematics";
 
 const char *toString(ApiCapabilityStatus status);
 const char *toString(ApiResultCode code);

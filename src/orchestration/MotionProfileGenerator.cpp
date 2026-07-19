@@ -94,7 +94,7 @@ float progressForProfile(common::MotionProfileType type, float u)
       }
       return 1.0F - (2.0F * (1.0F - u) * (1.0F - u));
     case common::MotionProfileType::SmoothStartStop:
-      return (3.0F * u * u) - (2.0F * u * u * u);
+      return (10.0F * u * u * u) - (15.0F * u * u * u * u) + (6.0F * u * u * u * u * u);
   }
 
   return u;
