@@ -28,6 +28,19 @@ void assertVectorNear(float expected_x_mm, float expected_y_mm, float expected_z
   TEST_ASSERT_FLOAT_WITHIN(kTolerance, expected_z_mm, actual.z_mm);
 }
 
+void assertForwardMatchesPose(const robotics::OffsetTargetPose &pose, const common::JointState &state,
+                              const robotics::RobotModel &model, const robotics::RobotModelOffset &offset)
+{
+  const auto fk = robotics::forwardKinematics(state, model, offset);
+
+  TEST_ASSERT_FLOAT_WITHIN(kTolerance, pose.x_mm, fk.g_mm.x_mm);
+  TEST_ASSERT_FLOAT_WITHIN(kTolerance, pose.y_mm, fk.g_mm.y_mm);
+  TEST_ASSERT_FLOAT_WITHIN(kTolerance, pose.z_mm, fk.g_mm.z_mm);
+  TEST_ASSERT_FLOAT_WITHIN(kTolerance, pose.p_deg, fk.p_deg);
+  TEST_ASSERT_FLOAT_WITHIN(kTolerance, pose.r_deg, fk.r_deg);
+  TEST_ASSERT_FLOAT_WITHIN(kTolerance, pose.g_pct, fk.g_pct);
+}
+
 }  // namespace
 
 void test_forward_kinematics_maps_home_pose_upwards()
@@ -273,6 +286,22 @@ void test_inverse_kinematics_supports_sideways_turntable_to_shoulder_offset()
   TEST_ASSERT_FLOAT_WITHIN(kSideOffsetTolerance, -2.0F, result.joint_state.hp_deg);
 }
 
+void test_inverse_kinematics_round_trips_forward_pose_with_real_offsets()
+{
+  const auto model = robotics::defaultRobotModel();
+  const auto offset = robotics::defaultRobotModelOffset();
+  const common::JointState original_state{-30.0F, -45.0F, 50.0F, -70.0F, 20.0F, 35.0F};
+  const auto target = robotics::forwardKinematics(original_state, model, offset);
+  const robotics::OffsetTargetPose pose{target.g_mm.x_mm, target.g_mm.y_mm, target.g_mm.z_mm,
+                                        target.p_deg,    target.r_deg,    target.g_pct};
+
+  const auto result = robotics::inverseKinematics(pose, model, offset);
+
+  TEST_ASSERT_TRUE(result.ok);
+  TEST_ASSERT_EQUAL(robotics::KinematicsStatus::Ok, result.status);
+  assertForwardMatchesPose(pose, result.joint_state, model, offset);
+}
+
 int main(int argc, char **argv)
 {
   UNITY_BEGIN();
@@ -291,5 +320,6 @@ int main(int argc, char **argv)
   RUN_TEST(test_inverse_kinematics_rejects_unreachable_target);
   RUN_TEST(test_inverse_kinematics_rejects_solution_outside_joint_limits);
   RUN_TEST(test_inverse_kinematics_supports_sideways_turntable_to_shoulder_offset);
+  RUN_TEST(test_inverse_kinematics_round_trips_forward_pose_with_real_offsets);
   return UNITY_END();
 }

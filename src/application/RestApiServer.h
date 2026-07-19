@@ -8,9 +8,11 @@
 #include "application/ApiContracts.h"
 #include "common/JointPwmState.h"
 #include "common/JointState.h"
+#include "common/MotionProfile.h"
 #include "hardware/HardwareCalibration.h"
 #include "hardware/Pca9685ServoDriver.h"
 #include "hardware/SerialLogger.h"
+#include "orchestration/MotionOrchestrator.h"
 
 namespace application
 {
@@ -37,6 +39,9 @@ class RestApiServer
   void handleCorsPreflight();
   void handleFavicon();
   void handleNotFound();
+  bool hasActiveMotionPlan() const;
+  void startMotionPlan(const common::MotionPlan &plan, const common::JointState &target_joint_state);
+  void serviceActiveMotionPlan();
   void logRequest(const char *method, const char *path) const;
   void logResult(const char *message) const;
   void sendCorsHeaders();
@@ -48,6 +53,12 @@ class RestApiServer
   hardware::HardwareCalibration hardware_calibration_;
   common::JointState current_joint_state_;
   common::JointPwmState current_joint_pwm_state_;
+  common::MotionPlan active_motion_plan_;
+  orchestration::MotionResult motion_result_scratch_;
+  common::JointState active_motion_target_joint_state_;
+  std::size_t active_motion_sample_index_;
+  unsigned long active_motion_started_ms_;
+  bool motion_plan_active_;
 };
 
 }  // namespace application

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cmath>
+#include <limits>
 
 namespace robotics
 {
@@ -13,6 +14,14 @@ constexpr Vector3 kOrigin{0.0F, 0.0F, 0.0F};
 constexpr float kReachToleranceMm = 0.01F;
 constexpr float kCosTolerance = 0.000001F;
 constexpr float kTurntableCandidateToleranceDeg = 0.01F;
+constexpr float kFkPositionToleranceMm = 0.5F;
+constexpr float kFkAngleToleranceDeg = 0.05F;
+
+struct CandidateScore
+{
+  common::JointState joint_state;
+  float pose_error;
+};
 
 Vector3 segmentVector(float length_mm, float angle_from_radial_deg, float d_deg)
 {
@@ -53,6 +62,32 @@ InverseKinematicsResult ok(const common::JointState &joint_state)
 bool isWithinKinematicsJointLimits(const common::JointState &state)
 {
   return common::isWithinJointLimits(state);
+}
+
+float square(float value)
+{
+  return value * value;
+}
+
+float poseErrorSquared(const OffsetTargetPose &pose, const ForwardKinematicsResult &fk)
+{
+  return square(fk.g_mm.x_mm - pose.x_mm) + square(fk.g_mm.y_mm - pose.y_mm) + square(fk.g_mm.z_mm - pose.z_mm) +
+         square(fk.p_deg - pose.p_deg) + square(fk.r_deg - pose.r_deg) + square(fk.g_pct - pose.g_pct);
+}
+
+bool matchesTargetPose(const OffsetTargetPose &pose, const ForwardKinematicsResult &fk)
+{
+  return std::fabs(fk.g_mm.x_mm - pose.x_mm) <= kFkPositionToleranceMm &&
+         std::fabs(fk.g_mm.y_mm - pose.y_mm) <= kFkPositionToleranceMm &&
+         std::fabs(fk.g_mm.z_mm - pose.z_mm) <= kFkPositionToleranceMm &&
+         std::fabs(fk.p_deg - pose.p_deg) <= kFkAngleToleranceDeg &&
+         std::fabs(fk.r_deg - pose.r_deg) <= kFkAngleToleranceDeg &&
+         std::fabs(fk.g_pct - pose.g_pct) <= kFkAngleToleranceDeg;
+}
+
+bool isBetterCandidate(const CandidateScore &candidate, const CandidateScore &best)
+{
+  return candidate.pose_error < best.pose_error - 0.0001F;
 }
 
 bool solveArmPlane(float wrist_radial_mm, float wrist_z_mm, float p_deg, float e_delta_deg,
@@ -162,6 +197,8 @@ InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const Ro
   const auto max_reach_mm = l1 + l2;
 
   bool had_geometric_solution = false;
+  bool had_verified_solution = false;
+  CandidateScore best_candidate{common::initialJointState(), std::numeric_limits<float>::max()};
   const auto candidates = turntableCandidatesDeg(pose, local_side_offset_mm);
   for (const auto d_deg : candidates)
   {
@@ -197,12 +234,33 @@ InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const Ro
 
     had_geometric_solution = true;
     const auto e_abs_deg = radiansToDegrees(std::acos(clampCos(cos_e)));
-    common::JointState joint_state{};
-    if (solveArmPlane(wrist_radial_mm, wrist_z_mm, pose.p_deg, e_abs_deg, d_deg, pose, model, joint_state) ||
-        solveArmPlane(wrist_radial_mm, wrist_z_mm, pose.p_deg, -e_abs_deg, d_deg, pose, model, joint_state))
+    const std::array<float, 2> elbow_candidates{e_abs_deg, -e_abs_deg};
+    for (const auto e_delta_deg : elbow_candidates)
     {
-      return ok(joint_state);
+      common::JointState joint_state{};
+      if (!solveArmPlane(wrist_radial_mm, wrist_z_mm, pose.p_deg, e_delta_deg, d_deg, pose, model, joint_state))
+      {
+        continue;
+      }
+
+      const auto fk = forwardKinematics(joint_state, model, offset);
+      if (!matchesTargetPose(pose, fk))
+      {
+        continue;
+      }
+
+      const CandidateScore candidate{joint_state, poseErrorSquared(pose, fk)};
+      if (!had_verified_solution || isBetterCandidate(candidate, best_candidate))
+      {
+        best_candidate = candidate;
+        had_verified_solution = true;
+      }
     }
+  }
+
+  if (had_verified_solution)
+  {
+    return ok(best_candidate.joint_state);
   }
 
   if (had_geometric_solution)

@@ -7,6 +7,7 @@ const initButton = document.querySelector("#init-button");
 const sendPoseButton = document.querySelector("#send-pose-button");
 const sendJointButton = document.querySelector("#send-joint-button");
 const sendButton = document.querySelector("#send-button");
+const motionProfileTypeSelect = document.querySelector("#motion-profile-type");
 
 function apiUrl(path) {
   const baseUrl = baseUrlInput.value.replace(/\/+$/, "");
@@ -84,10 +85,16 @@ function updateFormsFromResponse(body) {
 }
 
 async function postJson(path, payload) {
-  const response = await fetch(apiUrl(path), {
+  const url = apiUrl(path);
+  const response = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Accept": "application/json",
+      "Content-Type": "text/plain",
+    },
     body: payload ? JSON.stringify(payload) : undefined,
+  }).catch((error) => {
+    throw new Error(`${error.message} (${url})`);
   });
 
   const text = await response.text();
@@ -99,7 +106,12 @@ async function postJson(path, payload) {
 }
 
 async function sendPoseState(source) {
-  const state = readPoseState();
+  const state = {
+    ...readPoseState(),
+    motionProfile: {
+      type: motionProfileTypeSelect.value,
+    },
+  };
   sendPoseButton.disabled = true;
   try {
     setStatus(`${source} pose...`, state);

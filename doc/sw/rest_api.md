@@ -2,7 +2,7 @@
 
 Dieses Dokument beschreibt die aktuelle HTTP/JSON-Schnittstelle der ESP32-S3-Firmware.
 
-Die API wird vom `RestApiServer` bereitgestellt und ist als Bring-up-Schnittstelle für direkte Gelenk- und PWM-Kommandos gedacht. Eine spätere Orchestrator-Anbindung ist vorbereitet, aber noch nicht implementiert.
+Die API wird vom `RestApiServer` bereitgestellt. Sie enthält weiterhin Bring-up-Schnittstellen für direkte Gelenk- und PWM-Kommandos; der reguläre Task-Space-Endpunkt `/api/motion` nutzt inzwischen den Orchestrator für Validierung, IK und Motion-Plan-Erzeugung.
 
 ## Basisverhalten
 
@@ -27,7 +27,7 @@ Der Server ist nach erfolgreicher WLAN-Initialisierung über die IP-Adresse des 
 | `GET` | `/api/joint-pwm-state` | Aktueller angenommener PWM-Zustand | `200` |
 | `POST` | `/api/servo-driver/init` | PCA9685-Servo-Treiber initialisieren und Ausgänge freigeben | `202` |
 | `POST` | `/api/joint-pwm-motion` | Direkten PWM-Zustand setzen und an initialisierte Hardware schreiben | `202` |
-| `POST` | `/api/motion` | Reservierter Orchestrator-Endpunkt | `501` |
+| `POST` | `/api/motion` | Task-Space-Zielpose über Orchestrator planen und ausführen | `202` |
 | `GET` | `/favicon.ico` | Browser-Favicon unterdrücken | `204` |
 | alle | sonstige Pfade | Unbekannter Pfad | `404` |
 
@@ -185,7 +185,7 @@ Response `200`:
   "service": "inverse_kinematic",
   "apiVersion": "v1",
   "status": "ok",
-  "orchestrator": "not_available",
+  "orchestrator": "available",
   "uptimeMs": 12345
 }
 ```
@@ -230,7 +230,10 @@ Response `200`:
   "jointPwmMotionEndpoint": "available",
   "jointPwmHardwareOutput": "available",
   "jointPwmHardwareInitialized": false,
-  "motionEndpoint": "reserved",
+  "motionEndpoint": "available",
+  "motionPlanActive": false,
+  "motionPlanSampleIndex": 0,
+  "motionPlanSampleCount": 0,
   "uptimeMs": 12345
 }
 ```
@@ -636,42 +639,62 @@ Response `503`, Beispiel bei Hardwarefehler:
 
 `POST /api/motion`
 
-Reservierter Endpunkt für eine spätere Orchestrator-Integration.
-
-> [!NOTE]
-> Dieser Teil muss überarbeitet werden, sobald der Orchestrator verfügbar ist.
+Nimmt eine Zielpose im Weltkoordinatensystem entgegen. Der Endpunkt validiert die Zielpose über den Orchestrator, wendet den `RobotModelOffset` an, berechnet per analytischer IK einen `JointState`, erzeugt einen `MotionPlan` mit `TimedJointState`-Samples und führt diesen bei verfügbarer Hardware nicht-blockierend aus. Optional kann über `motionProfile.type` eines der Profile `constant_velocity`, `constant_acceleration` oder `smooth_start_stop` gewählt werden. Ohne Angabe gilt das Defaultprofil der Firmware.
 
 #### Ausführen
 
 Linux, macOS:
 
 ```sh
-curl -X POST http://robot.local/api/motion
+curl -X POST http://robot.local/api/motion \
+  -H "Content-Type: application/json" \
+  -d '{"x_mm":-20,"y_mm":50,"z_mm":30,"p_deg":-90,"r_deg":0,"g_pct":50,"motionProfile":{"type":"smooth_start_stop"}}'
 ```
 
 WSL:
 
 ```sh
-curl -X POST http://robot.fritz.box/api/motion
+curl -X POST http://robot.fritz.box/api/motion \
+  -H "Content-Type: application/json" \
+  -d '{"x_mm":-20,"y_mm":50,"z_mm":30,"p_deg":-90,"r_deg":0,"g_pct":50,"motionProfile":{"type":"smooth_start_stop"}}'
 ```
 
 PowerShell:
 
 ```powershell
-curl.exe -X POST http://robot.local/api/motion
+curl.exe -X POST http://robot.local/api/motion -H "Content-Type: application/json" -d '{"x_mm":-20,"y_mm":50,"z_mm":30,"p_deg":-90,"r_deg":0,"g_pct":50,"motionProfile":{"type":"smooth_start_stop"}}'
 ```
 
 #### Antwort
 
-Response `501`:
+Response `202`:
 
 ```json
 {
-  "status": "not_implemented",
-  "code": "orchestrator_unavailable",
-  "message": "Motion endpoint is reserved for Orchestrator integration."
+  "status": "accepted",
+  "code": "ok",
+  "mode": "task_space_ik",
+  "hardware": "available",
+  "execution": "motion_plan_active",
+  "targetPose": {
+    "x_mm": -20.0,
+    "y_mm": 50.0,
+    "z_mm": 30.0,
+    "p_deg": -90.0,
+    "r_deg": 0.0,
+    "g_pct": 50.0
+  },
+  "motionPlan": {
+    "profile": "smooth_start_stop",
+    "totalDurationMs": 2765,
+    "sampleCount": 140,
+    "sampleTimeMs": 20,
+    "targetVelocityDegS": 30.0
+  }
 }
 ```
+
+Wenn keine Hardware angebunden ist, wird derselbe MotionPlan berechnet und in der Antwort zusammengefasst, aber nicht real ausgegeben. Während ein Hardware-MotionPlan aktiv ist, lehnt `/api/motion` weitere Task-Space-Bewegungen mit `409` und Status `busy` ab.
 
 ### Unbekannte Pfade
 

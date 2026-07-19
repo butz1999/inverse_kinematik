@@ -5,7 +5,7 @@
 #include <ArduinoJson.h>
 
 #include "application/ApiJson.h"
-#include "robotics/Kinematics.h"
+#include "orchestration/MotionOrchestrator.h"
 #include "robotics/Validation.h"
 
 namespace application
@@ -14,7 +14,7 @@ namespace application
 namespace
 {
 
-constexpr std::size_t kRestJsonCapacity = 1280;
+constexpr std::size_t kRestJsonCapacity = 1536;
 using RestJsonDocument = StaticJsonDocument<kRestJsonCapacity>;
 
 template <typename JsonDocumentType>
@@ -66,6 +66,15 @@ void setJointPwmStateJson(JsonObject object, const common::JointPwmState &state)
   object["g_pwm"] = state.g_pwm;
 }
 
+void setMotionPlanSummaryJson(JsonObject object, const common::MotionPlan &plan)
+{
+  object["profile"] = common::toString(plan.profile.type);
+  object["totalDurationMs"] = plan.total_duration_ms;
+  object["sampleCount"] = plan.sample_count;
+  object["sampleTimeMs"] = plan.profile.sample_time_ms;
+  object["targetVelocityDegS"] = serialized(String(plan.profile.target_velocity_deg_s, 3));
+}
+
 void setHardwareDriverResultJson(JsonObject object, const hardware::HardwareDriverResult &result)
 {
   object["status"] = hardware::toString(result.status);
@@ -80,7 +89,12 @@ RestApiServer::RestApiServer(WebServer &server)
       logger_(nullptr),
       hardware_calibration_(hardware::defaultHardwareCalibration()),
       current_joint_state_(common::initialJointState()),
-      current_joint_pwm_state_(hardware_calibration_.initial_pwm_state)
+      current_joint_pwm_state_(hardware_calibration_.initial_pwm_state),
+      active_motion_plan_{common::defaultMotionProfile(), 0U, {}, 0U},
+      active_motion_target_joint_state_(common::initialJointState()),
+      active_motion_sample_index_(0U),
+      active_motion_started_ms_(0UL),
+      motion_plan_active_(false)
 {
 }
 
@@ -90,7 +104,12 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
       logger_(nullptr),
       hardware_calibration_(hardware::defaultHardwareCalibration()),
       current_joint_state_(common::initialJointState()),
-      current_joint_pwm_state_(hardware_calibration_.initial_pwm_state)
+      current_joint_pwm_state_(hardware_calibration_.initial_pwm_state),
+      active_motion_plan_{common::defaultMotionProfile(), 0U, {}, 0U},
+      active_motion_target_joint_state_(common::initialJointState()),
+      active_motion_sample_index_(0U),
+      active_motion_started_ms_(0UL),
+      motion_plan_active_(false)
 {
 }
 
@@ -101,7 +120,12 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
       logger_(&logger),
       hardware_calibration_(hardware::defaultHardwareCalibration()),
       current_joint_state_(common::initialJointState()),
-      current_joint_pwm_state_(hardware_calibration_.initial_pwm_state)
+      current_joint_pwm_state_(hardware_calibration_.initial_pwm_state),
+      active_motion_plan_{common::defaultMotionProfile(), 0U, {}, 0U},
+      active_motion_target_joint_state_(common::initialJointState()),
+      active_motion_sample_index_(0U),
+      active_motion_started_ms_(0UL),
+      motion_plan_active_(false)
 {
 }
 
@@ -183,6 +207,69 @@ void RestApiServer::begin()
 void RestApiServer::handleClient()
 {
   server_.handleClient();
+  serviceActiveMotionPlan();
+}
+
+bool RestApiServer::hasActiveMotionPlan() const
+{
+  return motion_plan_active_;
+}
+
+void RestApiServer::startMotionPlan(const common::MotionPlan &plan, const common::JointState &target_joint_state)
+{
+  active_motion_plan_ = plan;
+  active_motion_target_joint_state_ = target_joint_state;
+  active_motion_sample_index_ = 0U;
+  active_motion_started_ms_ = millis();
+  motion_plan_active_ = plan.sample_count > 0U;
+  serviceActiveMotionPlan();
+}
+
+void RestApiServer::serviceActiveMotionPlan()
+{
+  if (!motion_plan_active_ || servo_driver_ == nullptr || !servo_driver_->isInitialized())
+  {
+    return;
+  }
+
+  if (active_motion_sample_index_ >= active_motion_plan_.sample_count)
+  {
+    motion_plan_active_ = false;
+    current_joint_state_ = active_motion_target_joint_state_;
+    return;
+  }
+
+  const auto &sample = active_motion_plan_.samples[active_motion_sample_index_];
+  const auto elapsed_ms = static_cast<uint32_t>(millis() - active_motion_started_ms_);
+  if (elapsed_ms < sample.time_from_start_ms)
+  {
+    return;
+  }
+
+  const auto calibration_result = hardware::mapJointStateToPwm(sample.joint_state, hardware_calibration_);
+  if (!calibration_result.ok)
+  {
+    logResult("[REST] Active motion plan stopped by calibration failure");
+    motion_plan_active_ = false;
+    return;
+  }
+
+  const auto write_result = servo_driver_->write(calibration_result.joint_pwm_state);
+  if (write_result.status != hardware::HardwareDriverStatus::Ok)
+  {
+    logResult("[REST] Active motion plan stopped by hardware failure");
+    motion_plan_active_ = false;
+    return;
+  }
+
+  current_joint_pwm_state_ = servo_driver_->jointPwmState();
+  ++active_motion_sample_index_;
+  if (active_motion_sample_index_ >= active_motion_plan_.sample_count)
+  {
+    current_joint_state_ = active_motion_target_joint_state_;
+    motion_plan_active_ = false;
+    logResult("[REST] Active motion plan completed");
+  }
 }
 
 void RestApiServer::handleHealth()
@@ -193,7 +280,7 @@ void RestApiServer::handleHealth()
   doc["service"] = kApiName;
   doc["apiVersion"] = kApiVersion;
   doc["status"] = toString(ApiResultCode::Ok);
-  doc["orchestrator"] = toString(ApiCapabilityStatus::NotAvailable);
+  doc["orchestrator"] = toString(ApiCapabilityStatus::Available);
   doc["uptimeMs"] = millis();
 
   sendJson(200, jsonBody(doc));
@@ -205,7 +292,7 @@ void RestApiServer::handleStatus()
 
   RestJsonDocument doc;
   doc["restApi"] = toString(ApiCapabilityStatus::Available);
-  doc["orchestrator"] = toString(ApiCapabilityStatus::NotAvailable);
+  doc["orchestrator"] = toString(ApiCapabilityStatus::Available);
   doc["jointStateEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["jointMotionEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["jointPwmStateEndpoint"] = toString(ApiCapabilityStatus::Available);
@@ -215,6 +302,9 @@ void RestApiServer::handleStatus()
       toString(servo_driver_ != nullptr ? ApiCapabilityStatus::Available : ApiCapabilityStatus::NotAvailable);
   doc["jointPwmHardwareInitialized"] = servo_driver_ != nullptr && servo_driver_->isInitialized();
   doc["motionEndpoint"] = toString(ApiCapabilityStatus::Available);
+  doc["motionPlanActive"] = hasActiveMotionPlan();
+  doc["motionPlanSampleIndex"] = active_motion_sample_index_;
+  doc["motionPlanSampleCount"] = active_motion_plan_.sample_count;
   doc["uptimeMs"] = millis();
 
   sendJson(200, jsonBody(doc));
@@ -499,61 +589,91 @@ void RestApiServer::handleMotionRequest()
     return;
   }
 
-  const auto robot_model = robotics::defaultRobotModel();
-  const auto robot_offset = robotics::defaultRobotModelOffset();
-  const auto target_validation = robotics::validateTargetPose(parsed.target_pose, robot_model);
-  if (!target_validation.ok)
+  if (servo_driver_ != nullptr && hasActiveMotionPlan())
+  {
+    logResult("[REST] Motion request rejected because a motion plan is already active");
+    RestJsonDocument doc;
+    doc["status"] = "busy";
+    doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
+    doc["mode"] = "task_space_ik";
+    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["message"] = "A motion plan is already active.";
+    setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
+    setMotionPlanSummaryJson(doc.createNestedObject("activeMotionPlan"), active_motion_plan_);
+    sendJson(409, jsonBody(doc));
+    return;
+  }
+
+  const orchestration::MotionOrchestrator orchestrator(robotics::defaultRobotModel(),
+                                                       robotics::defaultRobotModelOffset());
+  const orchestration::MotionRequest motion_request{parsed.target_pose, parsed.motion_profile};
+  orchestrator.processMotionRequestInto(motion_request, current_joint_state_, motion_result_scratch_);
+  const auto &motion_result = motion_result_scratch_;
+  if (!motion_result.ok && motion_result.status == orchestration::MotionStatus::InvalidTargetPose)
   {
     RestJsonDocument doc;
     doc["status"] = "rejected";
-    doc["code"] = target_validation.status == robotics::ValidationStatus::TargetPoseOutOfWorkspace
+    doc["code"] = motion_result.target_validation_status == robotics::ValidationStatus::TargetPoseOutOfWorkspace
                       ? toString(ApiResultCode::TargetPoseOutOfWorkspace)
                       : toString(ApiResultCode::InvalidTargetPose);
-    if (!target_validation.field_name.empty())
+    if (!motion_result.field_name.empty())
     {
-      doc["field"] = target_validation.field_name.c_str();
+      doc["field"] = motion_result.field_name.c_str();
     }
-    doc["message"] = target_validation.message.c_str();
+    doc["message"] = motion_result.message.c_str();
     setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
     logResult("[REST] Motion request rejected by target validation");
     sendJson(400, jsonBody(doc));
     return;
   }
 
-  const auto offset_pose = robotics::applyRobotModelOffset(parsed.target_pose, robot_offset);
-  const auto ik_result = robotics::inverseKinematics(offset_pose, robot_model, robot_offset);
-  if (!ik_result.ok)
+  if (!motion_result.ok && motion_result.status == orchestration::MotionStatus::KinematicsFailure)
   {
     RestJsonDocument doc;
     doc["status"] = "rejected";
     doc["code"] = toString(ApiResultCode::KinematicsFailure);
-    doc["kinematicsStatus"] = robotics::toString(ik_result.status);
-    doc["message"] = ik_result.message.c_str();
+    doc["kinematicsStatus"] = robotics::toString(motion_result.kinematics_status);
+    doc["message"] = motion_result.message.c_str();
     setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
-    setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), offset_pose);
+    setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), motion_result.offset_target_pose);
     logResult("[REST] Motion request rejected by inverse kinematics");
     sendJson(422, jsonBody(doc));
     return;
   }
 
-  const auto joint_validation = robotics::validateJointState(ik_result.joint_state);
-  if (!joint_validation.ok)
+  if (!motion_result.ok && motion_result.status == orchestration::MotionStatus::JointLimitViolation)
   {
     RestJsonDocument doc;
     doc["status"] = "rejected";
     doc["code"] = toString(ApiResultCode::JointLimitViolation);
-    if (!joint_validation.field_name.empty())
+    if (!motion_result.field_name.empty())
     {
-      doc["field"] = joint_validation.field_name.c_str();
+      doc["field"] = motion_result.field_name.c_str();
     }
-    doc["message"] = joint_validation.message.c_str();
-    setJointStateJson(doc.createNestedObject("jointState"), ik_result.joint_state);
+    doc["message"] = motion_result.message.c_str();
+    setJointStateJson(doc.createNestedObject("jointState"), motion_result.joint_state);
     logResult("[REST] Motion request rejected by joint validation");
     sendJson(400, jsonBody(doc));
     return;
   }
 
-  const auto calibration_result = hardware::mapJointStateToPwm(ik_result.joint_state, hardware_calibration_);
+  if (!motion_result.ok)
+  {
+    RestJsonDocument doc;
+    doc["status"] = "rejected";
+    doc["code"] = toString(ApiResultCode::KinematicsFailure);
+    doc["motionStatus"] = orchestration::toString(motion_result.status);
+    doc["motionProfileStatus"] = orchestration::toString(motion_result.motion_profile_status);
+    doc["message"] = motion_result.message.c_str();
+    setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
+    setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), motion_result.offset_target_pose);
+    setJointStateJson(doc.createNestedObject("jointState"), motion_result.joint_state);
+    logResult("[REST] Motion request rejected by motion planning");
+    sendJson(422, jsonBody(doc));
+    return;
+  }
+
+  const auto calibration_result = hardware::mapJointStateToPwm(motion_result.joint_state, hardware_calibration_);
   if (!calibration_result.ok)
   {
     RestJsonDocument doc;
@@ -564,7 +684,7 @@ void RestApiServer::handleMotionRequest()
       doc["field"] = calibration_result.field_name;
     }
     doc["message"] = calibration_result.message;
-    setJointStateJson(doc.createNestedObject("jointState"), ik_result.joint_state);
+    setJointStateJson(doc.createNestedObject("jointState"), motion_result.joint_state);
     logResult("[REST] Motion request rejected by calibration");
     sendJson(500, jsonBody(doc));
     return;
@@ -584,48 +704,34 @@ void RestApiServer::handleMotionRequest()
           "PCA9685 servo driver is not initialized; check the boot log or call POST /api/servo-driver/init for "
           "diagnostics.";
       setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
-      setJointStateJson(doc.createNestedObject("jointState"), ik_result.joint_state);
+      setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), motion_result.offset_target_pose);
+      setJointStateJson(doc.createNestedObject("jointState"), motion_result.joint_state);
+      setMotionPlanSummaryJson(doc.createNestedObject("motionPlan"), motion_result.motion_plan);
       setJointPwmStateJson(doc.createNestedObject("jointPwmState"), calibration_result.joint_pwm_state);
       sendJson(503, jsonBody(doc));
       return;
     }
 
-    const auto write_result = servo_driver_->write(calibration_result.joint_pwm_state);
-    if (write_result.status != hardware::HardwareDriverStatus::Ok)
-    {
-      logResult("[REST] PCA9685 task-space motion write failed");
-      RestJsonDocument doc;
-      doc["status"] = "hardware_failed";
-      doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
-      doc["mode"] = "task_space_ik";
-      doc["hardware"] = toString(ApiCapabilityStatus::Available);
-      setHardwareDriverResultJson(doc.createNestedObject("driver"), write_result);
-      setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
-      setJointStateJson(doc.createNestedObject("jointState"), ik_result.joint_state);
-      setJointPwmStateJson(doc.createNestedObject("jointPwmState"), calibration_result.joint_pwm_state);
-      sendJson(503, jsonBody(doc));
-      return;
-    }
-
-    current_joint_state_ = ik_result.joint_state;
+    startMotionPlan(motion_result.motion_plan, motion_result.joint_state);
     current_joint_pwm_state_ = servo_driver_->jointPwmState();
-    logResult("[REST] Motion request solved, mapped and written to hardware");
+    logResult("[REST] Motion request solved, planned and started on hardware");
 
     RestJsonDocument doc;
     doc["status"] = "accepted";
     doc["code"] = toString(ApiResultCode::Ok);
     doc["mode"] = "task_space_ik";
     doc["hardware"] = toString(ApiCapabilityStatus::Available);
-    setHardwareDriverResultJson(doc.createNestedObject("driver"), write_result);
+    doc["execution"] = hasActiveMotionPlan() ? "motion_plan_active" : "motion_plan_completed";
     setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
-    setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), offset_pose);
-    setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
+    setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), motion_result.offset_target_pose);
+    setJointStateJson(doc.createNestedObject("jointState"), motion_result.joint_state);
+    setMotionPlanSummaryJson(doc.createNestedObject("motionPlan"), motion_result.motion_plan);
     setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
     sendJson(202, jsonBody(doc));
     return;
   }
 
-  current_joint_state_ = ik_result.joint_state;
+  current_joint_state_ = motion_result.joint_state;
   current_joint_pwm_state_ = calibration_result.joint_pwm_state;
   logResult("[REST] Motion request solved and mapped without hardware output");
 
@@ -635,8 +741,9 @@ void RestApiServer::handleMotionRequest()
   doc["mode"] = "task_space_ik";
   doc["hardware"] = toString(ApiCapabilityStatus::NotAvailable);
   setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
-  setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), offset_pose);
+  setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), motion_result.offset_target_pose);
   setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
+  setMotionPlanSummaryJson(doc.createNestedObject("motionPlan"), motion_result.motion_plan);
   setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
   doc["message"] =
       "Target pose accepted, solved by inverse kinematics and mapped through default hardware calibration; hardware "

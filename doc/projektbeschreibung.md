@@ -315,7 +315,7 @@ Ein [Ablaufschritt](#sequence-step) (`Sequence Step`) beschreibt eine einzelne A
 
 #### Bewegungsanforderung
 
-Die [Bewegungsanforderung](#motion-request) (`Motion Request`) ist das fachliche Übergabeobjekt zwischen Anwendungsschicht beziehungsweise [Run Engine](#run-engine) und Orchestrator. In der einfachsten Form enthält sie genau einen auszuführenden [Ablaufschritt](#sequence-step) (`Sequence Step`) oder eine daraus abgeleitete [Zielpose](#target-description) (`Target Pose`). Dadurch wird klar zwischen der internen Struktur eines Bewegungsprogramms und der einzelnen fachlichen Anforderung unterschieden, welche der Orchestrator konkret verarbeitet.
+Die [Bewegungsanforderung](#motion-request) (`Motion Request`) ist das fachliche Übergabeobjekt zwischen Anwendungsschicht beziehungsweise [Run Engine](#run-engine) und Orchestrator. In der einfachsten Form enthält sie genau einen auszuführenden [Ablaufschritt](#sequence-step) (`Sequence Step`) oder eine daraus abgeleitete [Zielpose](#target-description) (`Target Pose`). Zusätzlich kann sie den explizit gewünschten IK-Solver festlegen, zunächst `analytical` und später `ccd` oder `fabrik`. Wird kein Solver angegeben, gilt für die erste Ausbaustufe `analytical` als Default. Ein automatischer Auswahlmodus wird bewusst erst erneut betrachtet, wenn alle drei Solver praktisch vergleichbar implementiert sind. Dadurch wird klar zwischen der internen Struktur eines Bewegungsprogramms und der einzelnen fachlichen Anforderung unterschieden, welche der Orchestrator konkret verarbeitet.
 
 #### Ablaufdefinition
 
@@ -488,9 +488,21 @@ flowchart LR
         B2[MotionRequest]
         B3[MotionResult]
         B4[MotionRequestProcessing]
+        B5[MotionProfile]
+        B6[MotionProfileGenerator]
+        B7[MotionPlan]
+        B8[TimedJointState]
+        B9[IkSolverMode]
 
         B2 -->|is handled in| B4
+        B2 -->|contains| B5
+        B2 -->|contains| B9
         B4 -->|is coordinated by| B1
+        B1 -->|uses| B5
+        B1 -->|passes| B9
+        B1 -->|requests plan from| B6
+        B6 -->|produces| B7
+        B7 -->|contains| B8
         B1 -->|returns| B3
     end
 ```
@@ -509,11 +521,17 @@ flowchart LR
         C7[OffsetTargetPose]
         C8[MathUtilities]
         C9[SegmentLengths,\nOffsets,\nJointLimits]
+        C10[AnalyticalIK]
+        C11[CCD Solver]
+        C12[FABRIK Solver]
 
         C1 -.->|uses| C3
         C4 -->|produces| C7
         C1 -.->|receives| C7
         C1 -.->|uses| C8
+        C1 -->|may delegate to| C10
+        C1 -.->|future solver| C11
+        C1 -.->|future solver| C12
         C2 -.->|uses| C3
         C2 -.->|considers| C5
         C3 -->|contains| C9
@@ -569,20 +587,28 @@ flowchart LR
         E8[JointPwmState]
         E9[JointLimit]
         E10[PWM Limits]
+        E11[MotionProfile]
+        E12[MotionPlan]
+        E13[TimedJointState]
+        E14[IkSolverMode]
 
         E2 -->|contains or references| E1
+        E2 -->|contains| E11
+        E2 -->|contains| E14
         E4 -->|refers to| E2
         E4 -->|may contain| E3
         E6 -->|refers to| E1
         E7 -->|refers to| E3
         E3 -->|is constrained by| E9
         E8 -->|is constrained by| E10
+        E12 -->|contains| E13
+        E13 -->|contains| E3
     end
 ```
 
 #### Ablaufdiagramm
 
-Das folgende Ablaufdiagramm beschreibt den typischen fachlichen und technischen Verarbeitungsfluss einer einzelnen Bewegungsanforderung. Dabei wird bewusst zwischen fachlicher Prüfung, kinematischer Berechnung, Freigabe und hardwarenaher Ausgabe unterschieden.
+Das folgende Ablaufdiagramm beschreibt den typischen fachlichen und technischen Verarbeitungsfluss einer einzelnen Bewegungsanforderung. Dabei wird bewusst zwischen fachlicher Prüfung, kinematischer Berechnung, zeitlicher Bewegungsplanung, Freigabe und hardwarenaher Ausgabe unterschieden.
 
 ```mermaid
 flowchart TD
@@ -596,10 +622,13 @@ flowchart TD
     F --> G[Kinematics computes JointState]
     G --> H[Validation validates JointState]
     H -->|not approved| D
-    H -->|approved| I[Hardware Abstraction applies HardwareCalibration]
-    I --> P[HardwareCalibrationResult]
-    P -->|ok| J[JointPwmState to Pca9685ServoDriver]
-    P -->|invalid calibration| D
+    H -->|approved| R[Motion Profile Generator creates MotionPlan]
+    R --> S[Orchestrator streams TimedJointState samples]
+    S --> I[Hardware Abstraction applies HardwareCalibration]
+    I --> P[HardwareResult]
+    P -->|ok, next sample| S
+    P -->|plan complete| J[MotionPlan output completed]
+    P -->|hardware or calibration error| D
     J --> K[Status to Orchestrator]
     K --> L[MotionResult to RunEngine]
     K --> Q[REST response]
@@ -632,17 +661,17 @@ Die statische Struktur beschreibt die wichtigsten Softwarebausteine und ihre Abh
 Eine zweckmäßige Struktur besteht aus den folgenden Bausteinen:
 
 * `Application`: enthält die Run Engine, die Ablaufdefinitionen sowie einfache anwendungsnahe Aktionen
-* `Orchestration`: enthält den Orchestrator und die Verarbeitung einzelner Bewegungsanforderungen
+* `Orchestration`: enthält den Orchestrator, die Verarbeitung einzelner Bewegungsanforderungen und die Koordination zeitlicher Bewegungspläne
 * `Kinematics`: enthält Vorwärts- und inverse Kinematik sowie mathematische Hilfsfunktionen
 * `Robot Model`: enthält Segmentlängen, Gelenkgrenzen und weitere idealisierte Modellparameter
 * `Robot Model Offset`: enthält modellbezogene Offsets und Korrekturwerte des realen Arms
 * `Validation`: enthält Erreichbarkeitsprüfungen, Freigabelogik und Ausführbarkeitsregeln
 * `Hardware`: kapselt Hardware Abstraction, Hardware Driver, Hardware Calibration, Joint PWM State, PCA9685, Servoausgabe, LED-Ansteuerung und weitere gerätenahe Funktionen
-* `Common`: enthält gemeinsam genutzte Datentypen, Ergebnisobjekte und Hilfsstrukturen
+* `Common`: enthält gemeinsam genutzte Datentypen, Ergebnisobjekte, Bewegungsprofile und zeitlich markierte Zwischenzustände
 
 Zwischen diesen Bausteinen sollen gerichtete Abhängigkeiten gelten. Die Anwendung hängt von der Orchestrierung ab, die Orchestrierung von fachlichen Modellen und Berechnungskomponenten, und erst die hardwarenahen Bausteine kennen die konkrete Ausgabetechnik. Umgekehrte Abhängigkeiten sollen vermieden werden.
 
-Besonders wichtig ist dabei, dass Modelle wie Zielpose, Bewegungsanforderung, Gelenkzustand, Joint PWM State und Bewegungsergebnis nicht implizit in mehreren Komponenten unterschiedlich interpretiert werden. Sie bilden die verbindenden Vertragsobjekte zwischen den Bausteinen.
+Besonders wichtig ist dabei, dass Modelle wie Zielpose, Bewegungsanforderung, Gelenkzustand, Bewegungsplan, Joint PWM State und Bewegungsergebnis nicht implizit in mehreren Komponenten unterschiedlich interpretiert werden. Sie bilden die verbindenden Vertragsobjekte zwischen den Bausteinen.
 
 ### Dynamisches Verhalten
 
@@ -654,11 +683,13 @@ Ein typischer Laufzeitablauf ist wie folgt aufgebaut:
 * Aus diesem Schritt wird eine Bewegungsanforderung an den Orchestrator übergeben.
 * Der Orchestrator stößt zunächst eine fachliche Vorprüfung der Zielpose an.
 * Nur bei positiver Vorprüfung wird über den `Robot Model Offset` eine modellkorrigierte Zwischenrepräsentation (`Offset Target Pose`) für die Kinematik erzeugt.
-* Die Kinematik berechnet daraus einen `Joint State`.
+* Die Kinematik berechnet daraus mit dem im `MotionRequest` gewählten `IkSolverMode` einen `Joint State`. Innerhalb von `Kinematics` kann dieser Schritt zunächst analytisch und später über alternative Solver wie CCD oder FABRIK erfolgen.
 * Der berechnete Gelenkzustand wird fachlich validiert.
-* Die `Hardware Abstraction` überführt den freigegebenen Gelenkzustand mithilfe der `Hardware Calibration` in einen `Joint PWM State`.
-* Der `Hardware Driver` gibt diese Werte an die Hardware aus und meldet einen technischen Status zurück.
-* Der Orchestrator verdichtet diese Informationen zu einem Bewegungsergebnis, das an die Run Engine zurückgegeben wird.
+* Der Orchestrator bestimmt den angenommenen aktuellen Startzustand und übergibt Startzustand, Zielzustand und Bewegungsprofil an den `Motion Profile Generator`.
+* Der `Motion Profile Generator` erzeugt daraus einen `MotionPlan` mit zeitlich markierten `TimedJointState`-Zwischenzuständen.
+* Die `Hardware Abstraction` überführt jeden freigegebenen Zwischenzustand mithilfe der `Hardware Calibration` in einen `Joint PWM State`.
+* Der `Hardware Driver` gibt diese Werte schrittweise an die Hardware aus und meldet technische Statusinformationen zurück.
+* Nach erfolgreicher Abarbeitung des `MotionPlan` verdichtet der Orchestrator diese Informationen zu einem Bewegungsergebnis, das an die Run Engine zurückgegeben wird.
 * Die Run Engine entscheidet anhand dieses Ergebnisses über Fortsetzung, Warten, Wiederholen oder Abbruch des Ablaufs.
 
 Da keine sensorische Positionsrückmeldung vorhanden ist, basiert das dynamische Verhalten auf einer Kombination aus berechneter Plausibilität, Freigaberegeln und technischer Ausgabebestätigung. Die Software darf daher nicht behaupten, dass eine Pose physisch verifiziert erreicht wurde, sondern nur, dass eine Anforderung fachlich akzeptiert und ausgabeseitig abgearbeitet wurde.
@@ -851,6 +882,7 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 | <a id="hardware-driver"></a>Hardware Driver | Konkrete hardwarenahe Komponente zur Kommunikation mit Ausgabebausteinen wie dem PCA9685. |
 | <a id="home-position"></a>Home Position | Definierte Ausgangslage des Roboterarms, die aus dem stromlosen Zustand reproduzierbar erreicht werden kann und als fachliche Referenz für Initialisierung und Aufstartverhalten dient. |
 | IK | Inverse Kinematik. Berechnung von Gelenkwinkeln aus einer gewünschten Position und Orientierung des Endeffektors. |
+| IkSolverMode | Explizite Auswahl des IK-Lösungsverfahrens für eine Bewegungsanforderung. Vorgesehen sind `analytical`, `ccd` und `fabrik`; ein automatischer Auswahlmodus wird erst nach praktischer Bewertung der drei Solver erneut betrachtet. |
 | Joint Space | Darstellung des Roboterzustands im Gelenkraum. Beschrieben werden dabei die Winkel `d`, `s`, `e`, `hp`, `hr` sowie die Greiferöffnung `g`. |
 | Joint PWM State | PWM-bezogenes Ausgabemodell mit den vorbereiteten Stellwerten pro Aktor zwischen `Hardware Abstraction` und `Hardware Driver`. |
 | Joint State Result | Fachliches Prüfergebnis zur Bewertung eines berechneten `Joint State`. |

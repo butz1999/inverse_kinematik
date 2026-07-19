@@ -46,6 +46,14 @@
         </label>
       </form>
       <section class="toolbar">
+        <label>
+          Motion Profile
+          <select id="motion-profile-type">
+            <option value="smooth_start_stop" selected>Smooth Start/Stop</option>
+            <option value="constant_velocity">Constant Velocity</option>
+            <option value="constant_acceleration">Constant Acceleration</option>
+          </select>
+        </label>
         <button id="send-pose-button" type="button">Send Pose</button>
       </section>
 

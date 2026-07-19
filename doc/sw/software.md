@@ -250,8 +250,15 @@ classDiagram
     class MotionRequest {
         +TargetPose target
         +MotionProfile profile
+        +IkSolverMode ik_solver
         +bool has_wait
         +uint32 wait_ms
+    }
+
+    class IkSolverMode {
+        +analytical
+        +ccd
+        +fabrik
     }
 
     class MotionResult {
@@ -330,6 +337,7 @@ classDiagram
 
     MotionRequest --> TargetPose
     MotionRequest --> MotionProfile
+    MotionRequest --> IkSolverMode
     MotionProfile --> MotionProfileType
     MotionResult --> JointState
     MotionPlan --> MotionProfile
@@ -402,8 +410,15 @@ classDiagram
     class MotionRequest {
         +TargetPose target
         +MotionProfile profile
+        +IkSolverMode ik_solver
         +bool has_wait
         +uint32 wait_ms
+    }
+
+    class IkSolverMode {
+        +analytical
+        +ccd
+        +fabrik
     }
 ```
 
@@ -411,7 +426,10 @@ Für die erweiterte Ausbaustufe enthält dieses Modell mindestens:
 
 * ein fachliches Bewegungsziel als `TargetPose`
 * ein gewünschtes Bewegungsprofil als `MotionProfile`
+* einen expliziten gewünschten IK-Solver als `IkSolverMode`
 * eine optionale Wartezeit nach der Zielverarbeitung
+
+Für die erste Implementierung ist `analytical` der Standardwert, wenn kein Solver angegeben wird. Ein eigener `automatic`-Modus wird bewusst noch nicht eingeführt. Ob eine automatische Solver-Policy sinnvoll ist, soll erst entschieden werden, nachdem analytische IK, CCD und FABRIK praktisch vergleichbar implementiert sind.
 
 Spätere Erweiterungen wie LED-Aktionen, Roboter-Aktionen oder Prioritäten können auf diesem Modell aufbauen.
 
@@ -793,13 +811,16 @@ Eingaben und Ausgaben:
 
 ### Kinematics
 
-`Kinematics` berechnet aus einer gültigen Zielbeschreibung einen fachlichen Gelenkzustand.
+`Kinematics` berechnet aus einer gültigen Zielbeschreibung und einem explizit ausgewählten IK-Solver einen fachlichen Gelenkzustand.
 
 Für die inverse Kinematik darf diese Komponente intern sowohl analytische als auch iterative Lösungsverfahren kapseln. Insbesondere Verfahren wie `CCD` oder `FABRIK` werden hier als interne Iterationslogik verstanden und nicht als Aufgabe des `Orchestrator`.
+
+Die aktuell vorgesehenen Solver-Modi sind `analytical`, `ccd` und `fabrik`. Für den ersten Implementationsstand ist `analytical` der Default, wenn ein `MotionRequest` keinen Solver vorgibt. Ein automatischer Auswahlmodus wird bewusst nicht modelliert, solange die drei Solver noch nicht praktisch vergleichbar implementiert sind.
 
 Eingaben und Ausgaben:
 
 * Eingabe einer `OffsetTargetPose`
+* Eingabe eines `IkSolverMode`
 * Rückgabe eines `JointState`
 
 Bei iterativen Verfahren umfasst die Verantwortung von `Kinematics` insbesondere:
@@ -948,7 +969,7 @@ Ein typischer Ablauf ist wie folgt aufgebaut:
 2. Aus diesem Schritt wird ein `MotionRequest` mit einer fachlichen `TargetPose` erzeugt.
 3. Der `Orchestrator` stößt die Vorprüfung dieser `TargetPose` über `Validation` an.
 4. Bei positiver Vorprüfung wird die Zielbeschreibung mithilfe von `RobotModelOffset` in eine `OffsetTargetPose` überführt.
-5. `Kinematics` berechnet daraus einen `JointState` oder meldet zurück, dass keine geeignete Lösung gefunden wurde.
+5. `Kinematics` berechnet daraus mit dem im `MotionRequest` gewählten `IkSolverMode` einen `JointState` oder meldet zurück, dass keine geeignete Lösung gefunden wurde.
 6. Der berechnete `JointState` wird durch `Validation` fachlich geprüft und freigegeben oder abgelehnt.
 7. Der `Orchestrator` bestimmt den aktuellen Start-`JointState` aus dem zuletzt angenommenen Systemzustand beziehungsweise aus der `Init Position`, falls noch keine reguläre Bewegung ausgeführt wurde.
 8. Aus diesem Startzustand, dem freigegebenen Zielzustand und dem im `MotionRequest` hinterlegten `MotionProfile` wird ein `MotionPlan` mit berechneter Gesamtdauer `T` erzeugt.
@@ -1327,6 +1348,7 @@ Diese letzte Regel ist besonders wichtig, weil viele spätere Inkonsistenzen nic
 | Begriff / Abkürzung | Beschreibung |
 | --- | --- |
 | HardwareResult | Technisches Rückgabemodell der Hardwareseite an den `Orchestrator`. Es beschreibt, ob eine hardwarenahe Ausgabe technisch erfolgreich verarbeitet wurde oder ein Fehler vorliegt. |
+| IkSolverMode | Explizite Auswahl des IK-Lösungsverfahrens für einen `MotionRequest`. Vorgesehen sind `analytical`, `ccd` und `fabrik`; ein automatischer Auswahlmodus ist vorerst bewusst nicht Teil des Modells. |
 | JointPwmState | PWM-bezogenes Ausgabemodell mit den vorbereiteten Stellwerten pro Aktor zwischen `Hardware Abstraction` und `Hardware Driver`. |
 | JointStateResult | Fachliches Prüfergebnis zur Bewertung eines berechneten `JointState`. |
 | MotionPlan | Zeitlich geordnete Folge von Zwischenzuständen im Gelenkraum für die Ausführung eines Bewegungsübergangs einschließlich der berechneten Gesamtdauer. |

@@ -5,6 +5,7 @@
 #include "application/ApiContracts.h"
 #include "common/JointPwmState.h"
 #include "common/JointState.h"
+#include "common/MotionProfile.h"
 #include "common/TargetPose.h"
 
 namespace application
@@ -35,6 +36,7 @@ struct TargetPoseParseResult
   const char *field_name;
   const char *message;
   common::TargetPose target_pose;
+  common::MotionProfile motion_profile;
 };
 
 JointMotionParseResult parseJointMotionRequestJson(const char *body);

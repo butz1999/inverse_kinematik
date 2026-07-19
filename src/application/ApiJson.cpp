@@ -4,6 +4,8 @@
 
 #include <ArduinoJson.h>
 
+#include <cstring>
+
 namespace application
 {
 
@@ -26,7 +28,8 @@ JointPwmMotionParseResult jointPwmMotionError(ApiResultCode code, const char *fi
 
 TargetPoseParseResult targetPoseError(ApiResultCode code, const char *field_name, const char *message)
 {
-  return TargetPoseParseResult{false, code, field_name, message, common::initialTargetPose()};
+  return TargetPoseParseResult{false, code, field_name, message, common::initialTargetPose(),
+                               common::defaultMotionProfile()};
 }
 
 bool isMissingOrNonNumeric(JsonVariantConst value)
@@ -39,6 +42,32 @@ bool isMissingOrNonInteger(JsonVariantConst value)
   return value.isNull() || !value.is<long>();
 }
 
+bool parseMotionProfileType(const char *value, common::MotionProfileType &type)
+{
+  if (value == nullptr)
+  {
+    return false;
+  }
+
+  if (std::strcmp(value, "constant_velocity") == 0)
+  {
+    type = common::MotionProfileType::ConstantVelocity;
+    return true;
+  }
+  if (std::strcmp(value, "constant_acceleration") == 0)
+  {
+    type = common::MotionProfileType::ConstantAcceleration;
+    return true;
+  }
+  if (std::strcmp(value, "smooth_start_stop") == 0)
+  {
+    type = common::MotionProfileType::SmoothStartStop;
+    return true;
+  }
+
+  return false;
+}
+
 }  // namespace
 
 JointMotionParseResult parseJointMotionRequestJson(const char *body)
@@ -48,7 +77,7 @@ JointMotionParseResult parseJointMotionRequestJson(const char *body)
     return jointMotionError(ApiResultCode::InvalidJson, kEmptyField, kRequestBodyRequired);
   }
 
-  StaticJsonDocument<384> doc;
+  StaticJsonDocument<512> doc;
   const auto error = deserializeJson(doc, body);
   if (error)
   {
@@ -95,7 +124,7 @@ JointPwmMotionParseResult parseJointPwmMotionRequestJson(const char *body)
     return jointPwmMotionError(ApiResultCode::InvalidJson, kEmptyField, kRequestBodyRequired);
   }
 
-  StaticJsonDocument<384> doc;
+  StaticJsonDocument<512> doc;
   const auto error = deserializeJson(doc, body);
   if (error)
   {
@@ -141,7 +170,7 @@ TargetPoseParseResult parseTargetPoseRequestJson(const char *body)
     return targetPoseError(ApiResultCode::InvalidJson, kEmptyField, kRequestBodyRequired);
   }
 
-  StaticJsonDocument<384> doc;
+  StaticJsonDocument<512> doc;
   const auto error = deserializeJson(doc, body);
   if (error)
   {
@@ -178,7 +207,49 @@ TargetPoseParseResult parseTargetPoseRequestJson(const char *body)
                            "Target gripper value is outside 0..100 percent.");
   }
 
-  return TargetPoseParseResult{true, ApiResultCode::Ok, kEmptyField, kEmptyField, pose};
+  auto profile = common::defaultMotionProfile();
+  JsonObjectConst profile_object = root["motionProfile"].as<JsonObjectConst>();
+  if (!profile_object.isNull())
+  {
+    if (!profile_object["type"].isNull())
+    {
+      if (!profile_object["type"].is<const char *>() ||
+          !parseMotionProfileType(profile_object["type"].as<const char *>(), profile.type))
+      {
+        return targetPoseError(ApiResultCode::InvalidTargetPose, "motionProfile.type",
+                               "Motion profile type must be constant_velocity, constant_acceleration or "
+                               "smooth_start_stop.");
+      }
+    }
+
+    if (!profile_object["target_velocity_deg_s"].isNull())
+    {
+      if (isMissingOrNonNumeric(profile_object["target_velocity_deg_s"]))
+      {
+        return targetPoseError(ApiResultCode::InvalidTargetPose, "motionProfile.target_velocity_deg_s",
+                               "Motion profile target velocity must be numeric.");
+      }
+      profile.target_velocity_deg_s = profile_object["target_velocity_deg_s"].as<float>();
+    }
+
+    if (!profile_object["sample_time_ms"].isNull())
+    {
+      if (isMissingOrNonInteger(profile_object["sample_time_ms"]))
+      {
+        return targetPoseError(ApiResultCode::InvalidTargetPose, "motionProfile.sample_time_ms",
+                               "Motion profile sample time must be an integer.");
+      }
+      const auto sample_time_ms = profile_object["sample_time_ms"].as<long>();
+      if (sample_time_ms < 0)
+      {
+        return targetPoseError(ApiResultCode::InvalidTargetPose, "motionProfile.sample_time_ms",
+                               "Motion profile sample time must not be negative.");
+      }
+      profile.sample_time_ms = static_cast<uint32_t>(sample_time_ms);
+    }
+  }
+
+  return TargetPoseParseResult{true, ApiResultCode::Ok, kEmptyField, kEmptyField, pose, profile};
 }
 
 }  // namespace application

@@ -31,12 +31,14 @@ h2 {
 }
 
 input,
+select,
 button,
 pre {
   font: inherit;
 }
 
-input {
+input,
+select {
   box-sizing: border-box;
   width: 100%;
   padding: 4px 5px;

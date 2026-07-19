@@ -91,6 +91,34 @@ void test_parse_target_pose_accepts_valid_json()
   TEST_ASSERT_EQUAL_FLOAT(1.0F, result.target_pose.x_mm);
   TEST_ASSERT_EQUAL_FLOAT(4.0F, result.target_pose.p_deg);
   TEST_ASSERT_EQUAL_FLOAT(6.0F, result.target_pose.g_pct);
+  TEST_ASSERT_EQUAL(common::MotionProfileType::ConstantVelocity, result.motion_profile.type);
+  TEST_ASSERT_EQUAL_FLOAT(30.0F, result.motion_profile.target_velocity_deg_s);
+  TEST_ASSERT_EQUAL_UINT32(20U, result.motion_profile.sample_time_ms);
+}
+
+void test_parse_target_pose_accepts_motion_profile_options()
+{
+  const auto result = application::parseTargetPoseRequestJson(
+      "{\"x_mm\":1,\"y_mm\":2,\"z_mm\":3,\"p_deg\":4,\"r_deg\":5,\"g_pct\":6,"
+      "\"motionProfile\":{\"type\":\"smooth_start_stop\",\"target_velocity_deg_s\":15,"
+      "\"sample_time_ms\":40}}");
+
+  TEST_ASSERT_TRUE(result.ok);
+  TEST_ASSERT_EQUAL(application::ApiResultCode::Ok, result.code);
+  TEST_ASSERT_EQUAL(common::MotionProfileType::SmoothStartStop, result.motion_profile.type);
+  TEST_ASSERT_EQUAL_FLOAT(15.0F, result.motion_profile.target_velocity_deg_s);
+  TEST_ASSERT_EQUAL_UINT32(40U, result.motion_profile.sample_time_ms);
+}
+
+void test_parse_target_pose_rejects_unknown_motion_profile_type()
+{
+  const auto result = application::parseTargetPoseRequestJson(
+      "{\"x_mm\":1,\"y_mm\":2,\"z_mm\":3,\"p_deg\":4,\"r_deg\":5,\"g_pct\":6,"
+      "\"motionProfile\":{\"type\":\"teleport\"}}");
+
+  TEST_ASSERT_FALSE(result.ok);
+  TEST_ASSERT_EQUAL(application::ApiResultCode::InvalidTargetPose, result.code);
+  TEST_ASSERT_EQUAL_STRING("motionProfile.type", result.field_name);
 }
 
 void test_parse_target_pose_rejects_missing_field()
@@ -125,6 +153,8 @@ int main(int argc, char **argv)
   RUN_TEST(test_parse_joint_pwm_motion_rejects_fractional_pwm);
   RUN_TEST(test_parse_joint_pwm_motion_rejects_pwm_limit_violation);
   RUN_TEST(test_parse_target_pose_accepts_valid_json);
+  RUN_TEST(test_parse_target_pose_accepts_motion_profile_options);
+  RUN_TEST(test_parse_target_pose_rejects_unknown_motion_profile_type);
   RUN_TEST(test_parse_target_pose_rejects_missing_field);
   RUN_TEST(test_parse_target_pose_rejects_gripper_limit_violation);
   return UNITY_END();
