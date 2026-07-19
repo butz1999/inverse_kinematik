@@ -250,6 +250,29 @@ function isSpinnerPointerEvent(event) {
   return event.clientX >= rect.right - 28;
 }
 
+function isCommittedNumberFormSendable(form) {
+  for (const input of form.querySelectorAll('input[type="number"]')) {
+    const value = Number(input.value);
+    if (input.validity.badInput || input.value === "" || !Number.isFinite(value)) {
+      return false;
+    }
+
+    if (input.min !== "" && value < Number(input.min)) {
+      return false;
+    }
+
+    if (input.max !== "" && value > Number(input.max)) {
+      return false;
+    }
+
+    if (input.name.endsWith("_pwm") && !Number.isInteger(value)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function addCommittedNumberSend(form, sendState) {
   let inFlight = false;
   let pending = false;
@@ -260,7 +283,7 @@ function addCommittedNumberSend(form, sendState) {
   });
 
   async function sendLatestState() {
-    if (!form.checkValidity()) {
+    if (!isCommittedNumberFormSendable(form)) {
       return;
     }
 
@@ -282,7 +305,7 @@ function addCommittedNumberSend(form, sendState) {
         pending = false;
         await sendState("Updating");
         lastSentStateKey = formStateKey(form);
-      } while (pending && form.checkValidity());
+      } while (pending && isCommittedNumberFormSendable(form));
     } catch (error) {
       setStatus(`Update failed: ${error.message}`);
     } finally {
