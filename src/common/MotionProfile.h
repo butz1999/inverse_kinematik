@@ -31,7 +31,7 @@ struct TimedJointState
   uint32_t time_from_start_ms;
 };
 
-constexpr std::size_t kMaxMotionPlanSamples = 256U;
+constexpr std::size_t kMaxMotionPlanSamples = 512U;
 
 struct MotionPlan
 {
@@ -43,7 +43,7 @@ struct MotionPlan
 
 inline MotionProfile defaultMotionProfile()
 {
-  return MotionProfile{MotionProfileType::SmoothStartStop, 60.0F, 10U};
+  return MotionProfile{MotionProfileType::SmoothStartStop, 90.0F, 10U};
 }
 
 inline const char *toString(MotionProfileType type)

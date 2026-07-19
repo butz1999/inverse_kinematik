@@ -77,8 +77,21 @@ void test_motion_plan_for_unchanged_state_contains_single_target_sample()
   TEST_ASSERT_EQUAL_UINT32(0U, result.plan.samples[0].time_from_start_ms);
   assertJointStateNear(state, result.plan.samples[0].joint_state);
   TEST_ASSERT_EQUAL(common::MotionProfileType::SmoothStartStop, result.plan.profile.type);
-  TEST_ASSERT_EQUAL_FLOAT(60.0F, result.plan.profile.target_velocity_deg_s);
+  TEST_ASSERT_EQUAL_FLOAT(common::defaultMotionProfile().target_velocity_deg_s, result.plan.profile.target_velocity_deg_s);
   TEST_ASSERT_EQUAL_UINT32(common::defaultMotionProfile().sample_time_ms, result.plan.profile.sample_time_ms);
+}
+
+void test_default_motion_profile_covers_full_joint_range_at_fine_sample_time()
+{
+  const common::JointState start_state{-90.0F, -90.0F, -90.0F, -90.0F, -90.0F, 0.0F};
+  const common::JointState target_state{90.0F, 90.0F, 90.0F, 0.0F, 90.0F, 100.0F};
+
+  const auto result = orchestration::generateMotionPlan(start_state, target_state, common::defaultMotionProfile());
+
+  TEST_ASSERT_TRUE(result.ok);
+  TEST_ASSERT_EQUAL_UINT32(2000U, result.plan.total_duration_ms);
+  TEST_ASSERT_EQUAL_UINT32(201U, result.plan.sample_count);
+  TEST_ASSERT_TRUE(result.plan.sample_count <= common::kMaxMotionPlanSamples);
 }
 
 void test_constant_acceleration_motion_plan_eases_start_and_stop()
@@ -160,6 +173,7 @@ int main(int argc, char **argv)
   RUN_TEST(test_constant_velocity_motion_plan_contains_start_intermediate_and_target_samples);
   RUN_TEST(test_constant_velocity_motion_plan_adds_final_sample_for_non_aligned_duration);
   RUN_TEST(test_motion_plan_for_unchanged_state_contains_single_target_sample);
+  RUN_TEST(test_default_motion_profile_covers_full_joint_range_at_fine_sample_time);
   RUN_TEST(test_constant_acceleration_motion_plan_eases_start_and_stop);
   RUN_TEST(test_smooth_start_stop_motion_plan_uses_s_curve_progress);
   RUN_TEST(test_motion_profile_generator_rejects_invalid_profile);
