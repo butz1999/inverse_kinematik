@@ -36,7 +36,6 @@ enum class HardwareDriverStatus
   InvalidChannel,
   InvalidPwmValue,
   NotInitialized,
-  IsInitialized,
 };
 
 struct HardwareDriverResult

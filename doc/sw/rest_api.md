@@ -81,7 +81,6 @@ flowchart TD
 | `ok` | Hardware-Operation erfolgreich |
 | `driver_begin_failed` | Initialisierung des PCA9685-Treibers fehlgeschlagen |
 | `driver_configuration_failed` | PCA9685-Treiberkonfiguration fehlgeschlagen |
-| `is_initialized` | PCA9685-Treiber war bereits initialisiert |
 | `invalid_channel` | PCA9685-Kanal liegt außerhalb `0..15` |
 | `invalid_pwm_value` | PWM-Wert liegt außerhalb `0..4095` |
 | `not_initialized` | Treiber wurde vor dem Schreiben nicht initialisiert |

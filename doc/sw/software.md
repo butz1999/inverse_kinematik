@@ -925,7 +925,7 @@ Der Treiber kennt dabei nicht:
 Im aktuellen PCA9685-Treiber erfolgt die hardwarenahe Initialisierung direkt in `begin()`:
 
 * `begin()` setzt den Treiberzustand auf nicht initialisiert, sendet den PCA9685 Software Reset Call, setzt `MODE2` einmalig auf `0x06` (`OUTDRV=1`, `INVRT=0`, `OUTNE[1:0]=10`), setzt die PWM-Frequenz, schreibt den definierten initialen `JointPwmState`, markiert den Treiber als initialisiert und legt `OE` anschließend auf aktiv. Das Laufzeitmodell bietet bewusst keinen Enable-/Disable-Pfad mehr an, weil sich `OE` im Bring-up nicht als verlässliches Stromlos- oder Hochohmig-Schalten der Servos gezeigt hat.
-* `init()` bleibt als kompatibler Einstiegspunkt erhalten. Bei noch nicht initialisiertem Treiber führt es denselben Ablauf über `begin()` aus; bei bereits initialisiertem Treiber schreibt es den initialen `JointPwmState` erneut und fährt damit bewusst wieder zur Init-PWM-Position. Der Treiber hält den zuletzt vollständig erfolgreich geschriebenen `JointPwmState` vor, damit REST-Antworten den tatsächlich übernommenen Low-Level-Zielzustand zurückgeben können.
+* `POST /api/servo-driver/init` nutzt denselben `begin()`-Ablauf erneut und ist damit ein Diagnose- und Reinitialisierungspfad, kein separater Treiberzustand.
 * `write()` akzeptiert direkte `JointPwmState`-Ausgaben erst nach erfolgreichem `begin()`.
 
 ## Initialisierung und Laufzeitmodell

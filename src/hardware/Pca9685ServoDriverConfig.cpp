@@ -21,8 +21,6 @@ const char *toString(HardwareDriverStatus status)
       return "invalid_pwm_value";
     case HardwareDriverStatus::NotInitialized:
       return "not_initialized";
-    case HardwareDriverStatus::IsInitialized:
-      return "is_initialized";
   }
 
   return "not_initialized";

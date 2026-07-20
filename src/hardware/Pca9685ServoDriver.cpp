@@ -98,17 +98,6 @@ HardwareDriverResult Pca9685ServoDriver::begin()
   return hwDriverOk();
 }
 
-HardwareDriverResult Pca9685ServoDriver::init()
-{
-  if (initialized_)
-  {
-    const auto calibration = defaultHardwareCalibration();
-    return writeChannels(calibration.initial_pwm_state);
-  }
-
-  return begin();
-}
-
 HardwareDriverResult Pca9685ServoDriver::write(const common::JointPwmState &state)
 {
   if (!initialized_)

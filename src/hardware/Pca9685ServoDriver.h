@@ -17,7 +17,6 @@ class Pca9685ServoDriver
   explicit Pca9685ServoDriver(const Pca9685ServoDriverConfig &config);
 
   HardwareDriverResult begin();
-  HardwareDriverResult init();
   HardwareDriverResult write(const common::JointPwmState &state);
   common::JointPwmState jointPwmState() const;
   bool isInitialized() const;

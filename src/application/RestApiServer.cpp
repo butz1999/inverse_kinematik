@@ -458,7 +458,7 @@ void RestApiServer::handleServoDriverInitRequest()
 {
   logRequest("POST", kServoDriverInitPath);
 
-  const auto init_result = servo_driver_.init();
+  const auto init_result = servo_driver_.begin();
   if (init_result.status != hardware::HardwareDriverStatus::Ok)
   {
     logResult("[REST] PCA9685 init failed");

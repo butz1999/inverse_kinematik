@@ -8,9 +8,9 @@
 
 #include "application/RestApiServer.h"
 #include "hardware/Pca9685ServoDriver.h"
+#include "hardware/Pin.h"
 #include "hardware/SerialLogger.h"
 #include "hardware/StatusLed.h"
-#include "hardware/Pin.h"
 
 #if __has_include("config/WifiCredentials.h")
 #include "config/WifiCredentials.h"

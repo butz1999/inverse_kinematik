@@ -47,7 +47,6 @@ void test_hardware_driver_status_values_are_stable_api_strings()
   TEST_ASSERT_EQUAL_STRING("invalid_channel", hardware::toString(hardware::HardwareDriverStatus::InvalidChannel));
   TEST_ASSERT_EQUAL_STRING("invalid_pwm_value", hardware::toString(hardware::HardwareDriverStatus::InvalidPwmValue));
   TEST_ASSERT_EQUAL_STRING("not_initialized", hardware::toString(hardware::HardwareDriverStatus::NotInitialized));
-  TEST_ASSERT_EQUAL_STRING("is_initialized", hardware::toString(hardware::HardwareDriverStatus::IsInitialized));
 }
 
 int main(int argc, char **argv)
