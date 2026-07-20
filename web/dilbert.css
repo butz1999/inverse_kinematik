@@ -73,10 +73,21 @@ button:disabled {
   display: none;
 }
 
+.pose-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
 .pose-history button {
   width: 100%;
   padding: 5px 8px;
   text-align: left;
+}
+
+.pose-history button:last-child {
+  width: auto;
+  text-align: center;
 }
 
 form {

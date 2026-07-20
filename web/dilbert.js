@@ -62,6 +62,10 @@ function renderPoseHistory() {
 
   for (const pose of poseHistory) {
     const item = document.createElement("li");
+    const row = document.createElement("div");
+    row.className = "pose-history-row";
+
+    // Button to repeat pose
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = formatPose(pose);
@@ -77,9 +81,28 @@ function renderPoseHistory() {
         setStatus(`Send failed: ${error.message}`);
       }
     });
-    item.append(button);
+
+    // Button to delete line
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "🗑️";
+    deleteButton.addEventListener("click", () => {
+      deletePoseHistoryEntry(pose);
+      setStatus("Pose deleted from history.", pose);
+    });
+
+    row.append(button);
+    row.append(deleteButton);
+    item.append(row);
     poseHistoryList.append(item);
   }
+}
+
+function deletePoseHistoryEntry(pose) {
+  const key = poseKey(pose);
+  poseHistory = poseHistory.filter((entry) => poseKey(entry) !== key);
+  savePoseHistory();
+  renderPoseHistory();
 }
 
 function clearPoseHistory() {
