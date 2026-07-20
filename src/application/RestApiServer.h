@@ -10,8 +10,8 @@
 #include "common/JointState.h"
 #include "common/MotionProfile.h"
 #include "hardware/HardwareCalibration.h"
+#include "hardware/Logger.h"
 #include "hardware/Pca9685ServoDriver.h"
-#include "hardware/SerialLogger.h"
 #include "orchestration/MotionOrchestrator.h"
 
 namespace application
@@ -20,9 +20,7 @@ namespace application
 class RestApiServer
 {
  public:
-  explicit RestApiServer(WebServer &server);
-  RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver);
-  RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver, const hardware::SerialLogger &logger);
+  RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver, const hardware::Logger &logger);
 
   void begin();
   void handleClient();
@@ -49,8 +47,8 @@ class RestApiServer
   void sendJson(int status_code, const String &body);
 
   WebServer &server_;
-  hardware::Pca9685ServoDriver *servo_driver_;
-  const hardware::SerialLogger *logger_;
+  hardware::Pca9685ServoDriver &servo_driver_;
+  const hardware::Logger &logger_;
   hardware::HardwareCalibration hardware_calibration_;
   common::JointState current_joint_state_;
   common::JointPwmState current_joint_pwm_state_;
