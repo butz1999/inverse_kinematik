@@ -9,7 +9,7 @@ const sendJointButton = document.querySelector("#send-joint-button");
 const sendButton = document.querySelector("#send-button");
 const motionProfileTypeSelect = document.querySelector("#motion-profile-type");
 const poseHistoryList = document.querySelector("#pose-history");
-
+const clearButton = document.querySelector("#clear-pose-history-button");
 const poseFields = ["x_mm", "y_mm", "z_mm", "p_deg", "r_deg", "g_pct"];
 const poseHistoryStorageKey = "dilbert.poseHistory.v1";
 const committedFormStateSyncers = [];
@@ -80,6 +80,12 @@ function renderPoseHistory() {
     item.append(button);
     poseHistoryList.append(item);
   }
+}
+
+function clearPoseHistory() {
+  poseHistory = [];
+  window.localStorage.removeItem(poseHistoryStorageKey);
+  renderPoseHistory();
 }
 
 function rememberPose(pose) {
@@ -385,6 +391,11 @@ sendButton.addEventListener("click", async () => {
   } catch (error) {
     setStatus(`Send failed: ${error.message}`);
   }
+});
+
+clearButton.addEventListener("click", () => {
+  clearPoseHistory();
+  setStatus("Pose history cleared.");
 });
 
 addCommittedNumberSend(jointForm, sendJointState);

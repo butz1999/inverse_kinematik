@@ -19,6 +19,17 @@
       </section>
 
       <h2>Pose</h2>
+      <section class="toolbar">
+        <label>
+        Motion Profile
+        <select id="motion-profile-type">
+          <option value="smooth_start_stop" selected>Smooth Start/Stop</option>
+          <option value="constant_velocity">Constant Velocity</option>
+          <option value="constant_acceleration">Constant Acceleration</option>
+        </select>
+      </label>
+
+      </section>
       <form id="pose-form">
         <label>
           x [mm]
@@ -46,18 +57,14 @@
         </label>
       </form>
       <section class="toolbar">
-        <label>
-          Motion Profile
-          <select id="motion-profile-type">
-            <option value="smooth_start_stop" selected>Smooth Start/Stop</option>
-            <option value="constant_velocity">Constant Velocity</option>
-            <option value="constant_acceleration">Constant Acceleration</option>
-          </select>
-        </label>
         <button id="send-pose-button" type="button">Send Pose</button>
       </section>
+
       <h2>Pose History</h2>
       <ol id="pose-history" class="pose-history"></ol>
+      <section class="toolbar">
+        <button id="clear-pose-history-button" type="button">Clear</button>
+      </section>
 
       <h2>Joint Position</h2>
       <form id="joint-form">
