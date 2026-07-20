@@ -15,7 +15,7 @@ class SerialLogger : public Logger
   SerialLogger(HardwareSerial &serial, unsigned long baudrate);
   SerialLogger(HWCDC &serial, unsigned long baudrate);
 
-  void begin() const;
+  void init() const;
   void print(const char *message) const override;
   void print(int number) const;
   void print(unsigned int number) const;

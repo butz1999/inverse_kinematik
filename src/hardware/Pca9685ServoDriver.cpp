@@ -58,7 +58,7 @@ Pca9685ServoDriver::Pca9685ServoDriver(const Pca9685ServoDriverConfig &config)
 {
 }
 
-HardwareDriverResult Pca9685ServoDriver::begin()
+HardwareDriverResult Pca9685ServoDriver::init()
 {
   initialized_ = false;
 

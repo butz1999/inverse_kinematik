@@ -238,7 +238,7 @@ Response `200`:
 ```
 
 `jointPwmHardwareOutput` ist `available`, wenn der `RestApiServer` mit einem `Pca9685ServoDriver` konstruiert wurde. Andernfalls ist der Wert `not_available`.
-`jointPwmHardwareInitialized` ist `true`, nachdem der PCA9685-Treiber erfolgreich initialisiert wurde. Im normalen Firmwarestart geschieht das direkt beim Boot über `servoDriver.begin()`.
+`jointPwmHardwareInitialized` ist `true`, nachdem der PCA9685-Treiber erfolgreich initialisiert wurde. Im normalen Firmwarestart geschieht das direkt beim Boot über `servoDriver.init()`.
 
 ### Gelenkzustand auslesen
 

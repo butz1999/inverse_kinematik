@@ -15,7 +15,7 @@ SerialLogger::SerialLogger(HWCDC &serial, unsigned long baudrate)
 {
 }
 
-void SerialLogger::begin() const
+void SerialLogger::init() const
 {
   switch (backend_)
   {

@@ -922,11 +922,11 @@ Der Treiber kennt dabei nicht:
 * Gelenkmodelle
 * Kalibrationslogik auf höherer Ebene
 
-Im aktuellen PCA9685-Treiber erfolgt die hardwarenahe Initialisierung direkt in `begin()`:
+Im aktuellen PCA9685-Treiber erfolgt die hardwarenahe Initialisierung direkt in `init()`:
 
-* `begin()` setzt den Treiberzustand auf nicht initialisiert, sendet den PCA9685 Software Reset Call, setzt `MODE2` einmalig auf `0x06` (`OUTDRV=1`, `INVRT=0`, `OUTNE[1:0]=10`), setzt die PWM-Frequenz, schreibt den definierten initialen `JointPwmState`, markiert den Treiber als initialisiert und legt `OE` anschließend auf aktiv. Das Laufzeitmodell bietet bewusst keinen Enable-/Disable-Pfad mehr an, weil sich `OE` im Bring-up nicht als verlässliches Stromlos- oder Hochohmig-Schalten der Servos gezeigt hat.
-* `POST /api/servo-driver/init` nutzt denselben `begin()`-Ablauf erneut und ist damit ein Diagnose- und Reinitialisierungspfad, kein separater Treiberzustand.
-* `write()` akzeptiert direkte `JointPwmState`-Ausgaben erst nach erfolgreichem `begin()`.
+* `init()` setzt den Treiberzustand auf nicht initialisiert, sendet den PCA9685 Software Reset Call, setzt `MODE2` einmalig auf `0x06` (`OUTDRV=1`, `INVRT=0`, `OUTNE[1:0]=10`), setzt die PWM-Frequenz, schreibt den definierten initialen `JointPwmState`, markiert den Treiber als initialisiert und legt `OE` anschließend auf aktiv. Das Laufzeitmodell bietet bewusst keinen Enable-/Disable-Pfad mehr an, weil sich `OE` im Bring-up nicht als verlässliches Stromlos- oder Hochohmig-Schalten der Servos gezeigt hat.
+* `POST /api/servo-driver/init` nutzt denselben `init()`-Ablauf erneut und ist damit ein Diagnose- und Reinitialisierungspfad, kein separater Treiberzustand.
+* `write()` akzeptiert direkte `JointPwmState`-Ausgaben erst nach erfolgreichem `init()`.
 
 ## Initialisierung und Laufzeitmodell
 
@@ -955,7 +955,7 @@ Die Initialisierung selbst sollte in einer festen Reihenfolge erfolgen:
 5. Initialisieren von `Orchestrator`, `Run Engine` und `SequenceState`.
 6. Übergang in einen betriebsbereiten Zustand, in dem Bewegungsanforderungen verarbeitet werden dürfen.
 
-Im aktuellen Bring-up-Stand ist dieser Ablauf für die direkte PCA9685-Ausgabe noch niedriger angesetzt: Beim Boot setzt `main.cpp` das PCA9685-`OE`-Signal zunächst deaktiviert. Direkt nach dem Start des I2C-Busses führt `servoDriver.begin()` die technische Treiberinitialisierung aus, schreibt den initialen `JointPwmState` und legt `OE` auf aktiv. Der REST-Endpunkt `POST /api/servo-driver/init` bleibt für Diagnose und erneute Initialisierung erhalten, ist für den normalen Start aber nicht mehr erforderlich.
+Im aktuellen Bring-up-Stand ist dieser Ablauf für die direkte PCA9685-Ausgabe noch niedriger angesetzt: Beim Boot setzt `main.cpp` das PCA9685-`OE`-Signal zunächst deaktiviert. Direkt nach dem Start des I2C-Busses führt `servoDriver.init()` die technische Treiberinitialisierung aus, schreibt den initialen `JointPwmState` und legt `OE` auf aktiv. Der REST-Endpunkt `POST /api/servo-driver/init` bleibt für Diagnose und erneute Initialisierung erhalten, ist für den normalen Start aber nicht mehr erforderlich.
 
 Wesentlich ist dabei, dass die Software nicht versucht, aus einem unbekannten physischen Zustand eine implizite Korrektur abzuleiten. Nach Reset, Neustart oder Spannungsunterbruch wird deshalb erneut dieselbe Initialisierungsannahme benötigt. Wenn nicht sichergestellt ist, dass sich der Arm wieder in der definierten `Home Position` befindet, darf die normale Ablaufsteuerung fachlich nicht als konsistent betrachtet werden.
 

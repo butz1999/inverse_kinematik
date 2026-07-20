@@ -22,7 +22,7 @@ class RestApiServer
  public:
   RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver, const hardware::Logger &logger);
 
-  void begin();
+  void init();
   void handleClient();
 
  private:

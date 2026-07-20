@@ -133,7 +133,7 @@ void setup()
   // Start logger
   color = hardware::StatusLed::Color::Yellow;
   statusLed.show(color);
-  logger.begin();
+  logger.init();
   // Report success
   logger.println();
   logger.println("[BOOT] Firmware setup reached");
@@ -152,8 +152,8 @@ void setup()
   logger.print(" SCL GPIO");
   logger.println(kI2cSclPin);
   // Start servo driver
-  const auto servo_driver_begin_result = servoDriver.begin();
-  const bool servoDriverInitialized = servo_driver_begin_result.status == hardware::HardwareDriverStatus::Ok;
+  const auto servo_driver_init_result = servoDriver.init();
+  const bool servoDriverInitialized = servo_driver_init_result.status == hardware::HardwareDriverStatus::Ok;
   if (servoDriverInitialized)
   {
     logger.println("[BOOT] PCA9685 servo driver initialized");
@@ -165,7 +165,7 @@ void setup()
   else
   {
     logger.print("[BOOT] PCA9685 servo driver initialization failed: ");
-    logger.println(servo_driver_begin_result.message);
+    logger.println(servo_driver_init_result.message);
     color = hardware::StatusLed::Color::Orange;
     statusLed.show(color);
   }
@@ -207,7 +207,7 @@ void setup()
     color = hardware::StatusLed::Color::Orange;
   }
   // Register REST API
-  restApi.begin();
+  restApi.init();
   logger.println("[BOOT] REST API endpoints registered");
   statusLed.show(color);
 }
