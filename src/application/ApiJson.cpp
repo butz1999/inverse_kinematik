@@ -28,8 +28,8 @@ JointPwmMotionParseResult jointPwmMotionError(ApiResultCode code, const char *fi
 
 TargetPoseParseResult targetPoseError(ApiResultCode code, const char *field_name, const char *message)
 {
-  return TargetPoseParseResult{false, code, field_name, message, common::initialTargetPose(),
-                               common::defaultMotionProfile()};
+  return TargetPoseParseResult{
+      false, code, field_name, message, common::initialTargetPose(), common::defaultMotionProfile()};
 }
 
 bool isMissingOrNonNumeric(JsonVariantConst value)

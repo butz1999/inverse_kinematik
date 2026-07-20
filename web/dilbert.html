@@ -21,14 +21,21 @@
       <h2>Pose</h2>
       <section class="toolbar">
         <label>
-        Motion Profile
-        <select id="motion-profile-type">
-          <option value="smooth_start_stop" selected>Smooth Start/Stop</option>
-          <option value="constant_velocity">Constant Velocity</option>
-          <option value="constant_acceleration">Constant Acceleration</option>
-        </select>
-      </label>
-
+          Motion Profile Type
+          <select id="motion-profile-type">
+            <option value="constant_velocity">Constant Velocity</option>
+            <option value="smooth_start_stop" selected>Smooth Start/Stop</option>
+            <option value="constant_acceleration">Constant Acceleration</option>
+          </select>
+        </label>
+        <label>
+          Velocity [°/s]
+          <input id="motion-profile-velocity" type="number" min="5" max="360" step="5" value="90" />
+        </label>
+        <label>
+          Sample Time [ms]
+          <input id="motion-profile-sample-time" type="number" min="1" max="20" step="1" value="10" />
+        </label>
       </section>
       <form id="pose-form">
         <label>

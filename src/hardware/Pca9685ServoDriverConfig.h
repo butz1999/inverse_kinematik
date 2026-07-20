@@ -24,7 +24,6 @@ struct ServoChannelMap
 struct Pca9685ServoDriverConfig
 {
   uint8_t i2c_address;
-  uint8_t output_enable_pin;
   uint16_t pwm_frequency_hz;
   ServoChannelMap channels;
 };
@@ -46,11 +45,10 @@ struct HardwareDriverResult
   const char *message;
 };
 
-inline Pca9685ServoDriverConfig defaultPca9685ServoDriverConfig(uint8_t output_enable_pin)
+inline Pca9685ServoDriverConfig defaultPca9685ServoDriverConfig()
 {
   return Pca9685ServoDriverConfig{
       kPca9685DefaultI2cAddress,
-      output_enable_pin,
       kDefaultServoPwmFrequencyHz,
       ServoChannelMap{0U, 1U, 2U, 3U, 4U, 5U},
   };
@@ -63,8 +61,14 @@ inline bool isValidPca9685Channel(uint8_t channel)
 
 inline bool isValidChannelMap(const ServoChannelMap &channels)
 {
-  return isValidPca9685Channel(channels.d) && isValidPca9685Channel(channels.s) && isValidPca9685Channel(channels.e) &&
-         isValidPca9685Channel(channels.hp) && isValidPca9685Channel(channels.hr) && isValidPca9685Channel(channels.g);
+  // clang-format off
+  return isValidPca9685Channel(channels.d) &&
+         isValidPca9685Channel(channels.s) &&
+         isValidPca9685Channel(channels.e) &&
+         isValidPca9685Channel(channels.hp) &&
+         isValidPca9685Channel(channels.hr) &&
+         isValidPca9685Channel(channels.g);
+  // clang-format on
 }
 
 const char *toString(HardwareDriverStatus status);

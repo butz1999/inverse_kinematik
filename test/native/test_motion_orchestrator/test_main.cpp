@@ -25,9 +25,9 @@ void test_motion_orchestrator_accepts_reachable_target_and_builds_motion_plan()
 {
   const orchestration::MotionOrchestrator orchestrator(robotics::defaultRobotModel(),
                                                        robotics::defaultRobotModelOffset());
-  const orchestration::MotionRequest request{common::TargetPose{-20.0F, 50.0F, 30.0F, -90.0F, 0.0F, 50.0F},
-                                             common::MotionProfile{common::MotionProfileType::ConstantVelocity, 30.0F,
-                                                                   20U}};
+  const orchestration::MotionRequest request{
+      common::TargetPose{-20.0F, 50.0F, 30.0F, -90.0F, 0.0F, 50.0F},
+      common::MotionProfile{common::MotionProfileType::ConstantVelocity, 30.0F, 20U}};
 
   const auto result = orchestrator.processMotionRequest(request, common::initialJointState());
 
@@ -37,11 +37,11 @@ void test_motion_orchestrator_accepts_reachable_target_and_builds_motion_plan()
   TEST_ASSERT_FLOAT_WITHIN(kTolerance, -20.0F, result.offset_target_pose.x_mm);
   TEST_ASSERT_FLOAT_WITHIN(kTolerance, 155.0F, result.offset_target_pose.y_mm);
   TEST_ASSERT_FLOAT_WITHIN(kTolerance, -47.5F, result.offset_target_pose.z_mm);
-  assertJointStateNear(common::JointState{-2.765F, -22.122F, -74.927F, -82.952F, 0.0F, 50.0F},
-                       result.joint_state);
+  assertJointStateNear(common::JointState{-2.765F, -22.122F, -74.927F, -82.952F, 0.0F, 50.0F}, result.joint_state);
   TEST_ASSERT_TRUE(result.motion_plan.sample_count > 1U);
   assertJointStateNear(common::initialJointState(), result.motion_plan.samples[0].joint_state);
-  assertJointStateNear(result.joint_state, result.motion_plan.samples[result.motion_plan.sample_count - 1U].joint_state);
+  assertJointStateNear(result.joint_state,
+                       result.motion_plan.samples[result.motion_plan.sample_count - 1U].joint_state);
 }
 
 void test_motion_orchestrator_rejects_invalid_target_pose()
@@ -77,9 +77,9 @@ void test_motion_orchestrator_rejects_invalid_motion_profile()
 {
   const orchestration::MotionOrchestrator orchestrator(robotics::defaultRobotModel(),
                                                        robotics::defaultRobotModelOffset());
-  const orchestration::MotionRequest request{common::TargetPose{-20.0F, 50.0F, 30.0F, -90.0F, 0.0F, 50.0F},
-                                             common::MotionProfile{common::MotionProfileType::ConstantVelocity, 0.0F,
-                                                                   20U}};
+  const orchestration::MotionRequest request{
+      common::TargetPose{-20.0F, 50.0F, 30.0F, -90.0F, 0.0F, 50.0F},
+      common::MotionProfile{common::MotionProfileType::ConstantVelocity, 0.0F, 20U}};
 
   const auto result = orchestrator.processMotionRequest(request, common::initialJointState());
 

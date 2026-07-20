@@ -34,8 +34,7 @@ struct MotionProfileGenerationStatus
 
 MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &start_state,
                                                      const common::JointState &target_state,
-                                                     const common::MotionProfile &profile,
-                                                     common::MotionPlan &plan);
+                                                     const common::MotionProfile &profile, common::MotionPlan &plan);
 
 MotionProfileGeneratorResult generateMotionPlan(const common::JointState &start_state,
                                                 const common::JointState &target_state,

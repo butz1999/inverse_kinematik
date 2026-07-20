@@ -8,6 +8,8 @@ const sendPoseButton = document.querySelector("#send-pose-button");
 const sendJointButton = document.querySelector("#send-joint-button");
 const sendButton = document.querySelector("#send-button");
 const motionProfileTypeSelect = document.querySelector("#motion-profile-type");
+const motionProfileVelocityInput = document.querySelector("#motion-profile-velocity");
+const motionProfileSampleTimeInput = document.querySelector("#motion-profile-sample-time");
 const poseHistoryList = document.querySelector("#pose-history");
 const clearButton = document.querySelector("#clear-pose-history-button");
 const poseFields = ["x_mm", "y_mm", "z_mm", "p_deg", "r_deg", "g_pct"];
@@ -140,6 +142,19 @@ function readPoseState() {
   return readNumericState(poseForm, Number.parseFloat);
 }
 
+function readMotionProfileState() {
+  return {
+    type: motionProfileTypeSelect.value,
+    target_velocity_deg_s: Number.parseFloat(motionProfileVelocityInput.value),
+    sample_time_ms: Number.parseInt(motionProfileSampleTimeInput.value, 10),
+  };
+}
+
+function isMotionProfileSendable(profile) {
+  return Number.isFinite(profile.target_velocity_deg_s) && profile.target_velocity_deg_s > 0.0 &&
+         Number.isInteger(profile.sample_time_ms) && profile.sample_time_ms > 0;
+}
+
 function readPwmState() {
   return readNumericState(pwmForm, (value) => Number.parseInt(value, 10));
 }
@@ -218,11 +233,15 @@ async function postJson(path, payload) {
 }
 
 async function sendPoseState(source) {
+  const motionProfile = readMotionProfileState();
+  if (!isMotionProfileSendable(motionProfile)) {
+    setStatus("Send failed: motion profile values must be positive numbers.");
+    return;
+  }
+
   const state = {
     ...readPoseState(),
-    motionProfile: {
-      type: motionProfileTypeSelect.value,
-    },
+    motionProfile,
   };
   sendPoseButton.disabled = true;
   try {

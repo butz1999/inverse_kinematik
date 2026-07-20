@@ -49,12 +49,12 @@ float clampCos(float value)
   return value;
 }
 
-InverseKinematicsResult error(KinematicsStatus status, const char *message)
+InverseKinematicsResult ikErrorResult(KinematicsStatus status, const char *message)
 {
   return InverseKinematicsResult{false, status, common::initialJointState(), message};
 }
 
-InverseKinematicsResult ok(const common::JointState &joint_state)
+InverseKinematicsResult ikOkResult(const common::JointState &joint_state)
 {
   return InverseKinematicsResult{true, KinematicsStatus::Ok, joint_state, "ok"};
 }
@@ -90,8 +90,8 @@ bool isBetterCandidate(const CandidateScore &candidate, const CandidateScore &be
   return candidate.pose_error < best.pose_error - 0.0001F;
 }
 
-bool solveArmPlane(float wrist_radial_mm, float wrist_z_mm, float p_deg, float e_delta_deg,
-                   float d_deg, const OffsetTargetPose &pose, const RobotModel &model, common::JointState &result)
+bool solveArmPlane(float wrist_radial_mm, float wrist_z_mm, float p_deg, float e_delta_deg, float d_deg,
+                   const OffsetTargetPose &pose, const RobotModel &model, common::JointState &result)
 {
   const auto l1 = model.segments.s_e_length_mm;
   const auto l2 = model.segments.e_hp_length_mm;
@@ -159,9 +159,8 @@ ForwardKinematicsResult forwardKinematics(const common::JointState &state, const
   const auto hp_angle_deg = e_angle_deg + state.hp_deg;
 
   const auto d_point = kOrigin;
-  const auto s_point =
-      add(d_point, vectorFromTurntableLocal(offset.d_s_offset_x_mm, offset.d_s_offset_y_mm, offset.d_s_offset_z_mm,
-                                            state.d_deg));
+  const auto s_point = add(d_point, vectorFromTurntableLocal(offset.d_s_offset_x_mm, offset.d_s_offset_y_mm,
+                                                             offset.d_s_offset_z_mm, state.d_deg));
   const auto e_point = add(s_point, segmentVector(model.segments.s_e_length_mm, s_angle_deg, state.d_deg));
   const auto h_point = add(e_point, segmentVector(model.segments.e_hp_length_mm, e_angle_deg, state.d_deg));
   const auto hr_point = add(h_point, hpToHrVector(hp_angle_deg, state.d_deg, offset));
@@ -180,14 +179,14 @@ InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const Ro
 {
   if (!isValidRobotModel(model))
   {
-    return error(KinematicsStatus::InvalidRobotModel, "Robot model is invalid.");
+    return ikErrorResult(KinematicsStatus::InvalidRobotModel, "Robot model is invalid.");
   }
 
   const auto local_side_offset_mm = offset.d_s_offset_x_mm + offset.hp_hr_offset_side_mm;
   const auto target_radial_mm = std::sqrt((pose.x_mm * pose.x_mm) + (pose.y_mm * pose.y_mm));
   if (target_radial_mm + kReachToleranceMm < std::fabs(local_side_offset_mm))
   {
-    return error(KinematicsStatus::UnreachableTarget, "Target cannot align with the sideways shoulder offset.");
+    return ikErrorResult(KinematicsStatus::UnreachableTarget, "Target cannot align with the sideways shoulder offset.");
   }
 
   const auto p_rad = degreesToRadians(pose.p_deg);
@@ -213,13 +212,11 @@ InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const Ro
     const auto hp_hr_local_radial_mm = localRadialForTurntableDeg(
         OffsetTargetPose{hp_hr_vector.x_mm, hp_hr_vector.y_mm, hp_hr_vector.z_mm, pose.p_deg, pose.r_deg, pose.g_pct},
         d_deg);
-    const auto wrist_radial_mm =
-        target_local_radial_mm - offset.d_s_offset_y_mm - hp_hr_local_radial_mm -
-        (model.segments.hr_g_length_mm * std::cos(p_rad));
+    const auto wrist_radial_mm = target_local_radial_mm - offset.d_s_offset_y_mm - hp_hr_local_radial_mm -
+                                 (model.segments.hr_g_length_mm * std::cos(p_rad));
     const auto wrist_z_mm =
         pose.z_mm - offset.d_s_offset_z_mm - hp_hr_vector.z_mm - (model.segments.hr_g_length_mm * std::sin(p_rad));
-    const auto wrist_distance_mm =
-        std::sqrt((wrist_radial_mm * wrist_radial_mm) + (wrist_z_mm * wrist_z_mm));
+    const auto wrist_distance_mm = std::sqrt((wrist_radial_mm * wrist_radial_mm) + (wrist_z_mm * wrist_z_mm));
 
     if (wrist_distance_mm > max_reach_mm + kReachToleranceMm || wrist_distance_mm < min_reach_mm - kReachToleranceMm)
     {
@@ -260,15 +257,15 @@ InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const Ro
 
   if (had_verified_solution)
   {
-    return ok(best_candidate.joint_state);
+    return ikOkResult(best_candidate.joint_state);
   }
 
   if (had_geometric_solution)
   {
-    return error(KinematicsStatus::JointLimitViolation, "Target can only be reached outside joint limits.");
+    return ikErrorResult(KinematicsStatus::JointLimitViolation, "Target can only be reached outside joint limits.");
   }
 
-  return error(KinematicsStatus::UnreachableTarget, "Target wrist position is outside the arm reach.");
+  return ikErrorResult(KinematicsStatus::UnreachableTarget, "Target wrist position is outside the arm reach.");
 }
 
 const char *toString(KinematicsStatus status)

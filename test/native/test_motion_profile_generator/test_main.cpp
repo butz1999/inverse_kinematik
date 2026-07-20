@@ -60,8 +60,7 @@ void test_constant_velocity_motion_plan_adds_final_sample_for_non_aligned_durati
   TEST_ASSERT_EQUAL_UINT32(0U, result.plan.samples[0].time_from_start_ms);
   TEST_ASSERT_EQUAL_UINT32(1000U, result.plan.samples[1].time_from_start_ms);
   TEST_ASSERT_EQUAL_UINT32(1500U, result.plan.samples[2].time_from_start_ms);
-  assertJointStateNear(common::JointState{30.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F},
-                       result.plan.samples[1].joint_state);
+  assertJointStateNear(common::JointState{30.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F}, result.plan.samples[1].joint_state);
   assertJointStateNear(target_state, result.plan.samples[2].joint_state);
 }
 
@@ -77,7 +76,8 @@ void test_motion_plan_for_unchanged_state_contains_single_target_sample()
   TEST_ASSERT_EQUAL_UINT32(0U, result.plan.samples[0].time_from_start_ms);
   assertJointStateNear(state, result.plan.samples[0].joint_state);
   TEST_ASSERT_EQUAL(common::MotionProfileType::SmoothStartStop, result.plan.profile.type);
-  TEST_ASSERT_EQUAL_FLOAT(common::defaultMotionProfile().target_velocity_deg_s, result.plan.profile.target_velocity_deg_s);
+  TEST_ASSERT_EQUAL_FLOAT(common::defaultMotionProfile().target_velocity_deg_s,
+                          result.plan.profile.target_velocity_deg_s);
   TEST_ASSERT_EQUAL_UINT32(common::defaultMotionProfile().sample_time_ms, result.plan.profile.sample_time_ms);
 }
 
@@ -105,12 +105,9 @@ void test_constant_acceleration_motion_plan_eases_start_and_stop()
   TEST_ASSERT_TRUE(result.ok);
   TEST_ASSERT_EQUAL_UINT32(4000U, result.plan.total_duration_ms);
   TEST_ASSERT_EQUAL_UINT32(5U, result.plan.sample_count);
-  assertJointStateNear(common::JointState{12.5F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F},
-                       result.plan.samples[1].joint_state);
-  assertJointStateNear(common::JointState{50.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F},
-                       result.plan.samples[2].joint_state);
-  assertJointStateNear(common::JointState{87.5F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F},
-                       result.plan.samples[3].joint_state);
+  assertJointStateNear(common::JointState{12.5F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F}, result.plan.samples[1].joint_state);
+  assertJointStateNear(common::JointState{50.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F}, result.plan.samples[2].joint_state);
+  assertJointStateNear(common::JointState{87.5F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F}, result.plan.samples[3].joint_state);
 }
 
 void test_smooth_start_stop_motion_plan_uses_s_curve_progress()
@@ -124,8 +121,7 @@ void test_smooth_start_stop_motion_plan_uses_s_curve_progress()
   TEST_ASSERT_TRUE(result.ok);
   assertJointStateNear(common::JointState{10.3515625F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F},
                        result.plan.samples[1].joint_state);
-  assertJointStateNear(common::JointState{50.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F},
-                       result.plan.samples[2].joint_state);
+  assertJointStateNear(common::JointState{50.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F}, result.plan.samples[2].joint_state);
   assertJointStateNear(common::JointState{89.6484375F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F},
                        result.plan.samples[3].joint_state);
 }

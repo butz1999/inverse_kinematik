@@ -6,10 +6,9 @@
 
 void test_default_pca9685_config_uses_documented_address_and_channels()
 {
-  const auto config = hardware::defaultPca9685ServoDriverConfig(6U);
+  const auto config = hardware::defaultPca9685ServoDriverConfig();
 
   TEST_ASSERT_EQUAL_UINT8(0x40U, config.i2c_address);
-  TEST_ASSERT_EQUAL_UINT8(6U, config.output_enable_pin);
   TEST_ASSERT_EQUAL_UINT16(50U, config.pwm_frequency_hz);
   TEST_ASSERT_EQUAL_UINT8(0U, config.channels.d);
   TEST_ASSERT_EQUAL_UINT8(1U, config.channels.s);
@@ -32,7 +31,7 @@ void test_pca9685_channel_validation_rejects_values_above_15()
 
 void test_pca9685_channel_map_rejects_invalid_axis_channel()
 {
-  auto config = hardware::defaultPca9685ServoDriverConfig(6U);
+  auto config = hardware::defaultPca9685ServoDriverConfig();
   config.channels.hr = 16U;
 
   TEST_ASSERT_FALSE(hardware::isValidChannelMap(config.channels));

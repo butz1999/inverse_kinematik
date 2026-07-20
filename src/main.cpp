@@ -10,6 +10,7 @@
 #include "hardware/Pca9685ServoDriver.h"
 #include "hardware/SerialLogger.h"
 #include "hardware/StatusLed.h"
+#include "hardware/Pin.h"
 
 #if __has_include("config/WifiCredentials.h")
 #include "config/WifiCredentials.h"
@@ -32,7 +33,7 @@ constexpr const char *kDebugSerialName = "Serial";
 // I2C bus
 constexpr uint8_t kI2cSdaPin = 4;
 constexpr uint8_t kI2cSclPin = 5;
-// PCA9685
+// PCA9685 Output Enable
 constexpr uint8_t kPca9685OePin = 6;
 // Webserver
 constexpr uint16_t kHttpPort = 80;
@@ -48,21 +49,16 @@ bool isLedOn = true;
 hardware::StatusColor color = hardware::StatusColor::Off;
 
 // Create Components
+hardware::Pin<kPca9685OePin> pinPcaOe;
 hardware::SerialLogger logger(Serial, kSerialBaudrate);
 hardware::StatusLed statusLed(kRgbLedPin, kRgbBrightness);
 WebServer webServer(kHttpPort);
-hardware::Pca9685ServoDriver servoDriver(kPca9685OePin);
+hardware::Pca9685ServoDriver servoDriver;
 application::RestApiServer restApi(webServer, servoDriver, logger);
 
 bool isConfigured(const char *value)
 {
   return value != nullptr && value[0] != '\0';
-}
-
-void disablePca9685Outputs()
-{
-  digitalWrite(kPca9685OePin, HIGH);
-  pinMode(kPca9685OePin, OUTPUT);
 }
 
 bool connectWifi()
@@ -134,7 +130,6 @@ bool startMdns()
 
 void setup()
 {
-  disablePca9685Outputs();
   // Start logger
   color = hardware::StatusLed::Color::Yellow;
   statusLed.show(color);
@@ -145,19 +140,27 @@ void setup()
   logger.print("[BOOT] Debug serial ready on ");
   logger.println(kDebugSerialName);
   logger.println("[BOOT] Status LED configured for GRB order on GPIO38");
+  // Disable PCA OE pin
+  pinPcaOe.mode(OUTPUT);
+  pinPcaOe.disableLow();
+  logger.print("[BOOT] PCA9685 OE disabled active-low on GPIO");
+  logger.println(kPca9685OePin);
   // Start I2C bus
   Wire.begin(kI2cSdaPin, kI2cSclPin);
   logger.print("[BOOT] I2C bus configured: SDA GPIO");
   logger.print(kI2cSdaPin);
   logger.print(" SCL GPIO");
   logger.println(kI2cSclPin);
-  logger.print("[BOOT] PCA9685 OE disabled active-low on GPIO");
-  logger.println(kPca9685OePin);
+  // Start servo driver
   const auto servo_driver_begin_result = servoDriver.begin();
   const bool servoDriverInitialized = servo_driver_begin_result.status == hardware::HardwareDriverStatus::Ok;
   if (servoDriverInitialized)
   {
     logger.println("[BOOT] PCA9685 servo driver initialized");
+    // Enable PCA OE pin
+    pinPcaOe.enableLow();
+    logger.print("[BOOT] PCA9685 OE enabled active-low on GPIO");
+    logger.println(kPca9685OePin);
   }
   else
   {

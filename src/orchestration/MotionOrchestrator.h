@@ -30,14 +30,27 @@ struct MotionRequest
 
 struct MotionResult
 {
-  bool ok{false};
+  bool ok{false};          // The actual result
+  std::string field_name;  // Name of the field the error caused
+  std::string message;     // The message text
   MotionStatus status{MotionStatus::KinematicsFailure};
-  std::string field_name;
-  std::string message;
   common::TargetPose target_pose{common::initialTargetPose()};
-  robotics::OffsetTargetPose offset_target_pose{0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
   common::JointState joint_state{common::initialJointState()};
-  common::MotionPlan motion_plan{common::defaultMotionProfile(), 0U, {}, 0U};
+  // clang-format off
+  common::MotionPlan motion_plan{
+      .profile = common::defaultMotionProfile(),
+      .total_duration_ms = 0U,
+      .sample_count = 0U,
+      .samples = {}};
+  robotics::OffsetTargetPose offset_target_pose{
+      .x_mm =  0.0F,
+      .y_mm =  0.0F,
+      .z_mm =  0.0F,
+      .p_deg = 0.0F,
+      .r_deg = 0.0F,
+      .g_pct = 0.0F
+  };
+  // clang-format on
   robotics::ValidationStatus target_validation_status{robotics::ValidationStatus::Ok};
   robotics::KinematicsStatus kinematics_status{robotics::KinematicsStatus::Ok};
   robotics::ValidationStatus joint_validation_status{robotics::ValidationStatus::Ok};

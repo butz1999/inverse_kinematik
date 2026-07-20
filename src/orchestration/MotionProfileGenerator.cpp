@@ -11,7 +11,7 @@ namespace
 
 common::MotionPlan initialMotionPlan(const common::MotionProfile &profile)
 {
-  return common::MotionPlan{profile, 0U, {}, 0U};
+  return common::MotionPlan{profile, 0U, 0U, {}};
 }
 
 MotionProfileGeneratorResult error(MotionProfileGeneratorStatus status, const common::MotionProfile &profile,
@@ -54,12 +54,10 @@ common::JointState interpolateJointState(const common::JointState &start_state, 
     return start + ((target - start) * progress);
   };
 
-  return common::JointState{interpolate(start_state.d_deg, target_state.d_deg),
-                            interpolate(start_state.s_deg, target_state.s_deg),
-                            interpolate(start_state.e_deg, target_state.e_deg),
-                            interpolate(start_state.hp_deg, target_state.hp_deg),
-                            interpolate(start_state.hr_deg, target_state.hr_deg),
-                            interpolate(start_state.g_pct, target_state.g_pct)};
+  return common::JointState{
+      interpolate(start_state.d_deg, target_state.d_deg),   interpolate(start_state.s_deg, target_state.s_deg),
+      interpolate(start_state.e_deg, target_state.e_deg),   interpolate(start_state.hp_deg, target_state.hp_deg),
+      interpolate(start_state.hr_deg, target_state.hr_deg), interpolate(start_state.g_pct, target_state.g_pct)};
 }
 
 uint32_t durationMsForConstantVelocity(float max_delta, float target_velocity_deg_s)
@@ -115,8 +113,7 @@ std::size_t sampleCountForDuration(uint32_t total_duration_ms, uint32_t sample_t
 
 MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &start_state,
                                                      const common::JointState &target_state,
-                                                     const common::MotionProfile &profile,
-                                                     common::MotionPlan &plan)
+                                                     const common::MotionProfile &profile, common::MotionPlan &plan)
 {
   plan.profile = profile;
   plan.total_duration_ms = 0U;
@@ -133,12 +130,11 @@ MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &s
       profile.type != common::MotionProfileType::ConstantAcceleration &&
       profile.type != common::MotionProfileType::SmoothStartStop)
   {
-    return generationError(MotionProfileGeneratorStatus::UnsupportedProfile,
-                           "Motion profile type is not implemented.");
+    return generationError(MotionProfileGeneratorStatus::UnsupportedProfile, "Motion profile type is not implemented.");
   }
 
-  const auto total_duration_ms = durationMsForConstantVelocity(maxJointDelta(start_state, target_state),
-                                                               profile.target_velocity_deg_s);
+  const auto total_duration_ms =
+      durationMsForConstantVelocity(maxJointDelta(start_state, target_state), profile.target_velocity_deg_s);
   const auto sample_count = sampleCountForDuration(total_duration_ms, profile.sample_time_ms);
   if (sample_count > common::kMaxMotionPlanSamples)
   {
@@ -158,8 +154,8 @@ MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &s
 
     const auto u = total_duration_ms == 0U ? 1.0F : static_cast<float>(time_from_start_ms) / total_duration_ms;
     const auto progress = progressForProfile(profile.type, u);
-    plan.samples[i] = common::TimedJointState{interpolateJointState(start_state, target_state, progress),
-                                              time_from_start_ms};
+    plan.samples[i] =
+        common::TimedJointState{interpolateJointState(start_state, target_state, progress), time_from_start_ms};
   }
 
   return generationOk();

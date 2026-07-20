@@ -13,7 +13,7 @@ namespace hardware
 class Pca9685ServoDriver
 {
  public:
-  explicit Pca9685ServoDriver(uint8_t output_enable_pin);
+  explicit Pca9685ServoDriver();
   explicit Pca9685ServoDriver(const Pca9685ServoDriverConfig &config);
 
   HardwareDriverResult begin();

@@ -27,8 +27,15 @@ inline TargetPose initialTargetPose()
 
 inline bool isFinite(const TargetPose &pose)
 {
-  return std::isfinite(pose.x_mm) && std::isfinite(pose.y_mm) && std::isfinite(pose.z_mm) &&
-         std::isfinite(pose.p_deg) && std::isfinite(pose.r_deg) && std::isfinite(pose.g_pct);
+  // clang-format off
+  return 
+    std::isfinite(pose.x_mm) &&
+    std::isfinite(pose.y_mm) &&
+    std::isfinite(pose.z_mm) &&
+    std::isfinite(pose.p_deg) &&
+    std::isfinite(pose.r_deg) &&
+    std::isfinite(pose.g_pct);
+  // clang-format on
 }
 
 inline bool isWithinTargetGripperLimits(const TargetPose &pose)

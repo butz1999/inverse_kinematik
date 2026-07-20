@@ -12,7 +12,7 @@ namespace
 
 constexpr const char *kEmptyField = "";
 
-HardwareCalibrationResult ok(common::JointPwmState state)
+HardwareCalibrationResult calibrationOk(common::JointPwmState state)
 {
   return HardwareCalibrationResult{true, HardwareCalibrationStatus::Ok, kEmptyField, "ok", state};
 }
@@ -100,7 +100,7 @@ HardwareCalibration defaultHardwareCalibration()
   // clang-format off
   return HardwareCalibration{
       // Axis calibration:
-      ServoAxisCalibration{ -90.0F,  90.0F, 530U,  90U}, // d
+      ServoAxisCalibration{ -90.0F,  90.0F, 530U, 100U}, // d
       ServoAxisCalibration{ -90.0F,  90.0F, 490U,  80U}, // s
       ServoAxisCalibration{ -90.0F,  90.0F,  90U, 500U}, // e
       ServoAxisCalibration{ -90.0F,   0.0F, 110U, 320U}, // hp
@@ -145,7 +145,7 @@ HardwareCalibrationResult mapJointStateToPwm(const common::JointState &state, co
     return invalidCalibration("g", "Gripper calibration is invalid.");
   }
 
-  return ok(common::JointPwmState{
+  return calibrationOk(common::JointPwmState{
       mapAxisValueToPwm(state.d_deg, calibration.d),
       mapAxisValueToPwm(state.s_deg, calibration.s),
       mapAxisValueToPwm(state.e_deg, calibration.e),

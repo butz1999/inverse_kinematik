@@ -37,8 +37,8 @@ struct MotionPlan
 {
   MotionProfile profile;
   uint32_t total_duration_ms;
-  std::array<TimedJointState, kMaxMotionPlanSamples> samples;
   std::size_t sample_count;
+  std::array<TimedJointState, kMaxMotionPlanSamples> samples;
 };
 
 inline MotionProfile defaultMotionProfile()

@@ -41,6 +41,7 @@ RobotModelOffset defaultRobotModelOffset()
 
 bool isValidRobotModel(const RobotModel &model)
 {
+  // clang-format off
   return isPositiveFinite(model.segments.s_e_length_mm) &&
          isPositiveFinite(model.segments.e_hp_length_mm) &&
          isPositiveFinite(model.segments.hr_g_length_mm) &&
@@ -48,6 +49,7 @@ bool isValidRobotModel(const RobotModel &model)
          std::isfinite(model.workspace.max_z_mm) &&
          model.workspace.min_z_mm <= model.workspace.max_z_mm &&
          isPositiveFinite(model.workspace.max_reach_mm);
+  // clang-format on
 }
 
 float maxReachFromSegments(const SegmentLengths &segments)

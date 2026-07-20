@@ -53,8 +53,7 @@ void assertJointStateNear(const common::JointState &expected, const common::Join
 
 robotics::OffsetTargetPose offsetPoseFromForwardKinematics(const robotics::ForwardKinematicsResult &fk)
 {
-  return robotics::OffsetTargetPose{fk.g_mm.x_mm, fk.g_mm.y_mm, fk.g_mm.z_mm,
-                                    fk.p_deg,     fk.r_deg,     fk.g_pct};
+  return robotics::OffsetTargetPose{fk.g_mm.x_mm, fk.g_mm.y_mm, fk.g_mm.z_mm, fk.p_deg, fk.r_deg, fk.g_pct};
 }
 
 }  // namespace
@@ -300,9 +299,9 @@ void test_inverse_kinematics_moves_default_pose_pitch_to_zero_and_back()
   const auto default_result = robotics::inverseKinematics(default_offset_pose, model, offset);
   TEST_ASSERT_TRUE(default_result.ok);
   TEST_ASSERT_FLOAT_WITHIN(kTolerance, -90.0F, default_offset_pose.p_deg);
-  TEST_ASSERT_FLOAT_WITHIN(kTolerance, -90.0F, default_result.joint_state.s_deg +
-                                         default_result.joint_state.e_deg +
-                                         default_result.joint_state.hp_deg + 90.0F);
+  TEST_ASSERT_FLOAT_WITHIN(
+      kTolerance, -90.0F,
+      default_result.joint_state.s_deg + default_result.joint_state.e_deg + default_result.joint_state.hp_deg + 90.0F);
 
   TEST_ASSERT_FLOAT_WITHIN(kTolerance, 0.0F, pitch_zero_offset_pose.p_deg);
   const auto pitch_zero_result = robotics::inverseKinematics(pitch_zero_offset_pose, model, offset);
@@ -383,7 +382,7 @@ void test_inverse_kinematics_round_trips_forward_pose_with_real_offsets()
   const common::JointState original_state{-30.0F, -45.0F, 50.0F, -70.0F, 20.0F, 35.0F};
   const auto target = robotics::forwardKinematics(original_state, model, offset);
   const robotics::OffsetTargetPose pose{target.g_mm.x_mm, target.g_mm.y_mm, target.g_mm.z_mm,
-                                        target.p_deg,    target.r_deg,    target.g_pct};
+                                        target.p_deg,     target.r_deg,     target.g_pct};
 
   const auto result = robotics::inverseKinematics(pose, model, offset);
 

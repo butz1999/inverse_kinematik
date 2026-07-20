@@ -22,7 +22,7 @@ void test_default_calibration_maps_values_linearly_between_axis_limits()
 
   TEST_ASSERT_TRUE(result.ok);
   TEST_ASSERT_EQUAL(hardware::HardwareCalibrationStatus::Ok, result.status);
-  TEST_ASSERT_EQUAL_UINT16(310U, result.joint_pwm_state.d_pwm);
+  TEST_ASSERT_EQUAL_UINT16(315U, result.joint_pwm_state.d_pwm);
   TEST_ASSERT_EQUAL_UINT16(285U, result.joint_pwm_state.s_pwm);
   TEST_ASSERT_EQUAL_UINT16(295U, result.joint_pwm_state.e_pwm);
   TEST_ASSERT_EQUAL_UINT16(320U, result.joint_pwm_state.hp_pwm);

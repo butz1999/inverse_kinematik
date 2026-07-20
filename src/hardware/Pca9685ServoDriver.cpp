@@ -13,7 +13,7 @@ namespace hardware
 namespace
 {
 
-constexpr HardwareDriverResult ok()
+constexpr HardwareDriverResult hwDriverOk()
 {
   return HardwareDriverResult{HardwareDriverStatus::Ok, "ok"};
 }
@@ -49,8 +49,7 @@ constexpr uint8_t kPca9685ServoMode2 = MODE2_OUTDRV | MODE2_OUTNE_1;
 
 }  // namespace
 
-Pca9685ServoDriver::Pca9685ServoDriver(uint8_t output_enable_pin)
-    : Pca9685ServoDriver(defaultPca9685ServoDriverConfig(output_enable_pin))
+Pca9685ServoDriver::Pca9685ServoDriver() : Pca9685ServoDriver(defaultPca9685ServoDriverConfig())
 {
 }
 
@@ -96,9 +95,7 @@ HardwareDriverResult Pca9685ServoDriver::begin()
   }
 
   initialized_ = true;
-  digitalWrite(config_.output_enable_pin, LOW);
-  pinMode(config_.output_enable_pin, OUTPUT);
-  return ok();
+  return hwDriverOk();
 }
 
 HardwareDriverResult Pca9685ServoDriver::init()
@@ -152,7 +149,7 @@ HardwareDriverResult Pca9685ServoDriver::softwareReset()
   }
 
   delay(1);
-  return ok();
+  return hwDriverOk();
 }
 
 HardwareDriverResult Pca9685ServoDriver::configureMode2ForServoOutputs()
@@ -162,7 +159,7 @@ HardwareDriverResult Pca9685ServoDriver::configureMode2ForServoOutputs()
     return driverConfigurationFailed();
   }
 
-  return ok();
+  return hwDriverOk();
 }
 
 bool Pca9685ServoDriver::writeRegister(uint8_t register_address, uint8_t value) const
@@ -214,7 +211,7 @@ HardwareDriverResult Pca9685ServoDriver::writeChannels(const common::JointPwmSta
   }
 
   current_pwm_state_ = state;
-  return ok();
+  return hwDriverOk();
 }
 
 HardwareDriverResult Pca9685ServoDriver::writeChannel(uint8_t channel, uint16_t pwm_value)
@@ -230,7 +227,7 @@ HardwareDriverResult Pca9685ServoDriver::writeChannel(uint8_t channel, uint16_t 
   }
 
   pwm_driver_.setPWM(channel, 0U, pwm_value);
-  return ok();
+  return hwDriverOk();
 }
 
 }  // namespace hardware

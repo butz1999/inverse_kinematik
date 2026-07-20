@@ -42,8 +42,8 @@ void resetResult(const MotionRequest &request, MotionResult &result)
   result.motion_profile_status = MotionProfileGeneratorStatus::Ok;
 }
 
-void rejectInto(const MotionRequest &request, MotionResult &result, MotionStatus status,
-                const std::string &field_name, const std::string &message)
+void rejectInto(const MotionRequest &request, MotionResult &result, MotionStatus status, const std::string &field_name,
+                const std::string &message)
 {
   resetResult(request, result);
   result.status = status;
