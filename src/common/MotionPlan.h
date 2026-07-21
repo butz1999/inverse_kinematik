@@ -4,7 +4,7 @@
 
 #include <array>
 
-#include "MotionProfile.h" 
+#include "MotionProfile.h"
 
 namespace common
 {
@@ -20,12 +20,12 @@ constexpr std::size_t kMaxMotionPlanSamples = 1024U;
 
 struct MotionPlan
 {
-  MotionProfile profile;          // Motion profile for the movement
-  uint32_t total_duration_ms;     // Duration of the movement
-  std::size_t sample_count;       // Number of interpolation points
-  uint32_t calculation_time_us;   // Calculation time for the motion plan
+  MotionProfile profile;         // Motion profile for the movement
+  uint32_t total_duration_ms;    // Duration of the movement
+  std::size_t sample_count;      // Number of interpolation points
+  uint32_t calculation_time_us;  // Calculation time for the motion plan
   // Sample list. Carefull! kMaxMotionPlanSamples is big so the samples array is HUGE!
   std::array<TimedJointState, kMaxMotionPlanSamples> samples;
 };
 
-} // namespace common
+}  // namespace common

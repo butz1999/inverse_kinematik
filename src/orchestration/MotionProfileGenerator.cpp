@@ -4,6 +4,8 @@
 #include <chrono>
 #include <cmath>
 
+#include "common/Utilities.h"
+
 namespace orchestration
 {
 
@@ -119,22 +121,6 @@ std::size_t sampleCountForDuration(uint32_t total_duration_ms, uint32_t sample_t
   return static_cast<std::size_t>(intermediate_samples + 2U);
 }
 
-// ToDo: currentMilis() in common::utils verschieben
-uint32_t currentMillis()
-{
-  using clock = std::chrono::steady_clock;
-  return static_cast<uint32_t>(
-      std::chrono::duration_cast<std::chrono::milliseconds>(clock::now().time_since_epoch()).count());
-}
-
-// ToDo: currentMicros() in common::utils verschieben
-uint32_t currentMicros()
-{
-  using clock = std::chrono::steady_clock;
-  return static_cast<uint32_t>(
-      std::chrono::duration_cast<std::chrono::microseconds>(clock::now().time_since_epoch()).count());
-}
-
 }  // namespace
 
 MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &start_state,
@@ -144,6 +130,7 @@ MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &s
   plan.profile = profile;
   plan.total_duration_ms = 0U;
   plan.sample_count = 0U;
+  plan.calculation_time_us = 0U;
 
   if (!common::isFinite(start_state) || !common::isFinite(target_state) ||
       !std::isfinite(profile.target_velocity_deg_s) || profile.target_velocity_deg_s <= 0.0F ||
@@ -171,7 +158,7 @@ MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &s
   plan.total_duration_ms = total_duration_ms;
   plan.sample_count = sample_count;
 
-  const auto start_us = currentMicros();
+  const auto start_us = common::utils::ticks::currentMicros();
 
   for (std::size_t i = 0; i < sample_count; ++i)
   {
@@ -187,7 +174,7 @@ MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &s
         common::TimedJointState{interpolateJointState(start_state, target_state, progress), time_from_start_ms};
   }
 
-  plan.calculation_time_us = currentMicros() - start_us;
+  plan.calculation_time_us = common::utils::ticks::currentMicros() - start_us;
 
   return generationOk();
 }
