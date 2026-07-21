@@ -85,6 +85,7 @@ void setMotionPlanSummaryJson(JsonObject object, const common::MotionPlan &plan)
   object["sampleCount"] = plan.sample_count;
   object["sampleTimeMs"] = plan.profile.sample_time_ms;
   object["targetVelocityDegS"] = serialized(String(plan.profile.target_velocity_deg_s, 3));
+  object["calculationTimeUs"] = plan.calculation_time_us;
 }
 
 void setHardwareDriverResultJson(JsonObject object, const hardware::HardwareDriverResult &result)
@@ -586,6 +587,7 @@ void RestApiServer::handleMotionRequest()
     return;
   }
 
+  // ToDo: Why do we need to instanciate the orchestrator? Consider dependency injection.
   const orchestration::MotionOrchestrator orchestrator(robotics::defaultRobotModel(),
                                                        robotics::defaultRobotModelOffset());
   const orchestration::MotionRequest motion_request{parsed.target_pose, parsed.motion_profile};

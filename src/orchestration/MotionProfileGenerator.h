@@ -4,6 +4,7 @@
 
 #include <string>
 
+#include "common/MotionPlan.h"
 #include "common/MotionProfile.h"
 
 namespace orchestration

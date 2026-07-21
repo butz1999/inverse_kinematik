@@ -1,6 +1,7 @@
 #include "orchestration/MotionProfileGenerator.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 namespace orchestration
@@ -118,6 +119,22 @@ std::size_t sampleCountForDuration(uint32_t total_duration_ms, uint32_t sample_t
   return static_cast<std::size_t>(intermediate_samples + 2U);
 }
 
+// ToDo: currentMilis() in common::utils verschieben
+uint32_t currentMillis()
+{
+  using clock = std::chrono::steady_clock;
+  return static_cast<uint32_t>(
+      std::chrono::duration_cast<std::chrono::milliseconds>(clock::now().time_since_epoch()).count());
+}
+
+// ToDo: currentMicros() in common::utils verschieben
+uint32_t currentMicros()
+{
+  using clock = std::chrono::steady_clock;
+  return static_cast<uint32_t>(
+      std::chrono::duration_cast<std::chrono::microseconds>(clock::now().time_since_epoch()).count());
+}
+
 }  // namespace
 
 MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &start_state,
@@ -154,6 +171,8 @@ MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &s
   plan.total_duration_ms = total_duration_ms;
   plan.sample_count = sample_count;
 
+  const auto start_us = currentMicros();
+
   for (std::size_t i = 0; i < sample_count; ++i)
   {
     auto time_from_start_ms = static_cast<uint32_t>(i) * profile.sample_time_ms;
@@ -167,6 +186,8 @@ MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &s
     plan.samples[i] =
         common::TimedJointState{interpolateJointState(start_state, target_state, progress), time_from_start_ms};
   }
+
+  plan.calculation_time_us = currentMicros() - start_us;
 
   return generationOk();
 }
