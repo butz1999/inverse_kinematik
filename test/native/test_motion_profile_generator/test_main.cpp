@@ -119,6 +119,21 @@ void test_smooth_start_stop_motion_plan_uses_s_curve_progress()
   const auto result = orchestration::generateMotionPlan(start_state, target_state, profile);
 
   TEST_ASSERT_TRUE(result.ok);
+  assertJointStateNear(common::JointState{15.625F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F}, result.plan.samples[1].joint_state);
+  assertJointStateNear(common::JointState{50.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F}, result.plan.samples[2].joint_state);
+  assertJointStateNear(common::JointState{84.375F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F}, result.plan.samples[3].joint_state);
+}
+
+void test_fast_start_stop_motion_plan_uses_fast_s_curve_progress()
+{
+  const common::JointState start_state{0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
+  const common::JointState target_state{100.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
+  const common::MotionProfile profile{common::MotionProfileType::FastStartStop, 25.0F, 1000U};
+
+  const auto result = orchestration::generateMotionPlan(start_state, target_state, profile);
+
+  TEST_ASSERT_TRUE(result.ok);
+  TEST_ASSERT_EQUAL_STRING("fast_start_stop", common::toString(result.plan.profile.type));
   assertJointStateNear(common::JointState{10.3515625F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F},
                        result.plan.samples[1].joint_state);
   assertJointStateNear(common::JointState{50.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F}, result.plan.samples[2].joint_state);
@@ -172,6 +187,7 @@ int main(int argc, char **argv)
   RUN_TEST(test_default_motion_profile_covers_full_joint_range_at_fine_sample_time);
   RUN_TEST(test_constant_acceleration_motion_plan_eases_start_and_stop);
   RUN_TEST(test_smooth_start_stop_motion_plan_uses_s_curve_progress);
+  RUN_TEST(test_fast_start_stop_motion_plan_uses_fast_s_curve_progress);
   RUN_TEST(test_motion_profile_generator_rejects_invalid_profile);
   RUN_TEST(test_motion_profile_generator_rejects_unsupported_profile_type);
   RUN_TEST(test_motion_profile_generator_rejects_plans_that_exceed_sample_limit);

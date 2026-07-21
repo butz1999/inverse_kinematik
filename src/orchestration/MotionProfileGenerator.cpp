@@ -84,14 +84,23 @@ float progressForProfile(common::MotionProfileType type, float u)
   switch (type)
   {
     case common::MotionProfileType::ConstantVelocity:
+      // f(u) = u  (see doc/sw/profile_calculation.md)
       return u;
     case common::MotionProfileType::ConstantAcceleration:
+      // f(u) =
+      //     2 * u^2                 for: 0 <= u < 0.5
+      //     1 - 2 * (1 - u)^2       for: 0.5 <= u <= 1
+      // (see doc/sw/profile_calculation.md)
       if (u < 0.5F)
       {
         return 2.0F * u * u;
       }
       return 1.0F - (2.0F * (1.0F - u) * (1.0F - u));
     case common::MotionProfileType::SmoothStartStop:
+      // f(u) = 3 * u^2 - 2 * u^3
+      return (3.0F * u * u) - (2.0F * u * u * u);
+    case common::MotionProfileType::FastStartStop:
+      // f(u) = 10 * u^3 - 15 * u^4 + 6 * u^5
       return (10.0F * u * u * u) - (15.0F * u * u * u * u) + (6.0F * u * u * u * u * u);
   }
 
@@ -128,7 +137,8 @@ MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &s
 
   if (profile.type != common::MotionProfileType::ConstantVelocity &&
       profile.type != common::MotionProfileType::ConstantAcceleration &&
-      profile.type != common::MotionProfileType::SmoothStartStop)
+      profile.type != common::MotionProfileType::SmoothStartStop &&
+      profile.type != common::MotionProfileType::FastStartStop)
   {
     return generationError(MotionProfileGeneratorStatus::UnsupportedProfile, "Motion profile type is not implemented.");
   }

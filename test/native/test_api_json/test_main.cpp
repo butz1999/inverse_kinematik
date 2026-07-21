@@ -111,6 +111,17 @@ void test_parse_target_pose_accepts_motion_profile_options()
   TEST_ASSERT_EQUAL_UINT32(40U, result.motion_profile.sample_time_ms);
 }
 
+void test_parse_target_pose_accepts_fast_start_stop_motion_profile()
+{
+  const auto result = application::parseTargetPoseRequestJson(
+      "{\"x_mm\":1,\"y_mm\":2,\"z_mm\":3,\"p_deg\":4,\"r_deg\":5,\"g_pct\":6,"
+      "\"motionProfile\":{\"type\":\"fast_start_stop\"}}");
+
+  TEST_ASSERT_TRUE(result.ok);
+  TEST_ASSERT_EQUAL(application::ApiResultCode::Ok, result.code);
+  TEST_ASSERT_EQUAL(common::MotionProfileType::FastStartStop, result.motion_profile.type);
+}
+
 void test_parse_target_pose_rejects_unknown_motion_profile_type()
 {
   const auto result = application::parseTargetPoseRequestJson(
@@ -155,6 +166,7 @@ int main(int argc, char **argv)
   RUN_TEST(test_parse_joint_pwm_motion_rejects_pwm_limit_violation);
   RUN_TEST(test_parse_target_pose_accepts_valid_json);
   RUN_TEST(test_parse_target_pose_accepts_motion_profile_options);
+  RUN_TEST(test_parse_target_pose_accepts_fast_start_stop_motion_profile);
   RUN_TEST(test_parse_target_pose_rejects_unknown_motion_profile_type);
   RUN_TEST(test_parse_target_pose_rejects_missing_field);
   RUN_TEST(test_parse_target_pose_rejects_gripper_limit_violation);

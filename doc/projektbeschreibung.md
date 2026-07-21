@@ -67,12 +67,13 @@ Abschließend wird der Gelenkraum definiert. Die Rotationsachsen werden in [°] 
 
 ### Beschreibung des realen Roboterarms
 
-Die mechanische Konstruktion des Arms weist folgende Abweichungen vom idealen Modell auf:
-* Die Schulter besitzt einen festen Offset nach vorne (positive y-Achse)
-* Pitch und Roll haben einen festen Offset zueinander.
-* Roll und das Zentrum des Greifers haben einen festen Offset (Achsen) zueinander.
-
-Weitere Offsets werden im aktuellen Modell zunächst vernachlässigt.
+> [!WARNING] Muss noch überarbeitet werden.
+> Die mechanische Konstruktion des Arms weist folgende Abweichungen vom idealen Modell auf:
+> * Die Schulter besitzt einen festen Offset nach vorne (positive y-Achse)
+> * Pitch und Roll haben einen festen Offset zueinander.
+> * Roll und das Zentrum des Greifers haben einen festen Offset (Achsen) zueinander.
+> 
+> Weitere Offsets werden im aktuellen Modell zunächst vernachlässigt.
 
 ### Servo-Kalibration
 

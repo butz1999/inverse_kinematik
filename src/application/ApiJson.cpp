@@ -54,14 +54,19 @@ bool parseMotionProfileType(const char *value, common::MotionProfileType &type)
     type = common::MotionProfileType::ConstantVelocity;
     return true;
   }
+  if (std::strcmp(value, "smooth_start_stop") == 0)
+  {
+    type = common::MotionProfileType::SmoothStartStop;
+    return true;
+  }
   if (std::strcmp(value, "constant_acceleration") == 0)
   {
     type = common::MotionProfileType::ConstantAcceleration;
     return true;
   }
-  if (std::strcmp(value, "smooth_start_stop") == 0)
+  if (std::strcmp(value, "fast_start_stop") == 0)
   {
-    type = common::MotionProfileType::SmoothStartStop;
+    type = common::MotionProfileType::FastStartStop;
     return true;
   }
 
@@ -217,8 +222,8 @@ TargetPoseParseResult parseTargetPoseRequestJson(const char *body)
           !parseMotionProfileType(profile_object["type"].as<const char *>(), profile.type))
       {
         return targetPoseError(ApiResultCode::InvalidTargetPose, "motionProfile.type",
-                               "Motion profile type must be constant_velocity, constant_acceleration or "
-                               "smooth_start_stop.");
+                               "Motion profile type must be constant_velocity, constant_acceleration, "
+                               "smooth_start_stop or fast_start_stop.");
       }
     }
 

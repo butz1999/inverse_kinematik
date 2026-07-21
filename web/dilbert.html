@@ -25,6 +25,7 @@
           <select id="motion-profile-type">
             <option value="constant_velocity">Constant Velocity</option>
             <option value="smooth_start_stop" selected>Smooth Start/Stop</option>
+            <option value="fast_start_stop">Fast Start/Stop</option>
             <option value="constant_acceleration">Constant Acceleration</option>
           </select>
         </label>
@@ -34,7 +35,7 @@
         </label>
         <label>
           Sample Time [ms]
-          <input id="motion-profile-sample-time" type="number" min="1" max="20" step="1" value="10" />
+          <input id="motion-profile-sample-time" type="number" min="5" max="100" step="1" value="10" />
         </label>
       </section>
       <form id="pose-form">

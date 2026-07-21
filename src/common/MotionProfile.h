@@ -14,8 +14,9 @@ namespace common
 enum class MotionProfileType
 {
   ConstantVelocity,
-  ConstantAcceleration,
   SmoothStartStop,
+  FastStartStop,
+  ConstantAcceleration,
 };
 
 struct MotionProfile
@@ -31,7 +32,8 @@ struct TimedJointState
   uint32_t time_from_start_ms;
 };
 
-constexpr std::size_t kMaxMotionPlanSamples = 512U;
+// ToDo: Reduce if memory limit is reached
+constexpr std::size_t kMaxMotionPlanSamples = 1024U;
 
 struct MotionPlan
 {
@@ -56,6 +58,8 @@ inline const char *toString(MotionProfileType type)
       return "constant_acceleration";
     case MotionProfileType::SmoothStartStop:
       return "smooth_start_stop";
+    case MotionProfileType::FastStartStop:
+      return "fast_start_stop";
   }
 
   return "constant_velocity";
