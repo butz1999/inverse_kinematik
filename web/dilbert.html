@@ -40,6 +40,10 @@
       </section>
       <form id="pose-form">
         <label>
+          Name
+          <input name="name" type="text" maxlength="48" placeholder="Pose name" />
+        </label>
+        <label>
           x [mm]
           <input name="x_mm" type="number" min="-260" max="260" step="10" value="-20" />
         </label>
@@ -71,7 +75,10 @@
       <h2>Pose History</h2>
       <ol id="pose-history" class="pose-history"></ol>
       <section class="toolbar">
+        <button id="load-pose-history-button" type="button">Load JSON</button>
+        <button id="save-pose-history-button" type="button">Save JSON</button>
         <button id="clear-pose-history-button" type="button">Clear</button>
+        <input id="pose-history-file" class="visually-hidden" type="file" accept="application/json,.json" />
       </section>
 
       <h2>Joint Position</h2>

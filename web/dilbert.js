@@ -12,7 +12,12 @@ const motionProfileVelocityInput = document.querySelector("#motion-profile-veloc
 const motionProfileSampleTimeInput = document.querySelector("#motion-profile-sample-time");
 const poseHistoryList = document.querySelector("#pose-history");
 const clearButton = document.querySelector("#clear-pose-history-button");
+const loadPoseHistoryButton = document.querySelector("#load-pose-history-button");
+const savePoseHistoryButton = document.querySelector("#save-pose-history-button");
+const poseHistoryFileInput = document.querySelector("#pose-history-file");
 const poseFields = ["x_mm", "y_mm", "z_mm", "p_deg", "r_deg", "g_pct"];
+const maxPoseHistoryEntries = 10;
+const poseHistoryFileVersion = 1;
 const poseHistoryStorageKey = "dilbert.poseHistory.v1";
 const committedFormStateSyncers = [];
 let poseHistory = loadPoseHistory();
@@ -30,6 +35,10 @@ function roundedNumber(value) {
   return Number.parseFloat(Number(value).toFixed(3));
 }
 
+function normalizePoseName(name) {
+  return String(name ?? "").trim().slice(0, 48);
+}
+
 function normalizePose(pose) {
   const normalized = {};
   for (const field of poseFields) {
@@ -38,31 +47,119 @@ function normalizePose(pose) {
   return normalized;
 }
 
+function isValidPose(pose) {
+  return poseFields.every((field) => Number.isFinite(Number(pose?.[field])));
+}
+
 function poseKey(pose) {
   return poseFields.map((field) => String(roundedNumber(pose[field]))).join("|");
+}
+
+function poseFromEntry(entry) {
+  return entry?.pose ?? entry;
+}
+
+function normalizePoseHistoryEntry(entry) {
+  const pose = poseFromEntry(entry);
+  if (!isValidPose(pose)) {
+    return null;
+  }
+
+  return {
+    name: normalizePoseName(entry?.name),
+    pose: normalizePose(pose),
+  };
+}
+
+function poseHistoryEntryKey(entry) {
+  return poseKey(entry.pose);
+}
+
+function normalizePoseHistory(poses) {
+  if (!Array.isArray(poses)) {
+    return [];
+  }
+
+  const normalized = [];
+  const seenKeys = new Set();
+  for (const entry of poses) {
+    const normalizedEntry = normalizePoseHistoryEntry(entry);
+    if (!normalizedEntry) {
+      continue;
+    }
+
+    const key = poseHistoryEntryKey(normalizedEntry);
+    if (seenKeys.has(key)) {
+      continue;
+    }
+
+    normalized.push(normalizedEntry);
+    seenKeys.add(key);
+    if (normalized.length >= maxPoseHistoryEntries) {
+      break;
+    }
+  }
+
+  return normalized;
+}
+
+function poseHistoryDocument() {
+  return {
+    version: poseHistoryFileVersion,
+    poses: poseHistory,
+  };
+}
+
+function parsePoseHistoryDocument(document) {
+  if (Array.isArray(document)) {
+    return normalizePoseHistory(document);
+  }
+
+  if (!document || document.version !== poseHistoryFileVersion) {
+    throw new Error(`Unsupported pose history file version: ${document?.version ?? "missing"}`);
+  }
+
+  return normalizePoseHistory(document.poses);
 }
 
 function loadPoseHistory() {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(poseHistoryStorageKey) || "[]");
-    return Array.isArray(parsed) ? parsed.slice(0, 10).map(normalizePose) : [];
+    return parsePoseHistoryDocument(parsed);
   } catch {
     return [];
   }
 }
 
 function savePoseHistory() {
-  window.localStorage.setItem(poseHistoryStorageKey, JSON.stringify(poseHistory));
+  window.localStorage.setItem(poseHistoryStorageKey, JSON.stringify(poseHistoryDocument()));
+}
+
+function setPoseHistory(nextPoseHistory) {
+  poseHistory = normalizePoseHistory(nextPoseHistory);
+  savePoseHistory();
+  renderPoseHistory();
 }
 
 function formatPose(pose) {
   return `x ${pose.x_mm}, y ${pose.y_mm}, z ${pose.z_mm}, p ${pose.p_deg}, r ${pose.r_deg}, g ${pose.g_pct}`;
 }
 
+function readPoseName() {
+  return normalizePoseName(poseForm.elements.namedItem("name")?.value);
+}
+
+function poseHistoryEntryFromPose(pose, name = readPoseName()) {
+  return {
+    name: normalizePoseName(name),
+    pose: normalizePose(pose),
+  };
+}
+
 function renderPoseHistory() {
   poseHistoryList.replaceChildren();
 
-  for (const pose of poseHistory) {
+  for (const entry of poseHistory) {
     const item = document.createElement("li");
     const row = document.createElement("div");
     row.className = "pose-history-row";
@@ -70,13 +167,19 @@ function renderPoseHistory() {
     // Button to repeat pose
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = formatPose(pose);
+    const name = document.createElement("span");
+    name.className = "pose-history-name";
+    name.textContent = entry.name || "Unnamed pose";
+    const values = document.createElement("span");
+    values.className = "pose-history-values";
+    values.textContent = formatPose(entry.pose);
+    button.append(name, values);
     button.addEventListener("click", () => {
-      updatePoseForm(pose);
-      setStatus("Pose loaded from history.", pose);
+      updatePoseForm(entry);
+      setStatus("Pose loaded from history.", entry);
     });
     button.addEventListener("dblclick", async () => {
-      updatePoseForm(pose);
+      updatePoseForm(entry);
       try {
         await sendPoseState("Sending history");
       } catch (error) {
@@ -89,8 +192,8 @@ function renderPoseHistory() {
     deleteButton.type = "button";
     deleteButton.textContent = "🗑️";
     deleteButton.addEventListener("click", () => {
-      deletePoseHistoryEntry(pose);
-      setStatus("Pose deleted from history.", pose);
+      deletePoseHistoryEntry(entry);
+      setStatus("Pose deleted from history.", entry);
     });
 
     row.append(button);
@@ -100,29 +203,67 @@ function renderPoseHistory() {
   }
 }
 
-function deletePoseHistoryEntry(pose) {
-  const key = poseKey(pose);
-  poseHistory = poseHistory.filter((entry) => poseKey(entry) !== key);
-  savePoseHistory();
-  renderPoseHistory();
+function deletePoseHistoryEntry(entryToDelete) {
+  const key = poseHistoryEntryKey(entryToDelete);
+  setPoseHistory(poseHistory.filter((entry) => poseHistoryEntryKey(entry) !== key));
 }
 
 function clearPoseHistory() {
-  poseHistory = [];
+  setPoseHistory([]);
   window.localStorage.removeItem(poseHistoryStorageKey);
-  renderPoseHistory();
 }
 
-function rememberPose(pose) {
+function rememberPose(pose, name = readPoseName()) {
   if (!pose) {
     return;
   }
 
-  const normalized = normalizePose(pose);
-  const key = poseKey(normalized);
-  poseHistory = [normalized, ...poseHistory.filter((entry) => poseKey(entry) !== key)].slice(0, 10);
-  savePoseHistory();
-  renderPoseHistory();
+  const entry = poseHistoryEntryFromPose(pose, name);
+  const key = poseHistoryEntryKey(entry);
+  setPoseHistory([entry, ...poseHistory.filter((storedEntry) => poseHistoryEntryKey(storedEntry) !== key)]);
+}
+
+function poseHistoryFileName() {
+  const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
+  return `dilbert-pose-history-${timestamp}.json`;
+}
+
+function poseHistoryJson() {
+  return `${JSON.stringify(poseHistoryDocument(), null, 2)}\n`;
+}
+
+async function savePoseHistoryFile() {
+  const json = poseHistoryJson();
+  if ("showSaveFilePicker" in window) {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: poseHistoryFileName(),
+      types: [
+        {
+          description: "Pose history JSON",
+          accept: {
+            "application/json": [".json"],
+          },
+        },
+      ],
+    });
+    const writable = await handle.createWritable();
+    await writable.write(json);
+    await writable.close();
+    return;
+  }
+
+  const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = poseHistoryFileName();
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function loadPoseHistoryFile(file) {
+  const text = await file.text();
+  const importedHistory = parsePoseHistoryDocument(JSON.parse(text));
+  setPoseHistory(importedHistory);
 }
 
 function readNumericState(form, parser) {
@@ -139,7 +280,11 @@ function readJointState() {
 }
 
 function readPoseState() {
-  return readNumericState(poseForm, Number.parseFloat);
+  const state = {};
+  for (const field of poseFields) {
+    state[field] = Number.parseFloat(poseForm.elements.namedItem(field).value);
+  }
+  return state;
 }
 
 function readMotionProfileState() {
@@ -164,7 +309,13 @@ function updatePoseForm(targetPose) {
     return;
   }
 
-  for (const [name, value] of Object.entries(targetPose)) {
+  const entry = targetPose.pose ? targetPose : { pose: targetPose };
+  const nameInput = poseForm.elements.namedItem("name");
+  if (targetPose.pose && nameInput instanceof HTMLInputElement) {
+    nameInput.value = entry.name ?? "";
+  }
+
+  for (const [name, value] of Object.entries(entry.pose)) {
     const input = poseForm.elements.namedItem(name);
     if (input instanceof HTMLInputElement) {
       input.value = String(value);
@@ -239,6 +390,7 @@ async function sendPoseState(source) {
     return;
   }
 
+  const poseName = readPoseName();
   const state = {
     ...readPoseState(),
     motionProfile,
@@ -248,7 +400,7 @@ async function sendPoseState(source) {
     setStatus(`${source} pose...`, state);
     const body = await postJson("/api/motion", state);
     updateFormsFromResponse(body);
-    rememberPose(body.targetPose);
+    rememberPose(body.targetPose, poseName);
     setStatus("Pose accepted.", body);
   } finally {
     sendPoseButton.disabled = false;
@@ -438,6 +590,34 @@ sendButton.addEventListener("click", async () => {
 clearButton.addEventListener("click", () => {
   clearPoseHistory();
   setStatus("Pose history cleared.");
+});
+
+loadPoseHistoryButton.addEventListener("click", () => {
+  poseHistoryFileInput.click();
+});
+
+savePoseHistoryButton.addEventListener("click", async () => {
+  try {
+    await savePoseHistoryFile();
+    setStatus("Pose history saved.", poseHistoryDocument());
+  } catch (error) {
+    setStatus(`Save failed: ${error.message}`);
+  }
+});
+
+poseHistoryFileInput.addEventListener("change", async () => {
+  const [file] = poseHistoryFileInput.files;
+  poseHistoryFileInput.value = "";
+  if (!file) {
+    return;
+  }
+
+  try {
+    await loadPoseHistoryFile(file);
+    setStatus("Pose history loaded.", poseHistoryDocument());
+  } catch (error) {
+    setStatus(`Load failed: ${error.message}`);
+  }
 });
 
 addCommittedNumberSend(jointForm, sendJointState);

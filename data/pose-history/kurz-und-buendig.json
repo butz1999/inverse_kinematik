@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "poses": [
+    {
+      "name": "Rechts offen",
+      "pose": {
+        "x_mm": 55,
+        "y_mm": -90,
+        "z_mm": 255,
+        "p_deg": 0,
+        "r_deg": 90,
+        "g_pct": 100
+      }
+    },
+    {
+      "name": "Links",
+      "pose": {
+        "x_mm": -160,
+        "y_mm": -115,
+        "z_mm": 40,
+        "p_deg": -90,
+        "r_deg": 0,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Vorne links",
+      "pose": {
+        "x_mm": -12.5,
+        "y_mm": 56.16,
+        "z_mm": 50.122,
+        "p_deg": -83.194,
+        "r_deg": -90,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Vorne",
+      "pose": {
+        "x_mm": -12.5,
+        "y_mm": 56.16,
+        "z_mm": 50.122,
+        "p_deg": -83.194,
+        "r_deg": 0,
+        "g_pct": 100
+      }
+    },
+    {
+      "name": "Vorne rechts",
+      "pose": {
+        "x_mm": -12.5,
+        "y_mm": 56.16,
+        "z_mm": 50.122,
+        "p_deg": -83.194,
+        "r_deg": 90,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Rechts geschlossen",
+      "pose": {
+        "x_mm": 160,
+        "y_mm": -85,
+        "z_mm": 330,
+        "p_deg": 10,
+        "r_deg": 90,
+        "g_pct": 0
+      }
+    }
+  ]
+}
