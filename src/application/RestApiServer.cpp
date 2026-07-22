@@ -9,6 +9,8 @@
 #include "robotics/Kinematics.h"
 #include "robotics/Validation.h"
 
+// ToDo: Das ist grosser Spaghetti-Code. Alternativen?
+
 namespace application
 {
 
@@ -29,32 +31,32 @@ String jsonBody(const JsonDocumentType &doc)
 
 void setJointStateJson(JsonObject object, const common::JointState &state)
 {
-  object["d_deg"] = serialized(String(state.d_deg, 3));
-  object["s_deg"] = serialized(String(state.s_deg, 3));
-  object["e_deg"] = serialized(String(state.e_deg, 3));
-  object["hp_deg"] = serialized(String(state.hp_deg, 3));
-  object["hr_deg"] = serialized(String(state.hr_deg, 3));
-  object["g_pct"] = serialized(String(state.g_pct, 3));
+  object["d_deg"] = state.d_deg;
+  object["s_deg"] = state.s_deg;
+  object["e_deg"] = state.e_deg;
+  object["hp_deg"] = state.hp_deg;
+  object["hr_deg"] = state.hr_deg;
+  object["g_pct"] = state.g_pct;
 }
 
 void setTargetPoseJson(JsonObject object, const common::TargetPose &pose)
 {
-  object["x_mm"] = serialized(String(pose.x_mm, 3));
-  object["y_mm"] = serialized(String(pose.y_mm, 3));
-  object["z_mm"] = serialized(String(pose.z_mm, 3));
-  object["p_deg"] = serialized(String(pose.p_deg, 3));
-  object["r_deg"] = serialized(String(pose.r_deg, 3));
-  object["g_pct"] = serialized(String(pose.g_pct, 3));
+  object["x_mm"] = pose.x_mm;
+  object["y_mm"] = pose.y_mm;
+  object["z_mm"] = pose.z_mm;
+  object["p_deg"] = pose.p_deg;
+  object["r_deg"] = pose.r_deg;
+  object["g_pct"] = pose.g_pct;
 }
 
 void setOffsetTargetPoseJson(JsonObject object, const robotics::OffsetTargetPose &pose)
 {
-  object["x_mm"] = serialized(String(pose.x_mm, 3));
-  object["y_mm"] = serialized(String(pose.y_mm, 3));
-  object["z_mm"] = serialized(String(pose.z_mm, 3));
-  object["p_deg"] = serialized(String(pose.p_deg, 3));
-  object["r_deg"] = serialized(String(pose.r_deg, 3));
-  object["g_pct"] = serialized(String(pose.g_pct, 3));
+  object["x_mm"] = pose.x_mm;
+  object["y_mm"] = pose.y_mm;
+  object["z_mm"] = pose.z_mm;
+  object["p_deg"] = pose.p_deg;
+  object["r_deg"] = pose.r_deg;
+  object["g_pct"] = pose.g_pct;
 }
 
 common::TargetPose targetPoseFromForwardKinematics(const robotics::ForwardKinematicsResult &fk,
@@ -84,8 +86,21 @@ void setMotionPlanSummaryJson(JsonObject object, const common::MotionPlan &plan)
   object["totalDurationMs"] = plan.total_duration_ms;
   object["sampleCount"] = plan.sample_count;
   object["sampleTimeMs"] = plan.profile.sample_time_ms;
-  object["targetVelocityDegS"] = serialized(String(plan.profile.target_velocity_deg_s, 3));
+  object["targetVelocityDegS"] = plan.profile.target_velocity_deg_s;
   object["calculationTimeUs"] = plan.calculation_time_us;
+}
+
+void setSequenceStateJson(JsonObject object, const SequenceState &state, uint32_t now_ms)
+{
+  object["status"] = toString(state.status);
+  object["stepIndex"] = state.step_index;
+  object["stepCount"] = state.step_count;
+  object["message"] = state.message.c_str();
+  object["lastMotionStatus"] = orchestration::toString(state.last_motion_status);
+  object["waitRemainingMs"] =
+      state.status == SequenceRunStatus::Waiting && static_cast<int32_t>(state.wait_until_ms - now_ms) > 0
+          ? state.wait_until_ms - now_ms
+          : 0U;
 }
 
 void setHardwareDriverResultJson(JsonObject object, const hardware::HardwareDriverResult &result)
@@ -97,18 +112,23 @@ void setHardwareDriverResultJson(JsonObject object, const hardware::HardwareDriv
 }  // namespace
 
 RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver,
-                             const hardware::Logger &logger)
+                             hardware::StatusLed &status_led, const hardware::Logger &logger)
     : server_(server),
       servo_driver_(servo_driver),
+      status_led_(status_led),
       logger_(logger),
       hardware_calibration_(hardware::defaultHardwareCalibration()),
+      orchestrator_(robotics::defaultRobotModel(), robotics::defaultRobotModelOffset()),
+      run_engine_(orchestrator_),
       current_joint_state_(common::initialJointState()),
       current_joint_pwm_state_(hardware_calibration_.initial_pwm_state),
-      active_motion_plan_{common::defaultMotionProfile(), 0U, {}, 0U},
+      active_motion_plan_{common::defaultMotionProfile(), 0U, 0U, 0U, {}},
       active_motion_target_joint_state_(common::initialJointState()),
       active_motion_sample_index_(0U),
       active_motion_started_ms_(0UL),
-      motion_plan_active_(false)
+      motion_plan_active_(false),
+      pending_led_step_(steps::emptyLedStep()),
+      has_pending_led_step_(false)
 {
 }
 
@@ -184,6 +204,31 @@ void RestApiServer::init()
              {
                handleCorsPreflight();
              });
+  server_.on(kSequenceStartPath, HTTP_POST,
+             [this]()
+             {
+               handleSequenceStartRequest();
+             });
+  server_.on(kSequenceStartPath, HTTP_OPTIONS,
+             [this]()
+             {
+               handleCorsPreflight();
+             });
+  server_.on(kSequenceStopPath, HTTP_POST,
+             [this]()
+             {
+               handleSequenceStopRequest();
+             });
+  server_.on(kSequenceStopPath, HTTP_OPTIONS,
+             [this]()
+             {
+               handleCorsPreflight();
+             });
+  server_.on(kSequenceStatusPath, HTTP_GET,
+             [this]()
+             {
+               handleSequenceStatus();
+             });
   server_.on("/favicon.ico", HTTP_GET,
              [this]()
              {
@@ -200,7 +245,10 @@ void RestApiServer::init()
 void RestApiServer::handleClient()
 {
   server_.handleClient();
+  servicePendingLedStep();
   serviceActiveMotionPlan();
+  serviceSequenceRun();
+  servicePendingLedStep();
 }
 
 bool RestApiServer::hasActiveMotionPlan() const
@@ -265,6 +313,64 @@ void RestApiServer::serviceActiveMotionPlan()
   }
 }
 
+void RestApiServer::serviceSequenceRun()
+{
+  if (!run_engine_.isActive())
+  {
+    return;
+  }
+
+  const auto service_result = run_engine_.service(current_joint_state_, hasActiveMotionPlan(), millis());
+  if (service_result.has_led_step)
+  {
+    queueLedStep(service_result.led_step);
+  }
+
+  if (!service_result.has_motion_plan)
+  {
+    return;
+  }
+
+  startMotionPlan(*service_result.motion_plan, service_result.target_joint_state);
+}
+
+void RestApiServer::queueLedStep(const steps::LedStep &step)
+{
+  pending_led_step_ = step;
+  has_pending_led_step_ = true;
+  logResult("[REST] LED step queued");
+}
+
+void RestApiServer::servicePendingLedStep()
+{
+  if (!has_pending_led_step_)
+  {
+    return;
+  }
+
+  const auto step = pending_led_step_;
+  has_pending_led_step_ = false;
+
+  logResult("[REST] Applying LED step");
+  if (step.has_status_color)
+  {
+    status_led_.setColor(step.status_color);
+  }
+  if (step.has_rgb_color)
+  {
+    status_led_.setColor(step.rgb_color);
+  }
+  if (step.has_mode)
+  {
+    status_led_.setMode(step.mode);
+  }
+  if (step.has_interval_ms)
+  {
+    status_led_.setIntervalMs(step.interval_ms);
+  }
+  logResult("[REST] LED step applied");
+}
+
 void RestApiServer::handleHealth()
 {
   logRequest("GET", kHealthPath);
@@ -295,9 +401,11 @@ void RestApiServer::handleStatus()
   doc["jointPwmHardwareOutput"] = toString(ApiCapabilityStatus::Available);
   doc["jointPwmHardwareInitialized"] = servo_driver_.isInitialized();
   doc["motionEndpoint"] = toString(ApiCapabilityStatus::Available);
+  doc["sequenceEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["motionPlanActive"] = hasActiveMotionPlan();
   doc["motionPlanSampleIndex"] = active_motion_sample_index_;
   doc["motionPlanSampleCount"] = active_motion_plan_.sample_count;
+  setSequenceStateJson(doc.createNestedObject("sequence"), run_engine_.state(), millis());
   doc["uptimeMs"] = millis();
 
   sendJson(200, jsonBody(doc));
@@ -587,11 +695,22 @@ void RestApiServer::handleMotionRequest()
     return;
   }
 
-  // ToDo: Why do we need to instanciate the orchestrator? Consider dependency injection.
-  const orchestration::MotionOrchestrator orchestrator(robotics::defaultRobotModel(),
-                                                       robotics::defaultRobotModelOffset());
+  if (run_engine_.isActive())
+  {
+    logResult("[REST] Motion request rejected because a sequence is active");
+    RestJsonDocument doc;
+    doc["status"] = "busy";
+    doc["code"] = toString(ApiResultCode::SequenceBusy);
+    doc["mode"] = "task_space_ik";
+    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["message"] = "A sequence is already active.";
+    setSequenceStateJson(doc.createNestedObject("sequence"), run_engine_.state(), millis());
+    sendJson(409, jsonBody(doc));
+    return;
+  }
+
   const orchestration::MotionRequest motion_request{parsed.target_pose, parsed.motion_profile};
-  orchestrator.processMotionRequestInto(motion_request, current_joint_state_, motion_result_scratch_);
+  orchestrator_.processMotionRequestInto(motion_request, current_joint_state_, motion_result_scratch_);
   const auto &motion_result = motion_result_scratch_;
   if (!motion_result.ok && motion_result.status == orchestration::MotionStatus::InvalidTargetPose)
   {
@@ -710,6 +829,139 @@ void RestApiServer::handleMotionRequest()
   setMotionPlanSummaryJson(doc.createNestedObject("motionPlan"), motion_result.motion_plan);
   setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
   sendJson(202, jsonBody(doc));
+}
+
+void RestApiServer::handleSequenceStartRequest()
+{
+  logRequest("POST", kSequenceStartPath);
+
+  const auto body_arg = server_.arg("plain");
+  auto sequence = emptySequenceDefinition();
+  const auto parsed = parseSequenceDefinitionRequestJson(body_arg.c_str(), sequence);
+
+  if (!parsed.ok)
+  {
+    RestJsonDocument doc;
+    doc["status"] = "rejected";
+    doc["code"] = toString(parsed.code);
+    if (parsed.field_name[0] != '\0')
+    {
+      doc["field"] = parsed.field_name;
+    }
+    doc["message"] = parsed.message;
+    logResult("[REST] Sequence request rejected by JSON parser");
+    sendJson(400, jsonBody(doc));
+    return;
+  }
+
+  if (hasActiveMotionPlan() || run_engine_.isActive())
+  {
+    logResult("[REST] Sequence request rejected because motion is already active");
+    RestJsonDocument doc;
+    doc["status"] = "busy";
+    doc["code"] = toString(ApiResultCode::SequenceBusy);
+    doc["message"] = "A motion plan or sequence is already active.";
+    setSequenceStateJson(doc.createNestedObject("sequence"), run_engine_.state(), millis());
+    sendJson(409, jsonBody(doc));
+    return;
+  }
+
+  if (!servo_driver_.isInitialized())
+  {
+    logResult("[REST] Sequence request rejected because PCA9685 is not initialized");
+    RestJsonDocument doc;
+    doc["status"] = "hardware_not_initialized";
+    doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
+    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["message"] =
+        "PCA9685 servo driver is not initialized; check the boot log or call POST /api/servo-driver/init for "
+        "diagnostics.";
+    sendJson(503, jsonBody(doc));
+    return;
+  }
+
+  const auto run_result = run_engine_.start(sequence, current_joint_state_, millis());
+  if (run_result.has_led_step)
+  {
+    queueLedStep(run_result.led_step);
+  }
+
+  if (!run_result.has_motion_plan && !run_result.has_led_step && !run_engine_.isActive())
+  {
+    const auto &sequence_state = run_engine_.state();
+    RestJsonDocument doc;
+    doc["status"] = sequence_state.status == SequenceRunStatus::Completed ? "completed" : "rejected";
+    doc["code"] = sequence_state.status == SequenceRunStatus::Completed ? toString(ApiResultCode::Ok)
+                                                                        : toString(ApiResultCode::KinematicsFailure);
+    doc["motionStatus"] =
+        run_result.motion_result != nullptr ? orchestration::toString(run_result.motion_result->status) : "accepted";
+    doc["message"] = sequence_state.message.c_str();
+    setSequenceStateJson(doc.createNestedObject("sequence"), sequence_state, millis());
+    logResult("[REST] Sequence request rejected by motion planning");
+    sendJson(sequence_state.status == SequenceRunStatus::Completed ? 202 : 422, jsonBody(doc));
+    return;
+  }
+
+  if (run_result.has_motion_plan)
+  {
+    startMotionPlan(*run_result.motion_plan, run_result.target_joint_state);
+  }
+  current_joint_pwm_state_ = servo_driver_.jointPwmState();
+  logResult("[REST] Sequence started");
+
+  RestJsonDocument doc;
+  doc["status"] = "accepted";
+  doc["code"] = toString(ApiResultCode::Ok);
+  doc["execution"] = hasActiveMotionPlan() ? "motion_plan_active" : "motion_plan_completed";
+  setSequenceStateJson(doc.createNestedObject("sequence"), run_engine_.state(), millis());
+  if (run_result.has_motion_plan)
+  {
+    setTargetPoseJson(doc.createNestedObject("targetPose"), run_result.motion_result->target_pose);
+    setJointStateJson(doc.createNestedObject("jointState"), run_result.target_joint_state);
+    setMotionPlanSummaryJson(doc.createNestedObject("motionPlan"), *run_result.motion_plan);
+  }
+  if (run_result.has_led_step)
+  {
+    auto led = doc.createNestedObject("led");
+    led["hasColor"] = run_result.led_step.has_status_color || run_result.led_step.has_rgb_color;
+    led["hasMode"] = run_result.led_step.has_mode;
+    led["hasIntervalMs"] = run_result.led_step.has_interval_ms;
+  }
+  setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
+  sendJson(202, jsonBody(doc));
+}
+
+void RestApiServer::handleSequenceStopRequest()
+{
+  logRequest("POST", kSequenceStopPath);
+
+  run_engine_.stop();
+  motion_plan_active_ = false;
+  logResult("[REST] Sequence stopped");
+
+  RestJsonDocument doc;
+  doc["status"] = "accepted";
+  doc["code"] = toString(ApiResultCode::Ok);
+  setSequenceStateJson(doc.createNestedObject("sequence"), run_engine_.state(), millis());
+  setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
+  setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
+  sendJson(202, jsonBody(doc));
+}
+
+void RestApiServer::handleSequenceStatus()
+{
+  logRequest("GET", kSequenceStatusPath);
+
+  RestJsonDocument doc;
+  doc["status"] = toString(ApiResultCode::Ok);
+  doc["code"] = toString(ApiResultCode::Ok);
+  doc["motionPlanActive"] = hasActiveMotionPlan();
+  doc["motionPlanSampleIndex"] = active_motion_sample_index_;
+  doc["motionPlanSampleCount"] = active_motion_plan_.sample_count;
+  setSequenceStateJson(doc.createNestedObject("sequence"), run_engine_.state(), millis());
+  setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
+  setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
+  sendJson(200, jsonBody(doc));
 }
 
 void RestApiServer::handleCorsPreflight()

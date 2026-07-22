@@ -28,6 +28,9 @@ Der Server ist nach erfolgreicher WLAN-Initialisierung über die IP-Adresse des 
 | `POST` | `/api/servo-driver/init` | PCA9685-Servo-Treiber initialisieren und Ausgänge freigeben | `202` |
 | `POST` | `/api/joint-pwm-motion` | Direkten PWM-Zustand setzen und an initialisierte Hardware schreiben | `202` |
 | `POST` | `/api/motion` | Task-Space-Zielpose über Orchestrator planen und ausführen | `202` |
+| `POST` | `/api/sequence/start` | Sequenz aus mehreren Task-Space-Schritten starten | `202` |
+| `POST` | `/api/sequence/stop` | Laufende Sequenz und aktiven Motion-Plan abbrechen | `202` |
+| `GET` | `/api/sequence/status` | Sequenzfortschritt und aktive Planposition abfragen | `200` |
 | `GET` | `/favicon.ico` | Browser-Favicon unterdrücken | `204` |
 | alle | sonstige Pfade | Unbekannter Pfad | `404` |
 
@@ -71,6 +74,7 @@ flowchart TD
 | `joint_limit_violation` | Gelenkwert liegt außerhalb der konfigurierten Grenzen |
 | `joint_pwm_limit_violation` | PWM-Wert liegt außerhalb `0..4095` |
 | `hardware_driver_failure` | PCA9685-Treiber konnte nicht initialisiert werden, ist noch nicht initialisiert oder konnte nicht beschrieben werden |
+| `sequence_busy` | Es läuft bereits eine Sequenz oder ein Motion-Plan |
 | `orchestrator_unavailable` | Orchestrator-Endpunkt ist reserviert, aber noch nicht implementiert |
 | `unknown_route` | Pfad ist nicht registriert |
 
@@ -495,6 +499,86 @@ Request:
   "g_pwm": 307
 }
 ```
+
+### Sequenz starten
+
+`POST /api/sequence/start`
+
+Startet eine geordnete Folge von Schritten. Unterstützt werden zunächst `pose`, `wait` und `led`. Während eine Sequenz läuft, werden neue Einzelbewegungen und weitere Sequenzstarts mit `409` abgelehnt.
+
+Request:
+
+```json
+{
+  "steps": [
+    {
+      "type": "pose",
+      "name": "pick",
+      "x_mm": -20,
+      "y_mm": 50,
+      "z_mm": 30,
+      "p_deg": -90,
+      "r_deg": 0,
+      "g_pct": 0,
+      "wait_ms": 500,
+      "motionProfile": {
+        "type": "smooth_start_stop",
+        "target_velocity_deg_s": 90,
+        "sample_time_ms": 10
+      }
+    },
+    {
+      "type": "wait",
+      "duration_ms": 500
+    },
+    {
+      "type": "led",
+      "name": "ready",
+      "rgb": {
+        "r": 0,
+        "g": 120,
+        "b": 255
+      },
+      "mode": "blinking",
+      "interval_ms": 500
+    }
+  ]
+}
+```
+
+Bei `pose` darf die Zielpose alternativ auch als `targetPose`-Objekt übergeben werden. Fehlt `type`, wird der Schritt aus Kompatibilitätsgründen als `pose` interpretiert.
+
+Beim `led`-Schritt sind `color`, `rgb`, `mode` und `interval_ms` optional. Mindestens eines dieser Felder muss gesetzt sein. Weggelassene Felder ändern den bestehenden LED-Zustand nicht. `color` und `rgb` dürfen nicht gleichzeitig gesetzt sein. Unterstützte Modi sind `off`, `on`, `blinking` und `pulsing`.
+
+Response `202`:
+
+```json
+{
+  "status": "accepted",
+  "code": "ok",
+  "execution": "motion_plan_active",
+  "sequence": {
+    "status": "motion_active",
+    "stepIndex": 0,
+    "stepCount": 1,
+    "message": "motion_active",
+    "lastMotionStatus": "accepted",
+    "waitRemainingMs": 0
+  }
+}
+```
+
+### Sequenz stoppen
+
+`POST /api/sequence/stop`
+
+Bricht die Run Engine und einen aktiven Motion-Plan ab. Der intern angenommene Gelenkzustand bleibt der zuletzt vollständig abgeschlossene Zustand.
+
+### Sequenzstatus auslesen
+
+`GET /api/sequence/status`
+
+Liefert Sequenzstatus, aktiven Motion-Plan-Fortschritt sowie die aktuell angenommenen Gelenk- und PWM-Zustände.
 
 #### Ausführen
 

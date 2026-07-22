@@ -22,6 +22,7 @@ enum class ApiResultCode
   JointPwmLimitViolation,
   KinematicsFailure,
   HardwareDriverFailure,
+  SequenceBusy,
   OrchestratorUnavailable,
   UnknownRoute,
 };
@@ -38,6 +39,9 @@ constexpr const char *kJointPwmMotionPath =    "/api/joint-pwm-motion";
 constexpr const char *kServoDriverInitPath =   "/api/servo-driver/init";
 constexpr const char *kMotionPath =            "/api/motion";
 constexpr const char *kForwardKinematicsPath = "/api/forward-kinematics";
+constexpr const char *kSequenceStartPath =     "/api/sequence/start";
+constexpr const char *kSequenceStopPath =      "/api/sequence/stop";
+constexpr const char *kSequenceStatusPath =    "/api/sequence/status";
 // clang-format on
 
 const char *toString(ApiCapabilityStatus status);

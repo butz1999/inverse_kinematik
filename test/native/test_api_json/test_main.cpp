@@ -3,6 +3,25 @@
 #include <unity.h>
 
 #include "application/ApiJson.h"
+#include "hardware/StatusLed.h"
+
+namespace
+{
+
+struct SequenceParseFixture
+{
+  application::SequenceDefinition sequence;
+  application::SequenceDefinitionParseResult result;
+};
+
+SequenceParseFixture parseSequence(const char *body)
+{
+  auto sequence = application::emptySequenceDefinition();
+  const auto result = application::parseSequenceDefinitionRequestJson(body, sequence);
+  return SequenceParseFixture{sequence, result};
+}
+
+}  // namespace
 
 void test_parse_joint_motion_accepts_valid_json()
 {
@@ -154,6 +173,98 @@ void test_parse_target_pose_rejects_gripper_limit_violation()
   TEST_ASSERT_EQUAL_STRING("g_pct", result.field_name);
 }
 
+void test_parse_sequence_definition_accepts_flat_steps()
+{
+  const auto parsed = parseSequence(
+      "{\"steps\":[{\"name\":\"pick\",\"x_mm\":-20,\"y_mm\":50,\"z_mm\":30,\"p_deg\":-90,"
+      "\"r_deg\":0,\"g_pct\":0,\"wait_ms\":250,\"motionProfile\":{\"type\":\"constant_velocity\","
+      "\"target_velocity_deg_s\":30,\"sample_time_ms\":20}}]}");
+
+  TEST_ASSERT_TRUE(parsed.result.ok);
+  TEST_ASSERT_EQUAL(application::ApiResultCode::Ok, parsed.result.code);
+  TEST_ASSERT_EQUAL_UINT(1U, parsed.sequence.step_count);
+  TEST_ASSERT_EQUAL(application::steps::StepType::Pose, parsed.sequence.steps[0].type);
+  TEST_ASSERT_EQUAL_STRING("pick", parsed.sequence.steps[0].pose.name.c_str());
+  TEST_ASSERT_EQUAL_FLOAT(-20.0F, parsed.sequence.steps[0].pose.target_pose.x_mm);
+  TEST_ASSERT_EQUAL(common::MotionProfileType::ConstantVelocity, parsed.sequence.steps[0].pose.motion_profile.type);
+  TEST_ASSERT_EQUAL_FLOAT(30.0F, parsed.sequence.steps[0].pose.motion_profile.target_velocity_deg_s);
+  TEST_ASSERT_EQUAL_UINT32(20U, parsed.sequence.steps[0].pose.motion_profile.sample_time_ms);
+}
+
+void test_parse_sequence_definition_accepts_nested_target_pose()
+{
+  const auto parsed = parseSequence(
+      "{\"steps\":[{\"targetPose\":{\"x_mm\":-20,\"y_mm\":50,\"z_mm\":30,\"p_deg\":-90,"
+      "\"r_deg\":0,\"g_pct\":50}}]}");
+
+  TEST_ASSERT_TRUE(parsed.result.ok);
+  TEST_ASSERT_EQUAL_UINT(1U, parsed.sequence.step_count);
+  TEST_ASSERT_EQUAL(application::steps::StepType::Pose, parsed.sequence.steps[0].type);
+  TEST_ASSERT_EQUAL_FLOAT(50.0F, parsed.sequence.steps[0].pose.target_pose.g_pct);
+  TEST_ASSERT_EQUAL(common::MotionProfileType::SmoothStartStop, parsed.sequence.steps[0].pose.motion_profile.type);
+}
+
+void test_parse_sequence_definition_accepts_wait_step()
+{
+  const auto parsed = parseSequence("{\"steps\":[{\"type\":\"wait\",\"duration_ms\":250}]}");
+
+  TEST_ASSERT_TRUE(parsed.result.ok);
+  TEST_ASSERT_EQUAL_UINT(1U, parsed.sequence.step_count);
+  TEST_ASSERT_EQUAL(application::steps::StepType::Wait, parsed.sequence.steps[0].type);
+  TEST_ASSERT_EQUAL_UINT32(250U, parsed.sequence.steps[0].wait.duration_ms);
+}
+
+void test_parse_sequence_definition_accepts_led_step_with_rgb_mode_and_interval()
+{
+  const auto parsed = parseSequence(
+      "{\"steps\":[{\"type\":\"led\",\"name\":\"signal\",\"rgb\":{\"r\":10,\"g\":20,\"b\":30},"
+      "\"mode\":\"pulsing\",\"interval_ms\":750}]}");
+
+  TEST_ASSERT_TRUE(parsed.result.ok);
+  TEST_ASSERT_EQUAL_UINT(1U, parsed.sequence.step_count);
+  TEST_ASSERT_EQUAL(application::steps::StepType::Led, parsed.sequence.steps[0].type);
+  TEST_ASSERT_EQUAL_STRING("signal", parsed.sequence.steps[0].led.name.c_str());
+  TEST_ASSERT_TRUE(parsed.sequence.steps[0].led.has_rgb_color);
+  TEST_ASSERT_EQUAL_UINT8(10U, parsed.sequence.steps[0].led.rgb_color.r);
+  TEST_ASSERT_EQUAL_UINT8(20U, parsed.sequence.steps[0].led.rgb_color.g);
+  TEST_ASSERT_EQUAL_UINT8(30U, parsed.sequence.steps[0].led.rgb_color.b);
+  TEST_ASSERT_TRUE(parsed.sequence.steps[0].led.has_mode);
+  TEST_ASSERT_EQUAL(hardware::StatusLed::Mode::Pulsing, parsed.sequence.steps[0].led.mode);
+  TEST_ASSERT_TRUE(parsed.sequence.steps[0].led.has_interval_ms);
+  TEST_ASSERT_EQUAL_UINT32(750U, parsed.sequence.steps[0].led.interval_ms);
+}
+
+void test_parse_sequence_definition_accepts_led_step_without_color()
+{
+  const auto parsed = parseSequence("{\"steps\":[{\"type\":\"led\",\"mode\":\"blinking\",\"interval_ms\":500}]}");
+
+  TEST_ASSERT_TRUE(parsed.result.ok);
+  TEST_ASSERT_EQUAL(application::steps::StepType::Led, parsed.sequence.steps[0].type);
+  TEST_ASSERT_FALSE(parsed.sequence.steps[0].led.has_status_color);
+  TEST_ASSERT_FALSE(parsed.sequence.steps[0].led.has_rgb_color);
+  TEST_ASSERT_TRUE(parsed.sequence.steps[0].led.has_mode);
+  TEST_ASSERT_EQUAL(hardware::StatusLed::Mode::Blinking, parsed.sequence.steps[0].led.mode);
+}
+
+void test_parse_sequence_definition_rejects_led_step_with_color_and_rgb()
+{
+  const auto parsed =
+      parseSequence("{\"steps\":[{\"type\":\"led\",\"color\":\"green\",\"rgb\":{\"r\":10,\"g\":20,\"b\":30}}]}");
+
+  TEST_ASSERT_FALSE(parsed.result.ok);
+  TEST_ASSERT_EQUAL(application::ApiResultCode::InvalidTargetPose, parsed.result.code);
+  TEST_ASSERT_EQUAL_STRING("color/rgb", parsed.result.field_name);
+}
+
+void test_parse_sequence_definition_rejects_empty_steps()
+{
+  const auto parsed = parseSequence("{\"steps\":[]}");
+
+  TEST_ASSERT_FALSE(parsed.result.ok);
+  TEST_ASSERT_EQUAL(application::ApiResultCode::InvalidTargetPose, parsed.result.code);
+  TEST_ASSERT_EQUAL_STRING("steps", parsed.result.field_name);
+}
+
 int main(int argc, char **argv)
 {
   UNITY_BEGIN();
@@ -170,5 +281,12 @@ int main(int argc, char **argv)
   RUN_TEST(test_parse_target_pose_rejects_unknown_motion_profile_type);
   RUN_TEST(test_parse_target_pose_rejects_missing_field);
   RUN_TEST(test_parse_target_pose_rejects_gripper_limit_violation);
+  RUN_TEST(test_parse_sequence_definition_accepts_flat_steps);
+  RUN_TEST(test_parse_sequence_definition_accepts_nested_target_pose);
+  RUN_TEST(test_parse_sequence_definition_accepts_wait_step);
+  RUN_TEST(test_parse_sequence_definition_accepts_led_step_with_rgb_mode_and_interval);
+  RUN_TEST(test_parse_sequence_definition_accepts_led_step_without_color);
+  RUN_TEST(test_parse_sequence_definition_rejects_led_step_with_color_and_rgb);
+  RUN_TEST(test_parse_sequence_definition_rejects_empty_steps);
   return UNITY_END();
 }

@@ -6,12 +6,14 @@
 #include <WebServer.h>
 
 #include "application/ApiContracts.h"
+#include "application/RunEngine.h"
 #include "common/JointPwmState.h"
 #include "common/JointState.h"
 #include "common/MotionProfile.h"
 #include "hardware/HardwareCalibration.h"
 #include "hardware/Logger.h"
 #include "hardware/Pca9685ServoDriver.h"
+#include "hardware/StatusLed.h"
 #include "orchestration/MotionOrchestrator.h"
 
 namespace application
@@ -20,7 +22,8 @@ namespace application
 class RestApiServer
 {
  public:
-  RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver, const hardware::Logger &logger);
+  RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver, hardware::StatusLed &status_led,
+                const hardware::Logger &logger);
 
   void init();
   void handleClient();
@@ -35,12 +38,18 @@ class RestApiServer
   void handleJointPwmMotionRequest();
   void handleMotionRequest();
   void handleForwardKinematicsRequest();
+  void handleSequenceStartRequest();
+  void handleSequenceStopRequest();
+  void handleSequenceStatus();
   void handleCorsPreflight();
   void handleFavicon();
   void handleNotFound();
   bool hasActiveMotionPlan() const;
   void startMotionPlan(const common::MotionPlan &plan, const common::JointState &target_joint_state);
   void serviceActiveMotionPlan();
+  void serviceSequenceRun();
+  void queueLedStep(const steps::LedStep &step);
+  void servicePendingLedStep();
   void logRequest(const char *method, const char *path) const;
   void logResult(const char *message) const;
   void sendCorsHeaders();
@@ -48,8 +57,11 @@ class RestApiServer
 
   WebServer &server_;
   hardware::Pca9685ServoDriver &servo_driver_;
+  hardware::StatusLed &status_led_;
   const hardware::Logger &logger_;
   hardware::HardwareCalibration hardware_calibration_;
+  orchestration::MotionOrchestrator orchestrator_;
+  RunEngine run_engine_;
   common::JointState current_joint_state_;
   common::JointPwmState current_joint_pwm_state_;
   common::MotionPlan active_motion_plan_;
@@ -58,6 +70,8 @@ class RestApiServer
   std::size_t active_motion_sample_index_;
   unsigned long active_motion_started_ms_;
   bool motion_plan_active_;
+  steps::LedStep pending_led_step_;
+  bool has_pending_led_step_;
 };
 
 }  // namespace application

@@ -12,6 +12,9 @@
 #include "hardware/SerialLogger.h"
 #include "hardware/StatusLed.h"
 
+// ToDo: Klären, ob das genügt, oder aber architektonische Änderungen nötig sind.
+SET_LOOP_TASK_STACK_SIZE(16 * 1024)
+
 #if __has_include("config/WifiCredentials.h")
 #include "config/WifiCredentials.h"
 #else
@@ -25,7 +28,7 @@ namespace
 // RGB LED
 constexpr uint8_t kRgbLedPin = 38;
 constexpr uint8_t kRgbBrightness = 15;
-constexpr unsigned long kBlinkIntervalMs = 500;
+constexpr uint32_t kStatusBlinkIntervalMs = 500;
 // Debug console
 constexpr unsigned long kSerialBaudrate = 115200;
 constexpr unsigned long kWifiConnectTimeoutMs = 15000;
@@ -42,10 +45,6 @@ constexpr const char *kNetworkHostname = "robot";
 constexpr const char *kWifiSsid = IK_WIFI_SSID;
 constexpr const char *kWifiPassword = IK_WIFI_PASSWORD;
 
-// RGB LED blinker
-unsigned long lastToggleMs = 0;
-unsigned long heartbeatCount = 0;
-bool isLedOn = true;
 hardware::StatusColor color = hardware::StatusColor::Off;
 
 // Create Components
@@ -54,7 +53,7 @@ hardware::SerialLogger logger(Serial, kSerialBaudrate);
 hardware::StatusLed statusLed(kRgbLedPin, kRgbBrightness);
 WebServer webServer(kHttpPort);
 hardware::Pca9685ServoDriver servoDriver;
-application::RestApiServer restApi(webServer, servoDriver, logger);
+application::RestApiServer restApi(webServer, servoDriver, statusLed, logger);
 
 bool isConfigured(const char *value)
 {
@@ -131,11 +130,14 @@ bool startMdns()
 void setup()
 {
   // Start logger
-  color = hardware::StatusLed::Color::Yellow;
-  statusLed.show(color);
   logger.init();
-  // Report success
+  delay(300);
   logger.println();
+  logger.println("[BOOT] Firmware setup entered");
+  color = hardware::StatusLed::Color::Yellow;
+  logger.println("[BOOT] Setting initial status LED");
+  statusLed.set(color);
+  // Report success
   logger.println("[BOOT] Firmware setup reached");
   logger.print("[BOOT] Debug serial ready on ");
   logger.println(kDebugSerialName);
@@ -167,12 +169,12 @@ void setup()
     logger.print("[BOOT] PCA9685 servo driver initialization failed: ");
     logger.println(servo_driver_init_result.message);
     color = hardware::StatusLed::Color::Orange;
-    statusLed.show(color);
+    statusLed.set(color);
   }
   delay(250);
   // Connect Wifi
   color = hardware::StatusLed::Color::Blue;
-  statusLed.show(color);
+  statusLed.set(color);
   const auto wifiConnected = connectWifi();
   if (wifiConnected)
   {
@@ -206,22 +208,19 @@ void setup()
   {
     color = hardware::StatusLed::Color::Orange;
   }
+  statusLed.setColor(color);
+  delay(250);
   // Register REST API
   restApi.init();
   logger.println("[BOOT] REST API endpoints registered");
-  statusLed.show(color);
+  statusLed.set(color, hardware::StatusLed::Mode::Pulsing, kStatusBlinkIntervalMs);
+  delay(250);
+  logger.println("[BOOT] setup() finished, entering loop()");
 }
 
 void loop()
 {
   const auto now = millis();
   restApi.handleClient();
-
-  if (now - lastToggleMs >= kBlinkIntervalMs)
-  {
-    lastToggleMs = now;
-    statusLed.setEnabled(isLedOn, color);
-    isLedOn = !isLedOn;
-    ++heartbeatCount;
-  }
+  statusLed.service(now);
 }

@@ -40,6 +40,8 @@ const char *toString(ApiResultCode code)
       return "kinematics_failure";
     case ApiResultCode::HardwareDriverFailure:
       return "hardware_driver_failure";
+    case ApiResultCode::SequenceBusy:
+      return "sequence_busy";
     case ApiResultCode::OrchestratorUnavailable:
       return "orchestrator_unavailable";
     case ApiResultCode::UnknownRoute:

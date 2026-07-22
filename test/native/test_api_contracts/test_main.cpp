@@ -21,6 +21,9 @@ void test_api_contracts_expose_stable_endpoint_paths()
   TEST_ASSERT_EQUAL_STRING("/api/joint-pwm-motion", application::kJointPwmMotionPath);
   TEST_ASSERT_EQUAL_STRING("/api/motion", application::kMotionPath);
   TEST_ASSERT_EQUAL_STRING("/api/forward-kinematics", application::kForwardKinematicsPath);
+  TEST_ASSERT_EQUAL_STRING("/api/sequence/start", application::kSequenceStartPath);
+  TEST_ASSERT_EQUAL_STRING("/api/sequence/stop", application::kSequenceStopPath);
+  TEST_ASSERT_EQUAL_STRING("/api/sequence/status", application::kSequenceStatusPath);
 }
 
 void test_api_contracts_map_capability_status_to_json_values()
@@ -44,6 +47,7 @@ void test_api_contracts_map_result_codes_to_json_values()
   TEST_ASSERT_EQUAL_STRING("kinematics_failure", application::toString(application::ApiResultCode::KinematicsFailure));
   TEST_ASSERT_EQUAL_STRING("hardware_driver_failure",
                            application::toString(application::ApiResultCode::HardwareDriverFailure));
+  TEST_ASSERT_EQUAL_STRING("sequence_busy", application::toString(application::ApiResultCode::SequenceBusy));
   TEST_ASSERT_EQUAL_STRING("orchestrator_unavailable",
                            application::toString(application::ApiResultCode::OrchestratorUnavailable));
   TEST_ASSERT_EQUAL_STRING("unknown_route", application::toString(application::ApiResultCode::UnknownRoute));

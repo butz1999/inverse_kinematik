@@ -3,6 +3,7 @@
 #pragma once
 
 #include "application/ApiContracts.h"
+#include "application/RunEngine.h"
 #include "common/JointPwmState.h"
 #include "common/JointState.h"
 #include "common/MotionProfile.h"
@@ -39,8 +40,17 @@ struct TargetPoseParseResult
   common::MotionProfile motion_profile;
 };
 
+struct SequenceDefinitionParseResult
+{
+  bool ok;
+  ApiResultCode code;
+  const char *field_name;
+  const char *message;
+};
+
 JointMotionParseResult parseJointMotionRequestJson(const char *body);
 JointPwmMotionParseResult parseJointPwmMotionRequestJson(const char *body);
 TargetPoseParseResult parseTargetPoseRequestJson(const char *body);
+SequenceDefinitionParseResult parseSequenceDefinitionRequestJson(const char *body, SequenceDefinition &sequence);
 
 }  // namespace application

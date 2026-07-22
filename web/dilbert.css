@@ -74,24 +74,28 @@ button:disabled {
   border: 0;
 }
 
-.pose-history {
+.pose-history,
+.sequence-steps {
   display: grid;
   gap: 6px;
   margin: 0 0 10px;
   padding-left: 24px;
 }
 
-.pose-history:empty {
+.pose-history:empty,
+.sequence-steps:empty {
   display: none;
 }
 
-.pose-history-row {
+.pose-history-row,
+.sequence-step-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
 }
 
-.pose-history button {
+.pose-history button,
+.sequence-steps button {
   width: 100%;
   padding: 5px 8px;
   text-align: left;
@@ -99,16 +103,19 @@ button:disabled {
   border-width: 0px;
 }
 
-.pose-history-name {
+.pose-history-name,
+.sequence-step-name {
   display: block;
   font-weight: 650;
 }
 
-.pose-history-values {
+.pose-history-values,
+.sequence-step-values {
   display: block;
 }
 
-.pose-history button:last-child {
+.pose-history button:last-child,
+.sequence-steps button:last-child {
   width: auto;
   text-align: center;
 }

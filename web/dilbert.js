@@ -15,12 +15,38 @@ const clearButton = document.querySelector("#clear-pose-history-button");
 const loadPoseHistoryButton = document.querySelector("#load-pose-history-button");
 const savePoseHistoryButton = document.querySelector("#save-pose-history-button");
 const poseHistoryFileInput = document.querySelector("#pose-history-file");
+const sequenceWaitInput = document.querySelector("#sequence-wait");
+const sequenceLedColorKindSelect = document.querySelector("#sequence-led-color-kind");
+const sequenceStatusColorSelect = document.querySelector("#sequence-status-color");
+const sequenceColorRInput = document.querySelector("#sequence-color-r");
+const sequenceColorGInput = document.querySelector("#sequence-color-g");
+const sequenceColorBInput = document.querySelector("#sequence-color-b");
+const sequenceLedModeSelect = document.querySelector("#sequence-led-mode");
+// ToDo: Klären, was "sequence-led-send-mode" noch bewirken könnte. Toter code!?
+const sequenceLedSendModeInput = document.querySelector("#sequence-led-send-mode");
+// ToDo: Klären, was "sequence-led-interval" noch bewirken müsste. Toter code!?
+const sequenceLedIntervalInput = document.querySelector("#sequence-led-interval");
+// ToDo: Klären, was "sequence-led-send-interval" noch bewirken müsste. Toter code!?
+const sequenceLedSendIntervalInput = document.querySelector("#sequence-led-send-interval");
+const addSequenceStepButton = document.querySelector("#add-sequence-step-button");
+const addWaitStepButton = document.querySelector("#add-wait-step-button");
+const addColorStepButton = document.querySelector("#add-color-step-button");
+const startSequenceButton = document.querySelector("#start-sequence-button");
+const stopSequenceButton = document.querySelector("#stop-sequence-button");
+// ToDo: Was macht der Status Button?
+const sequenceStatusButton = document.querySelector("#sequence-status-button");
+const clearSequenceButton = document.querySelector("#clear-sequence-button");
+const sequenceStepsList = document.querySelector("#sequence-steps");
 const poseFields = ["x_mm", "y_mm", "z_mm", "p_deg", "r_deg", "g_pct"];
 const maxPoseHistoryEntries = 10;
+const maxSequenceSteps = 16;
 const poseHistoryFileVersion = 1;
 const poseHistoryStorageKey = "dilbert.poseHistory.v1";
+const sequenceStorageKey = "dilbert.sequence.v1";
 const committedFormStateSyncers = [];
 let poseHistory = loadPoseHistory();
+let sequenceSteps = loadSequence();
+let sequenceStatusTimer = 0;
 
 function apiUrl(path) {
   const baseUrl = baseUrlInput.value.replace(/\/+$/, "");
@@ -135,6 +161,50 @@ function savePoseHistory() {
   window.localStorage.setItem(poseHistoryStorageKey, JSON.stringify(poseHistoryDocument()));
 }
 
+function normalizeSequenceType(type) {
+  return type === "rgb_color" ? "led" : (type ?? "pose");
+}
+
+// ToDo: colorKind "keep" kann heraus genommen werden.
+function normalizeLedColorKind(kind) {
+  return ["keep", "status", "rgb"].includes(kind) ? kind : "rgb";
+}
+
+function loadSequence() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(sequenceStorageKey) || "[]");
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed
+      .map((step) => {
+        const type = normalizeSequenceType(step?.type);
+        return {
+          type,
+          name: normalizePoseName(step?.name),
+          pose: type === "led" || type === "wait" ? null : normalizePose(poseFromEntry(step)),
+          wait_ms: Math.max(0, Number.parseInt(step?.wait_ms ?? 0, 10) || 0),
+          motionProfile: step?.motionProfile ?? readMotionProfileState(),
+          colorKind: normalizeLedColorKind(step?.colorKind),
+          statusColor: step?.statusColor ?? "green",
+          r: Math.max(0, Math.min(255, Number.parseInt(step?.r ?? 0, 10) || 0)),
+          g: Math.max(0, Math.min(255, Number.parseInt(step?.g ?? 0, 10) || 0)),
+          b: Math.max(0, Math.min(255, Number.parseInt(step?.b ?? 0, 10) || 0)),
+          mode: step?.mode ?? "",
+          interval_ms: Math.max(1, Number.parseInt(step?.interval_ms ?? 500, 10) || 500),
+        };
+      })
+      .filter((step) => step.type === "led" || step.type === "wait" || isValidPose(step.pose))
+      .slice(0, maxSequenceSteps);
+  } catch {
+    return [];
+  }
+}
+
+function saveSequence() {
+  window.localStorage.setItem(sequenceStorageKey, JSON.stringify(sequenceSteps));
+}
+
 function setPoseHistory(nextPoseHistory) {
   poseHistory = normalizePoseHistory(nextPoseHistory);
   savePoseHistory();
@@ -201,6 +271,51 @@ function renderPoseHistory() {
     item.append(row);
     poseHistoryList.append(item);
   }
+}
+
+// ToDo: Hier ist die Struktur ziemlich vermurkst. Aufräumen!
+function renderSequence() {
+  sequenceStepsList.replaceChildren();
+
+  sequenceSteps.forEach((step, index) => {
+    const item = document.createElement("li");
+    const row = document.createElement("div");
+    row.className = "sequence-step-row";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    const name = document.createElement("span");
+    name.className = "sequence-step-name";
+    name.textContent = step.name || `Step ${index + 1}`;
+    const values = document.createElement("span");
+    values.className = "sequence-step-values";
+    values.textContent =
+      step.type === "led"
+        ? formatLedStep(step)
+        : step.type === "wait"
+          ? `wait ${step.wait_ms} ms`
+          : formatPose(step.pose);
+    button.append(name, values);
+    button.addEventListener("click", () => {
+      updatePoseForm(step);
+      setStatus("Sequence step loaded.", step);
+    });
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.textContent = "🗑️";
+    deleteButton.addEventListener("click", () => {
+      sequenceSteps.splice(index, 1);
+      saveSequence();
+      renderSequence();
+      setStatus("Sequence step removed.");
+    });
+
+    row.append(button);
+    row.append(deleteButton);
+    item.append(row);
+    sequenceStepsList.append(item);
+  });
 }
 
 function deletePoseHistoryEntry(entryToDelete) {
@@ -295,6 +410,54 @@ function readMotionProfileState() {
   };
 }
 
+function readSequenceWait() {
+  return Math.max(0, Number.parseInt(sequenceWaitInput.value, 10) || 0);
+}
+
+function readSequenceColor() {
+  const clamp = (value) => Math.max(0, Math.min(255, Number.parseInt(value, 10) || 0));
+  return {
+    r: clamp(sequenceColorRInput.value),
+    g: clamp(sequenceColorGInput.value),
+    b: clamp(sequenceColorBInput.value),
+  };
+}
+
+function readSequenceLedColorState() {
+  return {
+    colorKind: sequenceLedColorKindSelect.value,
+    statusColor: sequenceStatusColorSelect.value,
+    ...readSequenceColor(),
+  };
+}
+
+function readSequenceLedOptions() {
+  return {
+    mode: sequenceLedSendModeInput.checked ? sequenceLedModeSelect.value : "",
+    interval_ms: sequenceLedSendIntervalInput.checked
+      ? Math.max(1, Number.parseInt(sequenceLedIntervalInput.value, 10) || 500)
+      : 0,
+  };
+}
+
+function formatLedStep(step) {
+  const parts = [];
+  if (step.colorKind === "status") {
+    parts.push(`color ${step.statusColor}`);
+  } else if (step.colorKind === "rgb") {
+    parts.push(`rgb ${step.r}, ${step.g}, ${step.b}`);
+  } else {
+    parts.push("color keep");
+  }
+  if (step.mode) {
+    parts.push(step.mode);
+  }
+  if (step.interval_ms) {
+    parts.push(`${step.interval_ms} ms`);
+  }
+  return parts.join(", ");
+}
+
 function isMotionProfileSendable(profile) {
   return Number.isFinite(profile.target_velocity_deg_s) && profile.target_velocity_deg_s > 0.0 &&
          Number.isInteger(profile.sample_time_ms) && profile.sample_time_ms > 0;
@@ -381,6 +544,130 @@ async function postJson(path, payload) {
     throw new Error(`${response.status} ${response.statusText}: ${text}`);
   }
   return body;
+}
+
+async function getJson(path) {
+  const url = apiUrl(path);
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+    },
+  }).catch((error) => {
+    throw new Error(`${error.message} (${url})`);
+  });
+
+  const text = await response.text();
+  const body = text ? JSON.parse(text) : {};
+  if (!response.ok) {
+    throw new Error(`${response.status} ${response.statusText}: ${text}`);
+  }
+  return body;
+}
+
+// ToDo: Auch hier muss der Code lesbarer werden. Aufräumen!
+function sequenceRequestPayload() {
+  const steps = [];
+  for (const step of sequenceSteps) {
+    if (step.type === "led") {
+      const ledStep = {
+        type: "led",
+        name: step.name,
+      };
+      if (step.colorKind === "status") {
+        ledStep.color = step.statusColor;
+      } else if (step.colorKind === "rgb") {
+        ledStep.rgb = {
+          r: step.r,
+          g: step.g,
+          b: step.b
+        };
+      }
+      if (step.mode) {
+        ledStep.mode = step.mode;
+      }
+      if (step.interval_ms) {
+        ledStep.interval_ms = step.interval_ms;
+      }
+      steps.push(ledStep);
+      continue;
+    }
+
+    if (step.type === "wait") {
+      steps.push({
+        type: "wait",
+        duration_ms: step.wait_ms,
+      });
+      continue;
+    }
+
+    steps.push({
+      type: "pose",
+      name: step.name,
+      ...step.pose,
+      motionProfile: step.motionProfile,
+    });
+  }
+
+  return {
+    steps,
+  };
+}
+
+function updateSequencePolling(body) {
+  const activeStatuses = ["planning", "motion_active", "waiting"];
+  const status = body?.sequence?.status;
+  if (activeStatuses.includes(status)) {
+    if (!sequenceStatusTimer) {
+      sequenceStatusTimer = window.setInterval(() => {
+        void refreshSequenceStatus("Sequence running.");
+      }, 1000);
+    }
+    return;
+  }
+
+  if (sequenceStatusTimer) {
+    window.clearInterval(sequenceStatusTimer);
+    sequenceStatusTimer = 0;
+  }
+}
+
+async function refreshSequenceStatus(message = "Sequence status.") {
+  const body = await getJson("/api/sequence/status");
+  updateFormsFromResponse(body);
+  updateSequencePolling(body);
+  setStatus(message, body);
+}
+
+async function startSequence() {
+  if (sequenceSteps.length === 0) {
+    setStatus("Sequence is empty.");
+    return;
+  }
+
+  startSequenceButton.disabled = true;
+  try {
+    const payload = sequenceRequestPayload();
+    setStatus("Starting sequence...", payload);
+    const body = await postJson("/api/sequence/start", payload);
+    updateFormsFromResponse(body);
+    updateSequencePolling(body);
+    setStatus("Sequence started.", body);
+  } finally {
+    startSequenceButton.disabled = false;
+  }
+}
+
+async function stopSequence() {
+  stopSequenceButton.disabled = true;
+  try {
+    const body = await postJson("/api/sequence/stop");
+    updateFormsFromResponse(body);
+    updateSequencePolling(body);
+    setStatus("Sequence stopped.", body);
+  } finally {
+    stopSequenceButton.disabled = false;
+  }
 }
 
 async function sendPoseState(source) {
@@ -571,6 +858,102 @@ sendPoseButton.addEventListener("click", async () => {
   }
 });
 
+addSequenceStepButton.addEventListener("click", () => {
+  const motionProfile = readMotionProfileState();
+  if (!isMotionProfileSendable(motionProfile)) {
+    setStatus("Add failed: motion profile values must be positive numbers.");
+    return;
+  }
+  if (sequenceSteps.length >= maxSequenceSteps) {
+    setStatus(`Add failed: maximum sequence length is ${maxSequenceSteps} steps.`);
+    return;
+  }
+
+  const step = {
+    type: "pose",
+    name: readPoseName(),
+    pose: normalizePose(readPoseState()),
+    wait_ms: 0,  // ToDo: der "pose" Step braucht kein wait_ms mehr!
+    motionProfile,
+  };
+  sequenceSteps.push(step);
+  saveSequence();
+  renderSequence();
+  setStatus("Sequence step added.", step);
+});
+
+addWaitStepButton.addEventListener("click", () => {
+  if (sequenceSteps.length >= maxSequenceSteps) {
+    setStatus(`Add failed: maximum sequence length is ${maxSequenceSteps} steps.`);
+    return;
+  }
+
+  const step = {
+    type: "wait",
+    name: "Wait",
+    wait_ms: readSequenceWait(),
+  };
+  sequenceSteps.push(step);
+  saveSequence();
+  renderSequence();
+  setStatus("Wait step added.", step);
+});
+
+addColorStepButton.addEventListener("click", () => {
+  if (sequenceSteps.length >= maxSequenceSteps) {
+    setStatus(`Add failed: maximum sequence length is ${maxSequenceSteps} steps.`);
+    return;
+  }
+
+  const step = {
+    type: "led",
+    name: readPoseName(),
+    ...readSequenceLedColorState(),
+    ...readSequenceLedOptions(),
+    wait_ms: 0,
+  };
+  // ToDo: colorKind "keep" kann heraus genommen werden.
+  if (step.colorKind === "keep" && !step.mode && !step.interval_ms) {
+    setStatus("Add failed: LED step needs color, rgb, mode or interval.");
+    return;
+  }
+  sequenceSteps.push(step);
+  saveSequence();
+  renderSequence();
+  setStatus("Color step added.", step);
+});
+
+startSequenceButton.addEventListener("click", async () => {
+  try {
+    await startSequence();
+  } catch (error) {
+    setStatus(`Sequence start failed: ${error.message}`);
+  }
+});
+
+stopSequenceButton.addEventListener("click", async () => {
+  try {
+    await stopSequence();
+  } catch (error) {
+    setStatus(`Sequence stop failed: ${error.message}`);
+  }
+});
+
+sequenceStatusButton.addEventListener("click", async () => {
+  try {
+    await refreshSequenceStatus();
+  } catch (error) {
+    setStatus(`Sequence status failed: ${error.message}`);
+  }
+});
+
+clearSequenceButton.addEventListener("click", () => {
+  sequenceSteps = [];
+  saveSequence();
+  renderSequence();
+  setStatus("Sequence cleared.");
+});
+
 sendJointButton.addEventListener("click", async () => {
   try {
     await sendJointState("Sending");
@@ -623,3 +1006,4 @@ poseHistoryFileInput.addEventListener("change", async () => {
 addCommittedNumberSend(jointForm, sendJointState);
 addCommittedNumberSend(pwmForm, sendPwmState);
 renderPoseHistory();
+renderSequence();

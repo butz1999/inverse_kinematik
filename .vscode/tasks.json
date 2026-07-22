@@ -75,6 +75,8 @@
             "args": [
                 "device",
                 "monitor",
+                "-e",
+                "esp32s3",
                 "-b",
                 "115200"
             ],
