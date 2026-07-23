@@ -761,7 +761,7 @@ function updateSequencePolling(body) {
   if (activeStatuses.includes(status)) {
     if (!sequenceStatusTimer) {
       sequenceStatusTimer = window.setInterval(() => {
-        void refreshSequenceStatus("Sequence running.");
+        void refreshSequenceStatus();
       }, 1000);
     }
     return;
@@ -773,11 +773,28 @@ function updateSequencePolling(body) {
   }
 }
 
-async function refreshSequenceStatus(message = "Sequence status.") {
+function sequenceStatusMessage(body) {
+  const status = body?.sequence?.status;
+  if (["planning", "motion_active", "waiting"].includes(status)) {
+    return "Sequence running.";
+  }
+  if (status === "completed") {
+    return "Sequence finished.";
+  }
+  if (status === "stopped") {
+    return "Sequence stopped.";
+  }
+  if (status === "failed") {
+    return "Sequence failed.";
+  }
+  return "Sequence status.";
+}
+
+async function refreshSequenceStatus() {
   const body = await getJson("/api/sequence/status");
   updateFormsFromResponse(body);
   updateSequencePolling(body);
-  setStatus(message, body);
+  setStatus(sequenceStatusMessage(body), body);
 }
 
 async function startSequence() {
