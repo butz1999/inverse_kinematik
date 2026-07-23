@@ -28,7 +28,6 @@ const addWaitStepButton = document.querySelector("#add-wait-step-button");
 const addColorStepButton = document.querySelector("#add-color-step-button");
 const startSequenceButton = document.querySelector("#start-sequence-button");
 const stopSequenceButton = document.querySelector("#stop-sequence-button");
-// ToDo: Was macht der Status Button?
 const sequenceStatusButton = document.querySelector("#sequence-status-button");
 const clearSequenceButton = document.querySelector("#clear-sequence-button");
 const sequenceStepsList = document.querySelector("#sequence-steps");
@@ -267,48 +266,71 @@ function renderPoseHistory() {
   }
 }
 
-// ToDo: Hier ist die Struktur ziemlich vermurkst. Aufräumen!
+function sequenceStepTitle(step, index) {
+  return step.name || `Step ${index + 1}`;
+}
+
+function sequenceStepValues(step) {
+  if (step.type === "led") {
+    return formatLedStep(step);
+  }
+
+  if (step.type === "wait") {
+    return `wait ${step.wait_ms} ms`;
+  }
+
+  return formatPose(step.pose);
+}
+
+function createSequenceStepButton(step, index) {
+  const button = document.createElement("button");
+  button.type = "button";
+
+  const name = document.createElement("span");
+  name.className = "sequence-step-name";
+  name.textContent = sequenceStepTitle(step, index);
+
+  const values = document.createElement("span");
+  values.className = "sequence-step-values";
+  values.textContent = sequenceStepValues(step);
+
+  button.append(name, values);
+  button.addEventListener("click", () => {
+    updatePoseForm(step);
+    setStatus("Sequence step loaded.", step);
+  });
+  return button;
+}
+
+function createSequenceStepDeleteButton(index) {
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.textContent = "🗑️";
+  deleteButton.addEventListener("click", () => {
+    sequenceSteps.splice(index, 1);
+    saveSequence();
+    renderSequence();
+    setStatus("Sequence step removed.");
+  });
+  return deleteButton;
+}
+
+function createSequenceStepItem(step, index) {
+  const item = document.createElement("li");
+  const row = document.createElement("div");
+  row.className = "sequence-step-row";
+
+  row.append(createSequenceStepButton(step, index));
+  row.append(createSequenceStepDeleteButton(index));
+  item.append(row);
+  return item;
+}
+
 function renderSequence() {
   sequenceStepsList.replaceChildren();
 
   sequenceSteps.forEach((step, index) => {
-    const item = document.createElement("li");
-    const row = document.createElement("div");
-    row.className = "sequence-step-row";
-
-    const button = document.createElement("button");
-    button.type = "button";
-    const name = document.createElement("span");
-    name.className = "sequence-step-name";
-    name.textContent = step.name || `Step ${index + 1}`;
-    const values = document.createElement("span");
-    values.className = "sequence-step-values";
-    values.textContent =
-      step.type === "led"
-        ? formatLedStep(step)
-        : step.type === "wait"
-          ? `wait ${step.wait_ms} ms`
-          : formatPose(step.pose);
-    button.append(name, values);
-    button.addEventListener("click", () => {
-      updatePoseForm(step);
-      setStatus("Sequence step loaded.", step);
-    });
-
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.textContent = "🗑️";
-    deleteButton.addEventListener("click", () => {
-      sequenceSteps.splice(index, 1);
-      saveSequence();
-      renderSequence();
-      setStatus("Sequence step removed.");
-    });
-
-    row.append(button);
-    row.append(deleteButton);
-    item.append(row);
-    sequenceStepsList.append(item);
+    sequenceStepsList.append(createSequenceStepItem(step, index));
   });
 }
 
@@ -555,48 +577,67 @@ async function getJson(path) {
   return body;
 }
 
-// ToDo: Auch hier muss der Code lesbarer werden. Aufräumen!
-function sequenceRequestPayload() {
-  const steps = [];
-  for (const step of sequenceSteps) {
-    if (step.type === "led") {
-      const ledStep = {
-        type: "led",
-        name: step.name,
-      };
-      if (step.colorKind === "status") {
-        ledStep.color = step.statusColor;
-      } else if (step.colorKind === "rgb") {
-        ledStep.rgb = {
-          r: step.r,
-          g: step.g,
-          b: step.b
-        };
-      }
-      ledStep.mode = step.mode;
-      ledStep.interval_ms = step.interval_ms;
-      steps.push(ledStep);
-      continue;
-    }
-
-    if (step.type === "wait") {
-      steps.push({
-        type: "wait",
-        duration_ms: step.wait_ms,
-      });
-      continue;
-    }
-
-    steps.push({
-      type: "pose",
-      name: step.name,
-      ...step.pose,
-      motionProfile: step.motionProfile,
-    });
+function ledColorRequestPayload(step) {
+  if (step.colorKind === "status") {
+    return {
+      color: step.statusColor,
+    };
   }
 
   return {
-    steps,
+    rgb: {
+      r: step.r,
+      g: step.g,
+      b: step.b,
+    },
+  };
+}
+
+function ledStepRequestPayload(step) {
+  return {
+    type: "led",
+    name: step.name,
+    ...ledColorRequestPayload(step),
+    mode: step.mode,
+    interval_ms: step.interval_ms,
+  };
+}
+
+function waitStepRequestPayload(step) {
+  return {
+    type: "wait",
+    duration_ms: step.wait_ms,
+  };
+}
+
+function poseStepRequestPayload(step) {
+  return {
+    type: "pose",
+    name: step.name,
+    ...step.pose,
+    motionProfile: step.motionProfile,
+  };
+}
+
+function sequenceStepRequestPayload(step) {
+  if (step.type === "led") {
+    return ledStepRequestPayload(step);
+  }
+
+  if (step.type === "wait") {
+    return waitStepRequestPayload(step);
+  }
+
+  if (step.type === "pose") {
+    return poseStepRequestPayload(step);
+  }
+
+  throw new Error(`Unsupported sequence step type: ${step.type}`);
+}
+
+function sequenceRequestPayload() {
+  return {
+    steps: sequenceSteps.map(sequenceStepRequestPayload),
   };
 }
 
@@ -859,7 +900,6 @@ addPoseStepButton.addEventListener("click", () => {
     type: "pose",
     name: readPoseName(),
     pose: normalizePose(readPoseState()),
-    wait_ms: 0,  // ToDo: der "pose" Step braucht kein wait_ms mehr!
     motionProfile,
   };
   sequenceSteps.push(step);
@@ -893,7 +933,7 @@ addColorStepButton.addEventListener("click", () => {
 
   const step = {
     type: "led",
-    name: readPoseName(),
+    name: "LED",
     ...readSequenceLedColorState(),
     ...readSequenceLedOptions(),
     wait_ms: 0,
