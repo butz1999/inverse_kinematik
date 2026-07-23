@@ -208,6 +208,19 @@ function formatPose(pose) {
   return `x ${pose.x_mm}, y ${pose.y_mm}, z ${pose.z_mm}, p ${pose.p_deg}, r ${pose.r_deg}, g ${pose.g_pct}`;
 }
 
+function formatMotionProfile(motionProfile) {
+  if (!motionProfile) {
+    return "";
+  }
+
+  return `profile ${motionProfile.type}, v ${motionProfile.target_velocity_deg_s}, sample ${motionProfile.sample_time_ms}`;
+}
+
+function formatSequencePoseStep(step) {
+  const motionProfile = formatMotionProfile(step.motionProfile);
+  return motionProfile ? `${formatPose(step.pose)}, ${motionProfile}` : formatPose(step.pose);
+}
+
 function readPoseName() {
   return normalizePoseName(poseForm.elements.namedItem("name")?.value);
 }
@@ -279,7 +292,7 @@ function sequenceStepValues(step) {
     return `wait ${step.wait_ms} ms`;
   }
 
-  return formatPose(step.pose);
+  return formatSequencePoseStep(step);
 }
 
 function createSequenceStepButton(step, index) {
@@ -297,6 +310,9 @@ function createSequenceStepButton(step, index) {
   button.append(name, values);
   button.addEventListener("click", () => {
     updatePoseForm(step);
+    if (step.type === "pose") {
+      updateMotionProfileForm(step.motionProfile);
+    }
     setStatus("Sequence step loaded.", step);
   });
   return button;
@@ -424,6 +440,16 @@ function readMotionProfileState() {
     target_velocity_deg_s: Number.parseFloat(motionProfileVelocityInput.value),
     sample_time_ms: Number.parseInt(motionProfileSampleTimeInput.value, 10),
   };
+}
+
+function updateMotionProfileForm(motionProfile) {
+  if (!motionProfile) {
+    return;
+  }
+
+  motionProfileTypeSelect.value = motionProfile.type;
+  motionProfileVelocityInput.value = String(motionProfile.target_velocity_deg_s);
+  motionProfileSampleTimeInput.value = String(motionProfile.sample_time_ms);
 }
 
 function readSequenceWait() {
