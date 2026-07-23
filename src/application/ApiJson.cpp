@@ -265,38 +265,38 @@ SequenceDefinitionParseResult parseLedStepObject(JsonObjectConst step, steps::Le
     led_step.has_rgb_color = true;
   }
 
-  if (!step["mode"].isNull())
+  if (!led_step.has_status_color && !led_step.has_rgb_color)
   {
-    if (!step["mode"].is<const char *>() ||
-        !hardware::parseStatusLedMode(step["mode"].as<const char *>(), led_step.mode))
-    {
-      return sequenceDefinitionError(ApiResultCode::InvalidTargetPose, "mode",
-                                     "LED mode must be off, on, blinking or pulsing.");
-    }
-    led_step.has_mode = true;
+    return sequenceDefinitionError(ApiResultCode::MissingField, "color",
+                                   "LED step must contain either color or rgb.");
   }
 
-  if (!step["interval_ms"].isNull())
+  if (!step["mode"].is<const char *>())
   {
-    if (isMissingOrNonInteger(step["interval_ms"]))
-    {
-      return sequenceDefinitionError(ApiResultCode::InvalidTargetPose, "interval_ms",
-                                     "LED interval must be an integer.");
-    }
-    const auto interval_ms = step["interval_ms"].as<long>();
-    if (interval_ms <= 0)
-    {
-      return sequenceDefinitionError(ApiResultCode::InvalidTargetPose, "interval_ms", "LED interval must be positive.");
-    }
-    led_step.interval_ms = static_cast<uint32_t>(interval_ms);
-    led_step.has_interval_ms = true;
+    return sequenceDefinitionError(ApiResultCode::MissingField, "mode",
+                                   "LED mode must be off, on, blinking or pulsing.");
+  }
+  if (!hardware::parseStatusLedMode(step["mode"].as<const char *>(), led_step.mode))
+  {
+    return sequenceDefinitionError(ApiResultCode::InvalidTargetPose, "mode",
+                                   "LED mode must be off, on, blinking or pulsing.");
   }
 
-  if (!led_step.has_status_color && !led_step.has_rgb_color && !led_step.has_mode && !led_step.has_interval_ms)
+  if (step["interval_ms"].isNull())
   {
-    return sequenceDefinitionError(ApiResultCode::MissingField, "led",
-                                   "LED step must contain color, rgb, mode or interval_ms.");
+    return sequenceDefinitionError(ApiResultCode::MissingField, "interval_ms", "LED interval must be an integer.");
   }
+  if (!step["interval_ms"].is<long>())
+  {
+    return sequenceDefinitionError(ApiResultCode::InvalidTargetPose, "interval_ms", "LED interval must be an integer.");
+  }
+
+  const auto interval_ms = step["interval_ms"].as<long>();
+  if (interval_ms <= 0)
+  {
+    return sequenceDefinitionError(ApiResultCode::InvalidTargetPose, "interval_ms", "LED interval must be positive.");
+  }
+  led_step.interval_ms = static_cast<uint32_t>(interval_ms);
 
   return SequenceDefinitionParseResult{true, ApiResultCode::Ok, kEmptyField, kEmptyField};
 }

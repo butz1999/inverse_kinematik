@@ -228,22 +228,35 @@ void test_parse_sequence_definition_accepts_led_step_with_rgb_mode_and_interval(
   TEST_ASSERT_EQUAL_UINT8(10U, parsed.sequence.steps[0].led.rgb_color.r);
   TEST_ASSERT_EQUAL_UINT8(20U, parsed.sequence.steps[0].led.rgb_color.g);
   TEST_ASSERT_EQUAL_UINT8(30U, parsed.sequence.steps[0].led.rgb_color.b);
-  TEST_ASSERT_TRUE(parsed.sequence.steps[0].led.has_mode);
   TEST_ASSERT_EQUAL(hardware::StatusLed::Mode::Pulsing, parsed.sequence.steps[0].led.mode);
-  TEST_ASSERT_TRUE(parsed.sequence.steps[0].led.has_interval_ms);
   TEST_ASSERT_EQUAL_UINT32(750U, parsed.sequence.steps[0].led.interval_ms);
 }
 
-void test_parse_sequence_definition_accepts_led_step_without_color()
+void test_parse_sequence_definition_rejects_led_step_without_color()
 {
   const auto parsed = parseSequence("{\"steps\":[{\"type\":\"led\",\"mode\":\"blinking\",\"interval_ms\":500}]}");
 
-  TEST_ASSERT_TRUE(parsed.result.ok);
-  TEST_ASSERT_EQUAL(application::steps::StepType::Led, parsed.sequence.steps[0].type);
-  TEST_ASSERT_FALSE(parsed.sequence.steps[0].led.has_status_color);
-  TEST_ASSERT_FALSE(parsed.sequence.steps[0].led.has_rgb_color);
-  TEST_ASSERT_TRUE(parsed.sequence.steps[0].led.has_mode);
-  TEST_ASSERT_EQUAL(hardware::StatusLed::Mode::Blinking, parsed.sequence.steps[0].led.mode);
+  TEST_ASSERT_FALSE(parsed.result.ok);
+  TEST_ASSERT_EQUAL(application::ApiResultCode::MissingField, parsed.result.code);
+  TEST_ASSERT_EQUAL_STRING("color", parsed.result.field_name);
+}
+
+void test_parse_sequence_definition_rejects_led_step_without_mode()
+{
+  const auto parsed = parseSequence("{\"steps\":[{\"type\":\"led\",\"color\":\"green\",\"interval_ms\":500}]}");
+
+  TEST_ASSERT_FALSE(parsed.result.ok);
+  TEST_ASSERT_EQUAL(application::ApiResultCode::MissingField, parsed.result.code);
+  TEST_ASSERT_EQUAL_STRING("mode", parsed.result.field_name);
+}
+
+void test_parse_sequence_definition_rejects_led_step_without_interval()
+{
+  const auto parsed = parseSequence("{\"steps\":[{\"type\":\"led\",\"color\":\"green\",\"mode\":\"blinking\"}]}");
+
+  TEST_ASSERT_FALSE(parsed.result.ok);
+  TEST_ASSERT_EQUAL(application::ApiResultCode::MissingField, parsed.result.code);
+  TEST_ASSERT_EQUAL_STRING("interval_ms", parsed.result.field_name);
 }
 
 void test_parse_sequence_definition_rejects_led_step_with_color_and_rgb()
@@ -285,7 +298,9 @@ int main(int argc, char **argv)
   RUN_TEST(test_parse_sequence_definition_accepts_nested_target_pose);
   RUN_TEST(test_parse_sequence_definition_accepts_wait_step);
   RUN_TEST(test_parse_sequence_definition_accepts_led_step_with_rgb_mode_and_interval);
-  RUN_TEST(test_parse_sequence_definition_accepts_led_step_without_color);
+  RUN_TEST(test_parse_sequence_definition_rejects_led_step_without_color);
+  RUN_TEST(test_parse_sequence_definition_rejects_led_step_without_mode);
+  RUN_TEST(test_parse_sequence_definition_rejects_led_step_without_interval);
   RUN_TEST(test_parse_sequence_definition_rejects_led_step_with_color_and_rgb);
   RUN_TEST(test_parse_sequence_definition_rejects_empty_steps);
   return UNITY_END();

@@ -89,9 +89,7 @@ void test_run_engine_reports_led_step()
   auto led_step = application::steps::emptyLedStep();
   led_step.has_rgb_color = true;
   led_step.rgb_color = hardware::StatusLed::RgbColor{10U, 20U, 30U};
-  led_step.has_mode = true;
   led_step.mode = hardware::StatusLed::Mode::Pulsing;
-  led_step.has_interval_ms = true;
   led_step.interval_ms = 750U;
   led_step.name = "blue-ish";
   sequence.steps[0] = application::steps::ledSequenceStep(led_step);
@@ -105,9 +103,7 @@ void test_run_engine_reports_led_step()
   TEST_ASSERT_EQUAL_UINT8(10U, color_result.led_step.rgb_color.r);
   TEST_ASSERT_EQUAL_UINT8(20U, color_result.led_step.rgb_color.g);
   TEST_ASSERT_EQUAL_UINT8(30U, color_result.led_step.rgb_color.b);
-  TEST_ASSERT_TRUE(color_result.led_step.has_mode);
   TEST_ASSERT_EQUAL(hardware::StatusLed::Mode::Pulsing, color_result.led_step.mode);
-  TEST_ASSERT_TRUE(color_result.led_step.has_interval_ms);
   TEST_ASSERT_EQUAL_UINT32(750U, color_result.led_step.interval_ms);
   TEST_ASSERT_EQUAL(application::SequenceRunStatus::Planning, engine.state().status);
 

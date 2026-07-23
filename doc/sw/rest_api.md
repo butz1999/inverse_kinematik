@@ -548,7 +548,7 @@ Request:
 
 Bei `pose` darf die Zielpose alternativ auch als `targetPose`-Objekt übergeben werden. Fehlt `type`, wird der Schritt aus Kompatibilitätsgründen als `pose` interpretiert.
 
-Beim `led`-Schritt sind `color`, `rgb`, `mode` und `interval_ms` optional. Mindestens eines dieser Felder muss gesetzt sein. Weggelassene Felder ändern den bestehenden LED-Zustand nicht. `color` und `rgb` dürfen nicht gleichzeitig gesetzt sein. Unterstützte Modi sind `off`, `on`, `blinking` und `pulsing`.
+Beim `led`-Schritt muss genau eine Farbe über `color` oder `rgb` gesetzt sein. Zusätzlich sind `mode` und `interval_ms` Pflichtfelder. `color` und `rgb` dürfen nicht gleichzeitig gesetzt sein. Unterstützte Modi sind `off`, `on`, `blinking` und `pulsing`.
 
 Response `202`:
 

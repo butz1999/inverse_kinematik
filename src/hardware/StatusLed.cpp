@@ -44,48 +44,19 @@ StatusLed::StatusLed(uint8_t pin, uint8_t brightness)
 {
 }
 
-void StatusLed::setColor(Color color)
-{
-  setColor(rgbFromStatusColor(color));
-}
-
-void StatusLed::setColor(RgbColor color)
-{
-  updateColor(color);
-  writeCurrentStaticOutputIfNeeded();
-}
-
-void StatusLed::setMode(Mode mode)
-{
-  updateMode(mode);
-  writeCurrentStaticOutputIfNeeded();
-}
-
-void StatusLed::setIntervalMs(uint32_t interval_ms)
-{
-  updateIntervalMs(interval_ms);
-}
-
 void StatusLed::set(Color color)
 {
-  updateColor(rgbFromStatusColor(color));
-  updateMode(color == Color::Off ? Mode::Off : Mode::On);
-  writeCurrentStaticOutputIfNeeded();
+  set(rgbFromStatusColor(color), color == Color::Off ? Mode::Off : Mode::On, interval_ms_);
 }
 
 void StatusLed::set(RgbColor color)
 {
-  updateColor(color);
-  updateMode(Mode::On);
-  writeCurrentStaticOutputIfNeeded();
+  set(color, Mode::On, interval_ms_);
 }
 
 void StatusLed::set(Color color, Mode mode, uint32_t interval_ms)
 {
-  updateColor(rgbFromStatusColor(color));
-  updateMode(mode);
-  updateIntervalMs(interval_ms);
-  writeCurrentStaticOutputIfNeeded();
+  set(rgbFromStatusColor(color), mode, interval_ms);
 }
 
 void StatusLed::set(RgbColor color, Mode mode, uint32_t interval_ms)
@@ -132,7 +103,7 @@ bool StatusLed::updateIntervalMs(uint32_t interval_ms)
   return true;
 }
 
-void StatusLed::service(uint32_t now_ms)
+void StatusLed::updateOutput(uint32_t now_ms)
 {
   const auto brightness = brightnessForNow(now_ms);
   const auto write_color = toNeopixelWriteColor(color_, brightness);

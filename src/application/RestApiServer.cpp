@@ -354,19 +354,11 @@ void RestApiServer::servicePendingLedStep()
   logResult("[REST] Applying LED step");
   if (step.has_status_color)
   {
-    status_led_.setColor(step.status_color);
+    status_led_.set(step.status_color, step.mode, step.interval_ms);
   }
-  if (step.has_rgb_color)
+  else if (step.has_rgb_color)
   {
-    status_led_.setColor(step.rgb_color);
-  }
-  if (step.has_mode)
-  {
-    status_led_.setMode(step.mode);
-  }
-  if (step.has_interval_ms)
-  {
-    status_led_.setIntervalMs(step.interval_ms);
+    status_led_.set(step.rgb_color, step.mode, step.interval_ms);
   }
   logResult("[REST] LED step applied");
 }
@@ -924,8 +916,8 @@ void RestApiServer::handleSequenceStartRequest()
   {
     auto led = doc.createNestedObject("led");
     led["hasColor"] = run_result.led_step.has_status_color || run_result.led_step.has_rgb_color;
-    led["hasMode"] = run_result.led_step.has_mode;
-    led["hasIntervalMs"] = run_result.led_step.has_interval_ms;
+    led["mode"] = hardware::toString(run_result.led_step.mode);
+    led["intervalMs"] = run_result.led_step.interval_ms;
   }
   setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
   sendJson(202, jsonBody(doc));

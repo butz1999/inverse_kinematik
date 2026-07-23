@@ -208,7 +208,7 @@ void setup()
   {
     color = hardware::StatusLed::Color::Orange;
   }
-  statusLed.setColor(color);
+  statusLed.set(color);
   delay(250);
   // Register REST API
   restApi.init();
@@ -222,5 +222,5 @@ void loop()
 {
   const auto now = millis();
   restApi.handleClient();
-  statusLed.service(now);
+  statusLed.updateOutput(now);
 }

@@ -48,17 +48,11 @@ class StatusLed
 
   StatusLed(uint8_t pin, uint8_t brightness);
 
-  // ToDo: Da gibt es ein paar Duplikate setColor() und set() -> aufräumen!
-  void setColor(Color color);
-  void setColor(RgbColor color);
-  void setMode(Mode mode);
-  void setIntervalMs(uint32_t interval_ms);
   void set(Color color);
   void set(RgbColor color);
   void set(Color color, Mode mode, uint32_t interval_ms);
   void set(RgbColor color, Mode mode, uint32_t interval_ms);
-  // ToDo: Hier gefällt mir der Name nicht loop() callHandler() ... irgend etwas besseres...
-  void service(uint32_t now_ms);
+  void updateOutput(uint32_t now_ms);
 
   Color color() const;
   RgbColor rgbColor() const;
