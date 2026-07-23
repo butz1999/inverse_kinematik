@@ -4,6 +4,7 @@ const pwmForm = document.querySelector("#pwm-form");
 const statusBox = document.querySelector("#status");
 const baseUrlInput = document.querySelector("#base-url");
 const initButton = document.querySelector("#init-button");
+const addPoseHistoryButton = document.querySelector("#add-pose-history-button");
 const sendPoseButton = document.querySelector("#send-pose-button");
 const sendJointButton = document.querySelector("#send-joint-button");
 const sendButton = document.querySelector("#send-button");
@@ -302,6 +303,7 @@ function renderPoseHistory() {
       updatePoseForm(entry);
       try {
         await sendPoseState("Sending history");
+        promotePoseHistoryEntry(entry);
       } catch (error) {
         setStatus(`Send failed: ${error.message}`);
       }
@@ -397,6 +399,11 @@ function renderSequence() {
 function deletePoseHistoryEntry(entryToDelete) {
   const key = poseHistoryEntryKey(entryToDelete);
   setPoseHistory(poseHistory.filter((entry) => poseHistoryEntryKey(entry) !== key));
+}
+
+function promotePoseHistoryEntry(entryToPromote) {
+  const key = poseHistoryEntryKey(entryToPromote);
+  setPoseHistory([entryToPromote, ...poseHistory.filter((entry) => poseHistoryEntryKey(entry) !== key)]);
 }
 
 function clearPoseHistory() {
@@ -835,7 +842,6 @@ async function sendPoseState(source) {
     return;
   }
 
-  const poseName = readPoseName();
   const state = {
     ...readPoseState(),
     motionProfile,
@@ -845,7 +851,6 @@ async function sendPoseState(source) {
     setStatus(`${source} pose...`, state);
     const body = await postJson("/api/motion", state);
     updateFormsFromResponse(body);
-    rememberPose(body.targetPose, poseName);
     setStatus("Pose accepted.", body);
   } finally {
     sendPoseButton.disabled = false;
@@ -861,9 +866,6 @@ async function sendJointState(source) {
     updateFormsFromResponse(body);
     const fkBody = await postJson("/api/forward-kinematics", body.jointState || state);
     updatePoseForm(fkBody.targetPose);
-    if (source !== "Updating") {
-      rememberPose(fkBody.targetPose);
-    }
     setStatus("Position accepted.", {
       jointMotion: body,
       forwardKinematics: fkBody,
@@ -1014,6 +1016,18 @@ sendPoseButton.addEventListener("click", async () => {
   } catch (error) {
     setStatus(`Send failed: ${error.message}`);
   }
+});
+
+addPoseHistoryButton.addEventListener("click", () => {
+  const pose = readPoseState();
+  if (!isValidPose(pose)) {
+    setStatus("Add failed: pose values must be finite numbers.");
+    return;
+  }
+
+  const entry = poseHistoryEntryFromPose(pose);
+  rememberPose(entry.pose, entry.name);
+  setStatus("Pose added to history.", entry);
 });
 
 addPoseStepButton.addEventListener("click", () => {
@@ -1182,6 +1196,7 @@ poseHistoryFileInput.addEventListener("change", async () => {
   }
 });
 
+addCommittedNumberSend(poseForm, sendPoseState);
 addCommittedNumberSend(jointForm, sendJointState);
 addCommittedNumberSend(pwmForm, sendPwmState);
 renderPoseHistory();
