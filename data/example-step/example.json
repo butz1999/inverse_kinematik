@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "steps": [
+    {
+      "type": "led",
+      "name": "LED",
+      "colorKind": "rgb",
+      "statusColor": "white",
+      "r": 255,
+      "g": 255,
+      "b": 255,
+      "mode": "on",
+      "interval_ms": 500
+    },
+    {
+      "type": "pose",
+      "name": "Home",
+      "pose": {
+        "x_mm": -20,
+        "y_mm": 40,
+        "z_mm": 50,
+        "p_deg": -85,
+        "r_deg": 0,
+        "g_pct": 0
+      },
+      "motionProfile": {
+        "type": "smooth_start_stop",
+        "target_velocity_deg_s": 90,
+        "sample_time_ms": 10
+      }
+    },
+    {
+      "type": "led",
+      "name": "LED",
+      "colorKind": "status",
+      "statusColor": "yellow",
+      "r": 0,
+      "g": 0,
+      "b": 0,
+      "mode": "on",
+      "interval_ms": 500
+    },
+    {
+      "type": "wait",
+      "name": "Wait",
+      "wait_ms": 2000
+    },
+    {
+      "type": "led",
+      "name": "LED",
+      "colorKind": "status",
+      "statusColor": "red",
+      "r": 0,
+      "g": 0,
+      "b": 0,
+      "mode": "on",
+      "interval_ms": 500
+    },
+    {
+      "type": "pose",
+      "name": "Back",
+      "pose": {
+        "x_mm": -15,
+        "y_mm": -25,
+        "z_mm": 285,
+        "p_deg": 10,
+        "r_deg": 0,
+        "g_pct": 0
+      },
+      "motionProfile": {
+        "type": "smooth_start_stop",
+        "target_velocity_deg_s": 90,
+        "sample_time_ms": 10
+      }
+    },
+    {
+      "type": "pose",
+      "name": "Open",
+      "pose": {
+        "x_mm": -25,
+        "y_mm": 155,
+        "z_mm": 290,
+        "p_deg": 10,
+        "r_deg": 0,
+        "g_pct": 100
+      },
+      "motionProfile": {
+        "type": "smooth_start_stop",
+        "target_velocity_deg_s": 90,
+        "sample_time_ms": 10
+      }
+    },
+    {
+      "type": "pose",
+      "name": "Reach forward",
+      "pose": {
+        "x_mm": -25,
+        "y_mm": 155,
+        "z_mm": 290,
+        "p_deg": 10,
+        "r_deg": 0,
+        "g_pct": 0
+      },
+      "motionProfile": {
+        "type": "smooth_start_stop",
+        "target_velocity_deg_s": 90,
+        "sample_time_ms": 10
+      }
+    },
+    {
+      "type": "led",
+      "name": "LED",
+      "colorKind": "status",
+      "statusColor": "green",
+      "r": 0,
+      "g": 0,
+      "b": 0,
+      "mode": "blinking",
+      "interval_ms": 500
+    }
+  ]
+}

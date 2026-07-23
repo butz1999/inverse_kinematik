@@ -26,6 +26,9 @@ const sequenceLedIntervalInput = document.querySelector("#sequence-led-interval"
 const addPoseStepButton = document.querySelector("#add-pose-step-button");
 const addWaitStepButton = document.querySelector("#add-wait-step-button");
 const addColorStepButton = document.querySelector("#add-color-step-button");
+const loadSequenceButton = document.querySelector("#load-sequence-button");
+const saveSequenceButton = document.querySelector("#save-sequence-button");
+const sequenceFileInput = document.querySelector("#sequence-file");
 const startSequenceButton = document.querySelector("#start-sequence-button");
 const stopSequenceButton = document.querySelector("#stop-sequence-button");
 const sequenceStatusButton = document.querySelector("#sequence-status-button");
@@ -35,6 +38,7 @@ const poseFields = ["x_mm", "y_mm", "z_mm", "p_deg", "r_deg", "g_pct"];
 const maxPoseHistoryEntries = 10;
 const maxSequenceSteps = 16;
 const poseHistoryFileVersion = 1;
+const sequenceFileVersion = 1;
 const poseHistoryStorageKey = "dilbert.poseHistory.v1";
 const sequenceStorageKey = "dilbert.sequence.v1";
 const committedFormStateSyncers = [];
@@ -166,29 +170,7 @@ function normalizeLedColorKind(kind) {
 function loadSequence() {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(sequenceStorageKey) || "[]");
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed
-      .map((step) => {
-        const type = normalizeSequenceType(step?.type);
-        return {
-          type,
-          name: normalizePoseName(step?.name),
-          pose: type === "led" || type === "wait" ? null : normalizePose(poseFromEntry(step)),
-          wait_ms: Math.max(0, Number.parseInt(step?.wait_ms ?? 0, 10) || 0),
-          motionProfile: step?.motionProfile ?? readMotionProfileState(),
-          colorKind: normalizeLedColorKind(step?.colorKind),
-          statusColor: step?.statusColor ?? "green",
-          r: Math.max(0, Math.min(255, Number.parseInt(step?.r ?? 0, 10) || 0)),
-          g: Math.max(0, Math.min(255, Number.parseInt(step?.g ?? 0, 10) || 0)),
-          b: Math.max(0, Math.min(255, Number.parseInt(step?.b ?? 0, 10) || 0)),
-          mode: step?.mode ?? "",
-          interval_ms: Math.max(1, Number.parseInt(step?.interval_ms ?? 500, 10) || 500),
-        };
-      })
-      .filter((step) => step.type === "led" || step.type === "wait" || isValidPose(step.pose))
-      .slice(0, maxSequenceSteps);
+    return normalizeSequence(parsed);
   } catch {
     return [];
   }
@@ -196,6 +178,68 @@ function loadSequence() {
 
 function saveSequence() {
   window.localStorage.setItem(sequenceStorageKey, JSON.stringify(sequenceSteps));
+}
+
+function normalizeSequence(steps) {
+  if (!Array.isArray(steps)) {
+    return [];
+  }
+
+  return steps
+    .map((step) => {
+      const type = normalizeSequenceType(step?.type);
+      const name = normalizePoseName(step?.name);
+
+      if (type === "led") {
+        return {
+          type,
+          name,
+          colorKind: normalizeLedColorKind(step?.colorKind),
+          statusColor: step?.statusColor ?? "green",
+          r: Math.max(0, Math.min(255, Number.parseInt(step?.r ?? 0, 10) || 0)),
+          g: Math.max(0, Math.min(255, Number.parseInt(step?.g ?? 0, 10) || 0)),
+          b: Math.max(0, Math.min(255, Number.parseInt(step?.b ?? 0, 10) || 0)),
+          mode: step?.mode ?? "on",
+          interval_ms: Math.max(1, Number.parseInt(step?.interval_ms ?? 500, 10) || 500),
+        };
+      }
+
+      if (type === "wait") {
+        return {
+          type,
+          name,
+          wait_ms: Math.max(0, Number.parseInt(step?.wait_ms ?? 0, 10) || 0),
+        };
+      }
+
+      return {
+        type,
+        name,
+        pose: normalizePose(poseFromEntry(step)),
+        motionProfile: step?.motionProfile ?? readMotionProfileState(),
+      };
+    })
+    .filter((step) => step.type === "led" || step.type === "wait" || isValidPose(step.pose))
+    .slice(0, maxSequenceSteps);
+}
+
+function sequenceDocument() {
+  return {
+    version: sequenceFileVersion,
+    steps: sequenceSteps,
+  };
+}
+
+function parseSequenceDocument(document) {
+  if (Array.isArray(document)) {
+    return normalizeSequence(document);
+  }
+
+  if (!document || document.version !== sequenceFileVersion) {
+    throw new Error(`Unsupported sequence file version: ${document?.version ?? "missing"}`);
+  }
+
+  return normalizeSequence(document.steps);
 }
 
 function setPoseHistory(nextPoseHistory) {
@@ -411,6 +455,50 @@ async function loadPoseHistoryFile(file) {
   const text = await file.text();
   const importedHistory = parsePoseHistoryDocument(JSON.parse(text));
   setPoseHistory(importedHistory);
+}
+
+function sequenceFileName() {
+  const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "");
+  return `dilbert-sequence-${timestamp}.json`;
+}
+
+function sequenceJson() {
+  return `${JSON.stringify(sequenceDocument(), null, 2)}\n`;
+}
+
+async function saveSequenceFile() {
+  const json = sequenceJson();
+  if ("showSaveFilePicker" in window) {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: sequenceFileName(),
+      types: [
+        {
+          description: "Sequence JSON",
+          accept: {
+            "application/json": [".json"],
+          },
+        },
+      ],
+    });
+    const writable = await handle.createWritable();
+    await writable.write(json);
+    await writable.close();
+    return;
+  }
+
+  const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = sequenceFileName();
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function loadSequenceFile(file) {
+  const text = await file.text();
+  sequenceSteps = parseSequenceDocument(JSON.parse(text));
+  saveSequence();
+  renderSequence();
 }
 
 function readNumericState(form, parser) {
@@ -962,7 +1050,6 @@ addColorStepButton.addEventListener("click", () => {
     name: "LED",
     ...readSequenceLedColorState(),
     ...readSequenceLedOptions(),
-    wait_ms: 0,
   };
   sequenceSteps.push(step);
   saveSequence();
@@ -999,6 +1086,34 @@ clearSequenceButton.addEventListener("click", () => {
   saveSequence();
   renderSequence();
   setStatus("Sequence cleared.");
+});
+
+loadSequenceButton.addEventListener("click", () => {
+  sequenceFileInput.click();
+});
+
+saveSequenceButton.addEventListener("click", async () => {
+  try {
+    await saveSequenceFile();
+    setStatus("Sequence saved.", sequenceDocument());
+  } catch (error) {
+    setStatus(`Save failed: ${error.message}`);
+  }
+});
+
+sequenceFileInput.addEventListener("change", async () => {
+  const [file] = sequenceFileInput.files;
+  sequenceFileInput.value = "";
+  if (!file) {
+    return;
+  }
+
+  try {
+    await loadSequenceFile(file);
+    setStatus("Sequence loaded.", sequenceDocument());
+  } catch (error) {
+    setStatus(`Load failed: ${error.message}`);
+  }
 });
 
 sendJointButton.addEventListener("click", async () => {
