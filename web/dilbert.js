@@ -22,13 +22,8 @@ const sequenceColorRInput = document.querySelector("#sequence-color-r");
 const sequenceColorGInput = document.querySelector("#sequence-color-g");
 const sequenceColorBInput = document.querySelector("#sequence-color-b");
 const sequenceLedModeSelect = document.querySelector("#sequence-led-mode");
-// ToDo: Klären, was "sequence-led-send-mode" noch bewirken könnte. Toter code!?
-const sequenceLedSendModeInput = document.querySelector("#sequence-led-send-mode");
-// ToDo: Klären, was "sequence-led-interval" noch bewirken müsste. Toter code!?
 const sequenceLedIntervalInput = document.querySelector("#sequence-led-interval");
-// ToDo: Klären, was "sequence-led-send-interval" noch bewirken müsste. Toter code!?
-const sequenceLedSendIntervalInput = document.querySelector("#sequence-led-send-interval");
-const addSequenceStepButton = document.querySelector("#add-sequence-step-button");
+const addPoseStepButton = document.querySelector("#add-pose-step-button");
 const addWaitStepButton = document.querySelector("#add-wait-step-button");
 const addColorStepButton = document.querySelector("#add-color-step-button");
 const startSequenceButton = document.querySelector("#start-sequence-button");
@@ -165,9 +160,8 @@ function normalizeSequenceType(type) {
   return type === "rgb_color" ? "led" : (type ?? "pose");
 }
 
-// ToDo: colorKind "keep" kann heraus genommen werden.
 function normalizeLedColorKind(kind) {
-  return ["keep", "status", "rgb"].includes(kind) ? kind : "rgb";
+  return ["status", "rgb"].includes(kind) ? kind : "rgb";
 }
 
 function loadSequence() {
@@ -433,10 +427,8 @@ function readSequenceLedColorState() {
 
 function readSequenceLedOptions() {
   return {
-    mode: sequenceLedSendModeInput.checked ? sequenceLedModeSelect.value : "",
-    interval_ms: sequenceLedSendIntervalInput.checked
-      ? Math.max(1, Number.parseInt(sequenceLedIntervalInput.value, 10) || 500)
-      : 0,
+    mode: sequenceLedModeSelect.value,
+    interval_ms: Math.max(1, Number.parseInt(sequenceLedIntervalInput.value, 10) || 500),
   };
 }
 
@@ -444,10 +436,8 @@ function formatLedStep(step) {
   const parts = [];
   if (step.colorKind === "status") {
     parts.push(`color ${step.statusColor}`);
-  } else if (step.colorKind === "rgb") {
-    parts.push(`rgb ${step.r}, ${step.g}, ${step.b}`);
   } else {
-    parts.push("color keep");
+    parts.push(`rgb ${step.r}, ${step.g}, ${step.b}`);
   }
   if (step.mode) {
     parts.push(step.mode);
@@ -583,12 +573,8 @@ function sequenceRequestPayload() {
           b: step.b
         };
       }
-      if (step.mode) {
-        ledStep.mode = step.mode;
-      }
-      if (step.interval_ms) {
-        ledStep.interval_ms = step.interval_ms;
-      }
+      ledStep.mode = step.mode;
+      ledStep.interval_ms = step.interval_ms;
       steps.push(ledStep);
       continue;
     }
@@ -858,7 +844,7 @@ sendPoseButton.addEventListener("click", async () => {
   }
 });
 
-addSequenceStepButton.addEventListener("click", () => {
+addPoseStepButton.addEventListener("click", () => {
   const motionProfile = readMotionProfileState();
   if (!isMotionProfileSendable(motionProfile)) {
     setStatus("Add failed: motion profile values must be positive numbers.");
@@ -912,11 +898,6 @@ addColorStepButton.addEventListener("click", () => {
     ...readSequenceLedOptions(),
     wait_ms: 0,
   };
-  // ToDo: colorKind "keep" kann heraus genommen werden.
-  if (step.colorKind === "keep" && !step.mode && !step.interval_ms) {
-    setStatus("Add failed: LED step needs color, rgb, mode or interval.");
-    return;
-  }
   sequenceSteps.push(step);
   saveSequence();
   renderSequence();

@@ -52,6 +52,26 @@ select {
   margin-bottom: 10px;
 }
 
+.sequence-step-definitions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 10px;
+}
+
+.sequence-step-definitions fieldset {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-inline-size: 0;
+}
+
+.sequence-step-definitions fieldset > .toolbar:last-child {
+  margin-top: auto;
+}
+
 button {
   padding: 4px 21px;
   cursor: pointer;
