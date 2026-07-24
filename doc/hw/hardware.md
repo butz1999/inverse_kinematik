@@ -18,7 +18,7 @@ Das folgende Übersichtsdiagramm zeigt die aktuell bekannten Hauptkomponenten un
 
 ```mermaid
 flowchart LR
-    AC[230V AC] -->|5V| P5[5V Power]
+    AC((Netz)) -->|230V| P5[5V Power Supply]
     P5 -->|5V| DC3V3[3.3V DC/DC]
     P5 -->|5V| DRIVER[Servo Driver]
     P5 -->|5V| SERVOS[6x Servo]
@@ -92,7 +92,8 @@ Dieses Kapitel beschreibt den physischen Aufbau des Arms aus Hardwaresicht. Die 
 
 Wesentliche mechanische Bezugspunkte und Gelenke sind:
 
-* `D`: Drehteller, fest bei `(0,0,0)` als mechanischer Basispunkt des Arms
+* `O`: Origin, gewählter Nullpunkt vor dem Drehteller `O(0,0,0)`
+* `D`: Drehteller als kartesischer Gelenkpunkt `D(x,y,z)`
 * `E`: Ellenbogen als kartesischer Gelenkpunkt `E(x,y,z)`
 * `H`: Handgelenk als kartesischer Gelenkpunkt `H(x,y,z)`
 * `G`: Greiferspitze als kartesischer Endpunkt `G(x,y,z)`

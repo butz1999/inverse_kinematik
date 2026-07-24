@@ -13,4 +13,4 @@ Wie machen wir REST Calls?
   * [init.sh](../../../scripts/init.sh): `./scripts/init.sh`
   * [rest_api_wsl_examples.sh](../../../scripts/rest_api_wsl_examples.sh): `./scripts/rest_api_wsl_examples.sh`
 
-«Das isch alles chli müesam! Was jetzt!?»
+*«Das isch alles chli müesam! Was jetzt!?»*

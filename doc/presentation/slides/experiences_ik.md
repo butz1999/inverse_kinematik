@@ -1,16 +1,19 @@
 # Erfahrungen IK <span style="float: right">[⬅️](experiences_ki_neg.md) [⬆️](../slides.md) [➡️](demo.md)</span>
-* Theorie: 
+* Theorie
   * Konstante Sample Time (z.b. 20ms)
-  * Geschätzer Weg: s = | v<sub>1</sub> - v<sub>2</sub> |
-  * Weg linear zerschneiden (v = konstant)
-  * Weg quadratisch zerschneiden (a = konstant)
+  * Geschätzer Weg: s = | <math><mover><msub><mi>s</mi><mn>1</mn></msub><mo>&rarr;</mo></mover></math> - <math><mover><msub><mi>s</mi><mn>2</mn></msub><mo>&rarr;</mo></mover></math> |
+  * Weg äquidistant schneiden (v = konstant)
+  * Weg ’quadratisch‘ schneiden (a = konstant)
 * Praxis
-  * ...sehen wir später 😜
+  * sehen wir später... 😜
 
-An dieser Stelle hat mir die KI diverese wirre Formeln an den Kopf geworfen. Das tat nicht weh, verstanden hab ich's trotzdem nicht.
+An dieser Stelle hat mir die KI diverese wirre Formeln an den Kopf geworfen. Das tat nicht weh, verstanden hab ich's trotzdem nicht. Visualisieren hilfe (mir) da sehr. 
 
 > [!tip]
-> Intermezzo Geogebra
+> #### Intermezzo 1: Profile-calculation
+>
+> [Mögliche Abzweigung](../../sw/profile_calculation.md#denkmuster) ⏳
 > 
-> Visualisieren hilft (mir) ...  
-> `explorer.exe \\wsl.localhost\Ubuntu\home\andi\git\ik\geogebra`
+> #### Intermezzo 2: Geogebra
+> 
+> `explorer.exe '\\wsl.localhost\Ubuntu\home\andi\git\ik\geogebra'`

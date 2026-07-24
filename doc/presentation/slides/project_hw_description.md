@@ -9,3 +9,16 @@
 * ESP32-S3
 * 230V/5V Netzteil
 * 5V/3.3V DC-DC Buck-boost
+
+```mermaid
+flowchart LR
+    AC((Netz)) -->|230V| P5[5V Power Supply]
+    P5 -->|5V| DC3V3[3.3V DC/DC]
+    P5 -->|5V| DRIVER[Servo Driver]
+    P5 -->|5V| SERVOS[6x Servo]
+
+    DC3V3 -->|3.3V| ESP[ESP32]
+
+    ESP -->|I2C| DRIVER
+    DRIVER -->|PWM| SERVOS
+```

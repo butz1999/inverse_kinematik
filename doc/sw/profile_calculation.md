@@ -117,6 +117,7 @@ Bei einer Gesamtdauer von `2 s = 2000 ms` wären das:
 Für jeden dieser Zeitpunkte muss berechnet werden, wo jede Achse stehen soll.
 
 ## Ein gemeinsames Denkmuster für alle Profile
+<a name="denkmuster"></a>
 
 Alle drei Profile lassen sich mit derselben Grundidee beschreiben:
 
@@ -239,8 +240,8 @@ Für die erste Ausbaustufe kann eine symmetrische Funktion verwendet werden:
 
 ```text
 f(u) =
-    2 * u^2                 fuer 0 <= u < 0.5
-    1 - 2 * (1 - u)^2       fuer 0.5 <= u <= 1
+    2 * u^2                 für 0 <= u < 0.5
+    1 - 2 * (1 - u)^2       für 0.5 <= u <= 1
 ```
 
 Das bedeutet:
