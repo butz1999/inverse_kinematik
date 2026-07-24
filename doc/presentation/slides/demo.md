@@ -1,4 +1,4 @@
-## Demo
+# Fragen & Demo<span style="float: right">[⬅️](experiences_ki_neg.md) [⬆️](../slides.md)</span>
 
 Fragen soweit?
 
@@ -6,5 +6,3 @@ Fragen soweit?
 
 > [!note]
 > Dilbert im Browser öffnen.
-
-[⬅️](experiences_ki_neg.md) [⬆️](../slides.md)

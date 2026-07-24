@@ -1,4 +1,4 @@
-# Präsentation Inverse Kinematik mit Modellbau-Servos
+# Inverse Kinematik mit Modellbau-Servos
 
 ## Inhaltsverzeichnis
 * [Projekt Idee](./slides/project_idea.md)
@@ -8,4 +8,8 @@
 * [Erfahrungen Inverse Kinematik](./slides/experiences_ik.md)
 * [Positive Erfahrungen KI](./slides/experiences_ki_pos.md)
 * [Negative Erfahrungen KI](./slides/experiences_ki_neg.md)
-* [Demo](./slides/demo.md)
+* [Fragen & Demo](./slides/demo.md)
+
+> [!tip]
+> Verständnisfragen sofort stellen!  
+> Interaktivität erwünscht.   

@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "poses": [
+    {
+      "name": "Rechts hinten",
+      "pose": {
+        "x_mm": 150,
+        "y_mm": -80,
+        "z_mm": 50,
+        "p_deg": -85,
+        "r_deg": -90,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Rechts",
+      "pose": {
+        "x_mm": 100,
+        "y_mm": 40,
+        "z_mm": 50,
+        "p_deg": -85,
+        "r_deg": -40,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Mitte",
+      "pose": {
+        "x_mm": 0,
+        "y_mm": 40,
+        "z_mm": 51,
+        "p_deg": -85,
+        "r_deg": 0,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Links",
+      "pose": {
+        "x_mm": -100,
+        "y_mm": 40,
+        "z_mm": 50,
+        "p_deg": -85,
+        "r_deg": 35,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Links hinten",
+      "pose": {
+        "x_mm": -140,
+        "y_mm": -110,
+        "z_mm": 50,
+        "p_deg": -85,
+        "r_deg": 90,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Mitte",
+      "pose": {
+        "x_mm": 0,
+        "y_mm": 40,
+        "z_mm": 50,
+        "p_deg": -85,
+        "r_deg": 0,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Home",
+      "pose": {
+        "x_mm": -80,
+        "y_mm": 40,
+        "z_mm": 50,
+        "p_deg": -85,
+        "r_deg": 0,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Home",
+      "pose": {
+        "x_mm": -19.614,
+        "y_mm": 40,
+        "z_mm": 50,
+        "p_deg": -85,
+        "r_deg": 0,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Back",
+      "pose": {
+        "x_mm": -15,
+        "y_mm": -25,
+        "z_mm": 285,
+        "p_deg": 10,
+        "r_deg": 0,
+        "g_pct": 0
+      }
+    }
+  ]
+}

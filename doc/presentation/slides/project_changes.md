@@ -1,14 +1,16 @@
- ## Projekt Änderungen
-* REST Calls aufrufen
-  * Zuerst mit `curl`
-  * Dann mit Shell-Skripten mit `curl`
-  * ...dann kam `<dilbert>` ins Spiel 🥳
-* Einzelne Posen in einer Liste speichern
-* Posen-Liste in Browser speichern (Client Side Storage)
-* Load & Save von Step-Listen
-* Einzelne Steps in einer Liste speichern
-* Load & Save von Step-Listen
-* ETH über USB
-* Bislang noch kein FABRIK oder CCD
+ #  Projekt Änderungen<span style="float: right">[⬅️](project_implementation.md) [⬆️](../slides.md) [➡️](project_changes_dilbert.md)</span>
+Wie machen wir REST Calls?
+* Zuerst mit `curl`
+  ```
+  export BASE_URL="${BASE_URL:-http://robot.fritz.box}"
 
-[⬅️](project_implementation.md) [⬆️](../slides.md) [➡️](experiences_ki_pos.md)
+  curl --max-time 5 -i \
+    -X POST "$BASE_URL/api/joint-motion" \
+    -H 'Content-Type: application/json' \
+    -d '{"d_deg":0, "s_deg":45, "e_deg":-45, "hp_deg":-45, "hr_deg":45, "g_pct":50}'
+  ```
+* Dann mit Shell-Skripten mit `curl`
+  * [init.sh](../../../scripts/init.sh): `./scripts/init.sh`
+  * [rest_api_wsl_examples.sh](../../../scripts/rest_api_wsl_examples.sh): `./scripts/rest_api_wsl_examples.sh`
+
+«Das isch alles chli müesam! Was jetzt!?»

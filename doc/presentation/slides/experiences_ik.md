@@ -1,4 +1,4 @@
-## Erfahrungen IK
+# Erfahrungen IK <span style="float: right">[⬅️](experiences_ki_neg.md) [⬆️](../slides.md) [➡️](demo.md)</span>
 * Theorie: 
   * Konstante Sample Time (z.b. 20ms)
   * Geschätzer Weg: s = | v<sub>1</sub> - v<sub>2</sub> |
@@ -12,6 +12,5 @@ An dieser Stelle hat mir die KI diverese wirre Formeln an den Kopf geworfen. Das
 > [!tip]
 > Intermezzo Geogebra
 > 
-> Visualisieren hilft (mir) ...
-
-[⬅️](project_implementation.md) [⬆️](../slides.md) [➡️](experiences_ki_pos.md)
+> Visualisieren hilft (mir) ...  
+> `explorer.exe \\wsl.localhost\Ubuntu\home\andi\git\ik\geogebra`
