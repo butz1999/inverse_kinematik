@@ -18,215 +18,230 @@
         <input id="base-url" type="url" value="http://robot.fritz.box" aria-label="Base URL" />
       </section>
 
-      <h2>Sequence</h2>
-      <section class="sequence-step-definitions">
-        <fieldset>Wait:
-          <section class="toolbar">
-            <label>
-              Wait [ms]
-              <input id="sequence-wait" type="number" min="0" max="60000" step="100" value="500" />
-            </label>
-          </section>
-          <section class="toolbar">
-            <button id="add-wait-step-button" type="button">Add Wait</button>
-          </section>
-        </fieldset>
-        <fieldset>Pose:
-          <section class="toolbar">
-            <button id="add-pose-step-button" type="button">Add Pose</button>
-          </section>
-        </fieldset>
-        <fieldset>LED:
-          <section class="toolbar">
-            <label>
-              LED Color
-              <select id="sequence-led-color-kind">
-                <option value="status">Status color</option>
-                <option value="rgb" selected>RGB</option>
-              </select>
-            </label>
-            <label>
-              Status Color
-              <select id="sequence-status-color">
-                <option value="off">Off</option>
-                <option value="red">Red</option>
-                <option value="orange">Orange</option>
-                <option value="yellow">Yellow</option>
-                <option value="green" selected>Green</option>
-                <option value="cyan">Cyan</option>
-                <option value="blue">Blue</option>
-                <option value="violet">Violet</option>
-              </select>
-            </label>
-            <label>
-              R [0..255]
-              <input id="sequence-color-r" type="number" min="0" max="255" step="1" value="0" />
-            </label>
-            <label>
-              G [0..255]
-              <input id="sequence-color-g" type="number" min="0" max="255" step="1" value="120" />
-            </label>
-            <label>
-              B [0..255]
-              <input id="sequence-color-b" type="number" min="0" max="255" step="1" value="255" />
-            </label>
-            <label>
-              LED Mode
-              <select id="sequence-led-mode">
-                <option value="off">Off</option>
-                <option value="on" selected>On</option>
-                <option value="blinking">Blinking</option>
-                <option value="pulsing">Pulsing</option>
-              </select>
-            </label>
-            <label>
-              LED Interval [ms]
-              <input id="sequence-led-interval" type="number" min="1" max="60000" step="100" value="500" />
-            </label>
-          </section>
-          <section class="toolbar">
-            <button id="add-color-step-button" type="button">Add LED</button>
-          </section>
-        </fieldset>
-      </section>
+      <details>
+        <summary>
+          <h2>Sequence</h2>
+        </summary>
+        <section class="sequence-step-definitions">
+          <fieldset>Wait:
+            <section class="toolbar">
+              <label>
+                Wait [ms]
+                <input id="sequence-wait" type="number" min="0" max="60000" step="100" value="500" />
+              </label>
+            </section>
+            <section class="toolbar">
+              <button id="add-wait-step-button" type="button">Add Wait</button>
+            </section>
+          </fieldset>
+          <fieldset>Pose:
+            <section class="toolbar">
+              <button id="add-pose-step-button" type="button">Add Pose</button>
+            </section>
+          </fieldset>
+          <fieldset>LED:
+            <section class="toolbar">
+              <label>
+                LED Color
+                <select id="sequence-led-color-kind">
+                  <option value="status">Status color</option>
+                  <option value="rgb" selected>RGB</option>
+                </select>
+              </label>
+              <label>
+                Status Color
+                <select id="sequence-status-color">
+                  <option value="off">Off</option>
+                  <option value="red">Red</option>
+                  <option value="orange">Orange</option>
+                  <option value="yellow">Yellow</option>
+                  <option value="green" selected>Green</option>
+                  <option value="cyan">Cyan</option>
+                  <option value="blue">Blue</option>
+                  <option value="violet">Violet</option>
+                </select>
+              </label>
+              <label>
+                R [0..255]
+                <input id="sequence-color-r" type="number" min="0" max="255" step="1" value="0" />
+              </label>
+              <label>
+                G [0..255]
+                <input id="sequence-color-g" type="number" min="0" max="255" step="1" value="120" />
+              </label>
+              <label>
+                B [0..255]
+                <input id="sequence-color-b" type="number" min="0" max="255" step="1" value="255" />
+              </label>
+              <label>
+                LED Mode
+                <select id="sequence-led-mode">
+                  <option value="off">Off</option>
+                  <option value="on" selected>On</option>
+                  <option value="blinking">Blinking</option>
+                  <option value="pulsing">Pulsing</option>
+                </select>
+              </label>
+              <label>
+                LED Interval [ms]
+                <input id="sequence-led-interval" type="number" min="1" max="60000" step="100" value="500" />
+              </label>
+            </section>
+            <section class="toolbar">
+              <button id="add-color-step-button" type="button">Add LED</button>
+            </section>
+          </fieldset>
+        </section>
+        <h2>Sequence Steps</h2>
+        <ol id="sequence-steps" class="sequence-steps"></ol>
+        <section>
+          <button id="load-sequence-button" type="button">Load JSON</button>
+          <button id="save-sequence-button" type="button">Save JSON</button>
+          <button id="start-sequence-button" type="button">Start Sequence</button>
+          <button id="stop-sequence-button" type="button">Stop Sequence</button>
+          <button id="sequence-status-button" type="button">Status</button>
+          <button id="clear-sequence-button" type="button">Clear</button>
+          <input id="sequence-file" class="visually-hidden" type="file" accept="application/json,.json" />
+        </section>
+      </details>
 
-      <h2>Sequence Steps</h2>
-      <ol id="sequence-steps" class="sequence-steps"></ol>
-      <section>
-        <button id="load-sequence-button" type="button">Load JSON</button>
-        <button id="save-sequence-button" type="button">Save JSON</button>
-        <button id="start-sequence-button" type="button">Start Sequence</button>
-        <button id="stop-sequence-button" type="button">Stop Sequence</button>
-        <button id="sequence-status-button" type="button">Status</button>
-        <button id="clear-sequence-button" type="button">Clear</button>
-        <input id="sequence-file" class="visually-hidden" type="file" accept="application/json,.json" />
-      </section>
+      <details>
+        <summary>
+          <h2>Pose</h2>
+        </summary>
+        <section class="toolbar">
+          <label>
+            Motion Profile Type
+            <select id="motion-profile-type">
+              <option value="constant_velocity">Constant Velocity</option>
+              <option value="smooth_start_stop" selected>Smooth Start/Stop</option>
+              <option value="fast_start_stop">Fast Start/Stop</option>
+              <option value="constant_acceleration">Constant Acceleration</option>
+            </select>
+          </label>
+          <label>
+            Velocity [°/s]
+            <input id="motion-profile-velocity" type="number" min="5" max="360" step="5" value="90" />
+          </label>
+          <label>
+            Sample Time [ms]
+            <input id="motion-profile-sample-time" type="number" min="5" max="100" step="1" value="10" />
+          </label>
+        </section>
+        <form id="pose-form">
+          <label>
+            Name
+            <input name="name" type="text" maxlength="48" placeholder="Pose name" />
+          </label>
+          <label>
+            x [mm]
+            <input name="x_mm" type="number" min="-260" max="260" step="5" value="-20" />
+          </label>
+          <label>
+            y [mm]
+            <input name="y_mm" type="number" min="-260" max="260" step="5" value="50" />
+          </label>
+          <label>
+            z [mm]
+            <input name="z_mm" type="number" min="0" max="260" step="5" value="30" />
+          </label>
+          <label>
+            p [°]
+            <input name="p_deg" type="number" min="-90" max="90" step="5" value="-90" />
+          </label>
+          <label>
+            r [°]
+            <input name="r_deg" type="number" min="-90" max="90" step="5" value="0" />
+          </label>
+          <label>
+            g [%]
+            <input name="g_pct" type="number" min="0" max="100" step="5" value="0" />
+          </label>
+        </form>
+        <section class="toolbar">
+          <button id="add-pose-history-button" type="button">Add Pose</button>
+          <button id="send-pose-button" type="button">Send Pose</button>
+        </section>
 
-      <h2>Pose</h2>
-      <section class="toolbar">
-        <label>
-          Motion Profile Type
-          <select id="motion-profile-type">
-            <option value="constant_velocity">Constant Velocity</option>
-            <option value="smooth_start_stop" selected>Smooth Start/Stop</option>
-            <option value="fast_start_stop">Fast Start/Stop</option>
-            <option value="constant_acceleration">Constant Acceleration</option>
-          </select>
-        </label>
-        <label>
-          Velocity [°/s]
-          <input id="motion-profile-velocity" type="number" min="5" max="360" step="5" value="90" />
-        </label>
-        <label>
-          Sample Time [ms]
-          <input id="motion-profile-sample-time" type="number" min="5" max="100" step="1" value="10" />
-        </label>
-      </section>
-      <form id="pose-form">
-        <label>
-          Name
-          <input name="name" type="text" maxlength="48" placeholder="Pose name" />
-        </label>
-        <label>
-          x [mm]
-          <input name="x_mm" type="number" min="-260" max="260" step="5" value="-20" />
-        </label>
-        <label>
-          y [mm]
-          <input name="y_mm" type="number" min="-260" max="260" step="5" value="50" />
-        </label>
-        <label>
-          z [mm]
-          <input name="z_mm" type="number" min="0" max="260" step="5" value="30" />
-        </label>
-        <label>
-          p [°]
-          <input name="p_deg" type="number" min="-90" max="90" step="5" value="-90" />
-        </label>
-        <label>
-          r [°]
-          <input name="r_deg" type="number" min="-90" max="90" step="5" value="0" />
-        </label>
-        <label>
-          g [%]
-          <input name="g_pct" type="number" min="0" max="100" step="5" value="0" />
-        </label>
-      </form>
-      <section class="toolbar">
-        <button id="add-pose-history-button" type="button">Add Pose</button>
-        <button id="send-pose-button" type="button">Send Pose</button>
-      </section>
+        <h2>Pose History</h2>
+        <ol id="pose-history" class="pose-history"></ol>
+        <section class="toolbar">
+          <button id="load-pose-history-button" type="button">Load JSON</button>
+          <button id="save-pose-history-button" type="button">Save JSON</button>
+          <button id="clear-pose-history-button" type="button">Clear</button>
+          <input id="pose-history-file" class="visually-hidden" type="file" accept="application/json,.json" />
+        </section>
+      </details>
 
-      <h2>Pose History</h2>
-      <ol id="pose-history" class="pose-history"></ol>
-      <section class="toolbar">
-        <button id="load-pose-history-button" type="button">Load JSON</button>
-        <button id="save-pose-history-button" type="button">Save JSON</button>
-        <button id="clear-pose-history-button" type="button">Clear</button>
-        <input id="pose-history-file" class="visually-hidden" type="file" accept="application/json,.json" />
-      </section>
+      <details>
+        <summary>
+          <h2>Joint Position</h2>
+        </summary>
+        <form id="joint-form">
+          <label>
+            d [°]
+            <input name="d_deg" type="number" min="-90" max="90" step="5" value="0" />
+          </label>
+          <label>
+            s [°]
+            <input name="s_deg" type="number" min="-90" max="90" step="5" value="0" />
+          </label>
+          <label>
+            e [°]
+            <input name="e_deg" type="number" min="-90" max="90" step="5" value="0" />
+          </label>
+          <label>
+            hp [°]
+            <input name="hp_deg" type="number" min="-90" max="0" step="5" value="0" />
+          </label>
+          <label>
+            hr [°]
+            <input name="hr_deg" type="number" min="-90" max="90" step="5" value="0" />
+          </label>
+          <label>
+            g [%]
+            <input name="g_pct" type="number" min="0" max="100" step="10" value="0" />
+          </label>
+        </form>
+        <section class="toolbar">
+          <button id="send-joint-button" type="button">Send Joint Position</button>
+        </section>
+      </details>
 
-      <h2>Joint Position</h2>
-      <form id="joint-form">
-        <label>
-          d [°]
-          <input name="d_deg" type="number" min="-90" max="90" step="5" value="0" />
-        </label>
-        <label>
-          s [°]
-          <input name="s_deg" type="number" min="-90" max="90" step="5" value="0" />
-        </label>
-        <label>
-          e [°]
-          <input name="e_deg" type="number" min="-90" max="90" step="5" value="0" />
-        </label>
-        <label>
-          hp [°]
-          <input name="hp_deg" type="number" min="-90" max="0" step="5" value="0" />
-        </label>
-        <label>
-          hr [°]
-          <input name="hr_deg" type="number" min="-90" max="90" step="5" value="0" />
-        </label>
-        <label>
-          g [%]
-          <input name="g_pct" type="number" min="0" max="100" step="10" value="0" />
-        </label>
-      </form>
-      <section class="toolbar">
-        <button id="send-joint-button" type="button">Send Joint Position</button>
-      </section>
-
-      <h2>PWM</h2>
-      <form id="pwm-form">
-        <label>
-          d [-]
-          <input name="d_pwm" type="number" min="90" max="530" step="10" value="310" />
-        </label>
-        <label>
-          s [-]
-          <input name="s_pwm" type="number" min="80" max="490" step="10" value="290" />
-        </label>
-        <label>
-          e [-]
-          <input name="e_pwm" type="number" min="90" max="500" step="10" value="290" />
-        </label>
-        <label>
-          hp [-]
-          <input name="hp_pwm" type="number" min="110" max="320" step="10" value="320" />
-        </label>
-        <label>
-          hr [-]
-          <input name="hr_pwm" type="number" min="100" max="500" step="10" value="310" />
-        </label>
-        <label>
-          g [-]
-          <input name="g_pwm" type="number" min="130" max="375" step="10" value="130" />
-        </label>
-      </form>
-      <section class="toolbar">
-        <button id="send-button" type="button">Send PWM</button>
-      </section>
+      <details>
+        <summary>
+          <h2>PWM</h2>
+        </summary>
+        <form id="pwm-form">
+          <label>
+            d [-]
+            <input name="d_pwm" type="number" min="90" max="530" step="10" value="310" />
+          </label>
+          <label>
+            s [-]
+            <input name="s_pwm" type="number" min="80" max="490" step="10" value="290" />
+          </label>
+          <label>
+            e [-]
+            <input name="e_pwm" type="number" min="90" max="500" step="10" value="290" />
+          </label>
+          <label>
+            hp [-]
+            <input name="hp_pwm" type="number" min="110" max="320" step="10" value="320" />
+          </label>
+          <label>
+            hr [-]
+            <input name="hr_pwm" type="number" min="100" max="500" step="10" value="310" />
+          </label>
+          <label>
+            g [-]
+            <input name="g_pwm" type="number" min="130" max="375" step="10" value="130" />
+          </label>
+        </form>
+        <section class="toolbar">
+          <button id="send-button" type="button">Send PWM</button>
+        </section>
+      </details>
 
       <h2>REST response</h2>
       <pre id="status" aria-live="polite">Ready.</pre>
