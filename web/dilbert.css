@@ -1,6 +1,7 @@
 :root {
   color-scheme: light dark;
   font-family: system-ui, sans-serif;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -160,4 +161,13 @@ pre {
   border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
   min-height: 72px;
   white-space: pre-wrap;
+}
+
+summary>h2 {
+  display: inline;
+  margin-left: 5px;
+}
+
+summary {
+  margin: 18px 0 10px;
 }

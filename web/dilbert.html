@@ -12,10 +12,14 @@
         <h1>Dilbert</h1>
       </header>
 
-      <h2>Initialisation</h2>
+      <h2>Basics</h2>
       <section class="toolbar">
         <button id="init-button" type="button">Init</button>
-        <input id="base-url" type="url" value="http://robot.fritz.box" aria-label="Base URL" />
+        <input id="base-url" type="url" value="http://robot.fritz.box" list="base-url-options" aria-label="Base URL" />
+        <datalist id="base-url-options">
+          <option value="http://robot.fritz.box"></option>
+          <option value="http://robot.local"></option>
+        </datalist>
       </section>
 
       <details>
@@ -114,9 +118,9 @@
             Motion Profile Type
             <select id="motion-profile-type">
               <option value="constant_velocity">Constant Velocity</option>
+              <option value="constant_acceleration">Constant Acceleration</option>
               <option value="smooth_start_stop" selected>Smooth Start/Stop</option>
               <option value="fast_start_stop">Fast Start/Stop</option>
-              <option value="constant_acceleration">Constant Acceleration</option>
             </select>
           </label>
           <label>
@@ -243,8 +247,12 @@
         </section>
       </details>
 
-      <h2>REST response</h2>
-      <pre id="status" aria-live="polite">Ready.</pre>
+      <details open>
+        <summary>
+          <h2>REST response</h2>
+        </summary>
+        <pre id="status" aria-live="polite">Ready.</pre>
+      </details>
     </main>
 
     <script src="dilbert.js"></script>

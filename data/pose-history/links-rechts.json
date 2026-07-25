@@ -2,28 +2,6 @@
   "version": 1,
   "poses": [
     {
-      "name": "Rechts hinten",
-      "pose": {
-        "x_mm": 150,
-        "y_mm": -80,
-        "z_mm": 50,
-        "p_deg": -85,
-        "r_deg": -90,
-        "g_pct": 0
-      }
-    },
-    {
-      "name": "Rechts",
-      "pose": {
-        "x_mm": 100,
-        "y_mm": 40,
-        "z_mm": 50,
-        "p_deg": -85,
-        "r_deg": -40,
-        "g_pct": 0
-      }
-    },
-    {
       "name": "Mitte",
       "pose": {
         "x_mm": 0,
@@ -31,17 +9,6 @@
         "z_mm": 51,
         "p_deg": -85,
         "r_deg": 0,
-        "g_pct": 0
-      }
-    },
-    {
-      "name": "Links",
-      "pose": {
-        "x_mm": -100,
-        "y_mm": 40,
-        "z_mm": 50,
-        "p_deg": -85,
-        "r_deg": 35,
         "g_pct": 0
       }
     },
@@ -57,6 +24,17 @@
       }
     },
     {
+      "name": "Links",
+      "pose": {
+        "x_mm": -100,
+        "y_mm": 40,
+        "z_mm": 50,
+        "p_deg": -85,
+        "r_deg": 35,
+        "g_pct": 0
+      }
+    },
+    {
       "name": "Mitte",
       "pose": {
         "x_mm": 0,
@@ -68,13 +46,24 @@
       }
     },
     {
-      "name": "Home",
+      "name": "Rechts hinten",
       "pose": {
-        "x_mm": -80,
+        "x_mm": 150,
+        "y_mm": -70,
+        "z_mm": 50,
+        "p_deg": -85,
+        "r_deg": -90,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Rechts",
+      "pose": {
+        "x_mm": 100,
         "y_mm": 40,
         "z_mm": 50,
         "p_deg": -85,
-        "r_deg": 0,
+        "r_deg": -40,
         "g_pct": 0
       }
     },
