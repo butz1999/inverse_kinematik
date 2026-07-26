@@ -6,6 +6,7 @@
 #include <WebServer.h>
 
 #include "application/ApiContracts.h"
+#include "application/ControllerInput.h"
 #include "application/RunEngine.h"
 #include "common/JointPwmState.h"
 #include "common/JointState.h"
@@ -27,6 +28,7 @@ class RestApiServer
 
   void init();
   void handleClient();
+  bool ingestSwitch2ProBleInputReport(const uint8_t *report, std::size_t report_size, uint32_t now_ms);
 
  private:
   void handleHealth();
@@ -41,6 +43,10 @@ class RestApiServer
   void handleSequenceStartRequest();
   void handleSequenceStopRequest();
   void handleSequenceStatus();
+  void handleControllerConnectRequest();
+  void handleControllerDisconnectRequest();
+  void handleControllerStatus();
+  void handleControllerDebug();
   void handleCorsPreflight();
   void handleFavicon();
   void handleNotFound();
@@ -48,6 +54,7 @@ class RestApiServer
   void startMotionPlan(const common::MotionPlan &plan, const common::JointState &target_joint_state);
   void serviceActiveMotionPlan();
   void serviceSequenceRun();
+  void serviceControllerInput();
   void queueLedStep(const steps::LedStep &step);
   void servicePendingLedStep();
   void logRequest(const char *method, const char *path) const;
@@ -62,6 +69,7 @@ class RestApiServer
   hardware::HardwareCalibration hardware_calibration_;
   orchestration::MotionOrchestrator orchestrator_;
   RunEngine run_engine_;
+  ControllerDebugDriver controller_driver_;
   common::JointState current_joint_state_;
   common::JointPwmState current_joint_pwm_state_;
   common::MotionPlan active_motion_plan_;

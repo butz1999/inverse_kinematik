@@ -35,6 +35,25 @@ const stopSequenceButton = document.querySelector("#stop-sequence-button");
 const sequenceStatusButton = document.querySelector("#sequence-status-button");
 const clearSequenceButton = document.querySelector("#clear-sequence-button");
 const sequenceStepsList = document.querySelector("#sequence-steps");
+const controllerConnectButton = document.querySelector("#controller-connect-button");
+const controllerDisconnectButton = document.querySelector("#controller-disconnect-button");
+const controllerStatusButton = document.querySelector("#controller-status-button");
+const controllerDebugButton = document.querySelector("#controller-debug-button");
+const controllerStatusValue = document.querySelector("#controller-status-value");
+const controllerDriverValue = document.querySelector("#controller-driver-value");
+const controllerNameValue = document.querySelector("#controller-name-value");
+const controllerInputValue = document.querySelector("#controller-input-value");
+const controllerScanValue = document.querySelector("#controller-scan-value");
+const controllerMessageValue = document.querySelector("#controller-message-value");
+const controllerLeftStickDot = document.querySelector("#controller-left-stick-dot");
+const controllerRightStickDot = document.querySelector("#controller-right-stick-dot");
+const controllerLeftStickValue = document.querySelector("#controller-left-stick-value");
+const controllerRightStickValue = document.querySelector("#controller-right-stick-value");
+const controllerDpadButtons = document.querySelector("#controller-dpad-buttons");
+const controllerActionButtons = document.querySelector("#controller-action-buttons");
+const controllerButtonsRaw = document.querySelector("#controller-buttons-raw");
+const controllerDpadRaw = document.querySelector("#controller-dpad-raw");
+const controllerUpdatedValue = document.querySelector("#controller-updated-value");
 const poseFields = ["x_mm", "y_mm", "z_mm", "p_deg", "r_deg", "g_pct"];
 const maxPoseHistoryEntries = 10;
 const maxSequenceSteps = 16;
@@ -42,10 +61,59 @@ const poseHistoryFileVersion = 1;
 const sequenceFileVersion = 1;
 const poseHistoryStorageKey = "dilbert.poseHistory.v1";
 const sequenceStorageKey = "dilbert.sequence.v1";
+const baseUrlStorageKey = "dilbert.baseUrl.v1";
+const controllerPairingPollMs = 1000;
+const controllerConnectedPollMs = 200;
+const controllerStickAxisMax = 2048;
+const controllerButtonBits = [
+  ["B", 1 << 0],
+  ["A", 1 << 1],
+  ["Y", 1 << 2],
+  ["X", 1 << 3],
+  ["R", 1 << 4],
+  ["ZR", 1 << 5],
+  ["+", 1 << 6],
+  ["RS", 1 << 7],
+  ["L", 1 << 8],
+  ["ZL", 1 << 9],
+  ["-", 1 << 10],
+  ["LS", 1 << 11],
+  ["Home", 1 << 12],
+  ["Capture", 1 << 13],
+  ["Grip R", 1 << 14],
+  ["Grip L", 1 << 15],
+  ["Camera", 1 << 16],
+];
+const controllerDpadBits = [
+  ["Down", 1 << 0],
+  ["Right", 1 << 1],
+  ["Left", 1 << 2],
+  ["Up", 1 << 3],
+];
 const committedFormStateSyncers = [];
 let poseHistory = loadPoseHistory();
 let sequenceSteps = loadSequence();
 let sequenceStatusTimer = 0;
+let controllerStatusTimer = 0;
+let controllerStatusPollDelayMs = 0;
+
+function loadBaseUrl() {
+  try {
+    return window.localStorage.getItem(baseUrlStorageKey) || baseUrlInput.value;
+  } catch {
+    return baseUrlInput.value;
+  }
+}
+
+function saveBaseUrl() {
+  try {
+    window.localStorage.setItem(baseUrlStorageKey, baseUrlInput.value);
+  } catch {
+    // Ignore storage failures; the typed URL still works for this session.
+  }
+}
+
+baseUrlInput.value = loadBaseUrl();
 
 function apiUrl(path) {
   const baseUrl = baseUrlInput.value.replace(/\/+$/, "");
@@ -649,7 +717,115 @@ function updateFormsFromResponse(body) {
   updatePoseForm(body.targetPose);
   updateJointForm(body.jointState);
   updatePwmForm(body.jointPwmState);
+  updateControllerPanel(body.controller);
   refreshCommittedFormStates();
+}
+
+function formatControllerInput(input) {
+  if (!input || !input.valid) {
+    return "no valid input";
+  }
+
+  return `LX ${input.leftX}, LY ${input.leftY}, RX ${input.rightX}, RY ${input.rightY}, buttons ${input.buttons}, dpad ${input.dpad}`;
+}
+
+function clampUnit(value) {
+  return Math.max(-1, Math.min(1, Number(value) / controllerStickAxisMax || 0));
+}
+
+function formatHex(value) {
+  return `0x${(Number(value) >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function setStick(dot, valueOutput, x, y) {
+  const normalizedX = clampUnit(x);
+  const normalizedY = clampUnit(y);
+  dot.style.setProperty("--stick-x", `${normalizedX * 50}%`);
+  dot.style.setProperty("--stick-y", `${-normalizedY * 50}%`);
+  valueOutput.textContent = `${Number(x) || 0} / ${Number(y) || 0}`;
+}
+
+function renderBitButtons(container, definitions, value) {
+  const numericValue = Number(value) >>> 0;
+  container.replaceChildren();
+  for (const [label, bit] of definitions) {
+    const item = document.createElement("span");
+    item.className = "controller-bit";
+    item.dataset.active = (numericValue & bit) !== 0 ? "true" : "false";
+    item.textContent = label;
+    container.append(item);
+  }
+}
+
+function updateControllerVisualizer(input) {
+  if (!input || !input.valid) {
+    setStick(controllerLeftStickDot, controllerLeftStickValue, 0, 0);
+    setStick(controllerRightStickDot, controllerRightStickValue, 0, 0);
+    renderBitButtons(controllerDpadButtons, controllerDpadBits, 0);
+    renderBitButtons(controllerActionButtons, controllerButtonBits, 0);
+    controllerButtonsRaw.textContent = formatHex(0);
+    controllerDpadRaw.textContent = formatHex(0);
+    controllerUpdatedValue.textContent = "0 ms";
+    return;
+  }
+
+  setStick(controllerLeftStickDot, controllerLeftStickValue, input.leftX, input.leftY);
+  setStick(controllerRightStickDot, controllerRightStickValue, input.rightX, input.rightY);
+  renderBitButtons(controllerDpadButtons, controllerDpadBits, input.dpad);
+  renderBitButtons(controllerActionButtons, controllerButtonBits, input.buttons);
+  controllerButtonsRaw.textContent = formatHex(input.buttons);
+  controllerDpadRaw.textContent = formatHex(input.dpad);
+  controllerUpdatedValue.textContent = `${input.updatedAtMs ?? 0} ms`;
+}
+
+function updateControllerPanel(controller) {
+  if (!controller) {
+    return;
+  }
+
+  controllerStatusValue.textContent = controller.status ?? "unknown";
+  controllerDriverValue.textContent = controller.driver ?? "unknown";
+  controllerNameValue.textContent = controller.controllerName || "not connected";
+  controllerInputValue.textContent = formatControllerInput(controller.input);
+  controllerScanValue.textContent = controller.bluepadScanning ? "active" : "inactive";
+  controllerMessageValue.textContent = controller.message || "none";
+  updateControllerVisualizer(controller.input);
+}
+
+function shouldPollController(controller) {
+  return ["pairing", "connected"].includes(controller?.status);
+}
+
+function stopControllerPolling() {
+  if (controllerStatusTimer) {
+    window.clearInterval(controllerStatusTimer);
+    controllerStatusTimer = 0;
+  }
+  controllerStatusPollDelayMs = 0;
+}
+
+function syncControllerPolling(controller) {
+  if (!shouldPollController(controller)) {
+    stopControllerPolling();
+    return;
+  }
+
+  const nextDelayMs = controller?.status === "connected" ? controllerConnectedPollMs : controllerPairingPollMs;
+  if (controllerStatusTimer && controllerStatusPollDelayMs === nextDelayMs) {
+    return;
+  }
+
+  stopControllerPolling();
+  controllerStatusPollDelayMs = nextDelayMs;
+  controllerStatusTimer = window.setInterval(async () => {
+    try {
+      const body = await getJson("/api/controller/status");
+      updateControllerPanel(body.controller);
+      syncControllerPolling(body.controller);
+    } catch {
+      stopControllerPolling();
+    }
+  }, nextDelayMs);
 }
 
 function refreshCommittedFormStates() {
@@ -888,6 +1064,55 @@ async function sendPwmState(source) {
   }
 }
 
+async function connectController() {
+  controllerConnectButton.disabled = true;
+  try {
+    setStatus("Requesting controller connection...");
+    const body = await postJson("/api/controller/connect");
+    updateControllerPanel(body.controller);
+    syncControllerPolling(body.controller);
+    setStatus("Controller connect requested.", body);
+  } finally {
+    controllerConnectButton.disabled = false;
+  }
+}
+
+async function disconnectController() {
+  controllerDisconnectButton.disabled = true;
+  try {
+    const body = await postJson("/api/controller/disconnect");
+    updateControllerPanel(body.controller);
+    stopControllerPolling();
+    setStatus("Controller disconnected.", body);
+  } finally {
+    controllerDisconnectButton.disabled = false;
+  }
+}
+
+async function refreshControllerStatus() {
+  controllerStatusButton.disabled = true;
+  try {
+    const body = await getJson("/api/controller/status");
+    updateControllerPanel(body.controller);
+    syncControllerPolling(body.controller);
+    setStatus("Controller status.", body);
+  } finally {
+    controllerStatusButton.disabled = false;
+  }
+}
+
+async function refreshControllerDebug() {
+  controllerDebugButton.disabled = true;
+  try {
+    const body = await getJson("/api/controller/debug");
+    updateControllerPanel(body.controller);
+    syncControllerPolling(body.controller);
+    setStatus("Controller debug.", body);
+  } finally {
+    controllerDebugButton.disabled = false;
+  }
+}
+
 function formStateKey(form) {
   return JSON.stringify(readNumericState(form, (value) => value));
 }
@@ -1007,6 +1232,40 @@ initButton.addEventListener("click", async () => {
     setStatus("Initialized.", body);
   } catch (error) {
     setStatus(`Init failed: ${error.message}`);
+  }
+});
+
+baseUrlInput.addEventListener("change", saveBaseUrl);
+
+controllerConnectButton.addEventListener("click", async () => {
+  try {
+    await connectController();
+  } catch (error) {
+    setStatus(`Controller connect failed: ${error.message}`);
+  }
+});
+
+controllerDisconnectButton.addEventListener("click", async () => {
+  try {
+    await disconnectController();
+  } catch (error) {
+    setStatus(`Controller disconnect failed: ${error.message}`);
+  }
+});
+
+controllerStatusButton.addEventListener("click", async () => {
+  try {
+    await refreshControllerStatus();
+  } catch (error) {
+    setStatus(`Controller status failed: ${error.message}`);
+  }
+});
+
+controllerDebugButton.addEventListener("click", async () => {
+  try {
+    await refreshControllerDebug();
+  } catch (error) {
+    setStatus(`Controller debug failed: ${error.message}`);
   }
 });
 

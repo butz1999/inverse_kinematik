@@ -73,6 +73,139 @@ select {
   margin-top: auto;
 }
 
+.controller-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px 14px;
+  margin: 0 0 10px;
+}
+
+.controller-panel div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.controller-panel dt {
+  color: grey;
+  font-size: 0.9rem;
+}
+
+.controller-panel dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.controller-visualizer {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 10px;
+}
+
+.controller-stick-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.stick-pad {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  aspect-ratio: 1;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, CanvasText 22%, transparent);
+  border-radius: 8px;
+  background:
+    linear-gradient(color-mix(in srgb, CanvasText 18%, transparent), color-mix(in srgb, CanvasText 18%, transparent))
+      50% 0 / 1px 100% no-repeat,
+    linear-gradient(90deg, color-mix(in srgb, CanvasText 18%, transparent), color-mix(in srgb, CanvasText 18%, transparent))
+      0 50% / 100% 1px no-repeat;
+  overflow: hidden;
+}
+
+.stick-pad figcaption,
+.stick-pad output {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  z-index: 1;
+  font-size: 0.85rem;
+}
+
+.stick-pad figcaption {
+  top: 6px;
+  color: grey;
+}
+
+.stick-pad output {
+  bottom: 6px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.stick-dot {
+  position: absolute;
+  left: calc(50% + var(--stick-x, 0%));
+  top: calc(50% + var(--stick-y, 0%));
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: LinkText;
+  transform: translate(-50%, -50%);
+  transition: left 90ms linear, top 90ms linear;
+}
+
+.controller-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.controller-bit {
+  display: inline-grid;
+  place-items: center;
+  min-width: 48px;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  border-radius: 7px;
+  color: grey;
+  font-size: 0.9rem;
+}
+
+.controller-bit[data-active="true"] {
+  border-color: LinkText;
+  background: color-mix(in srgb, LinkText 18%, Canvas);
+  color: CanvasText;
+  font-weight: 650;
+}
+
+.controller-raw-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px 14px;
+  margin: 0;
+}
+
+.controller-raw-grid div {
+  min-width: 0;
+}
+
+.controller-raw-grid dt {
+  color: grey;
+  font-size: 0.85rem;
+}
+
+.controller-raw-grid dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
 button {
   padding: 4px 21px;
   cursor: pointer;

@@ -55,6 +55,11 @@ WebServer webServer(kHttpPort);
 hardware::Pca9685ServoDriver servoDriver;
 application::RestApiServer restApi(webServer, servoDriver, statusLed, logger);
 
+extern "C" void ik_switch2_pro_ble_input_report(const uint8_t *report, uint16_t report_size)
+{
+  restApi.ingestSwitch2ProBleInputReport(report, report_size, millis());
+}
+
 bool isConfigured(const char *value)
 {
   return value != nullptr && value[0] != '\0';

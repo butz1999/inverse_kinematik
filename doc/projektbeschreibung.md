@@ -2,7 +2,7 @@
 
 Dieses Projekt befasst sich mit der Implementierung eines 6-achsigen Roboterarms von Joy-it. Der Produktname lautet „Joy-it Grab-it“, das [Datenblatt](datasheet/Robot02_Datasheet_2019_09_19.pdf) ist abgelegt [[5]](#ref-5). Der Arm besteht aus sechs unabhängigen Servoantrieben des Typs COM-Motor02. Die technischen Daten der Servoantriebe sind im [Datenblatt](datasheet/COM-Motor02-Datasheet.pdf) dokumentiert [[6]](#ref-6).
 
-Ziel des Projekts ist es, den Roboterarm mithilfe inverser Kinematik gleichmäßig und zielorientiert zu steuern. Gleichzeitig soll auf einem ESP32-Modul eine höherwertige Programmiersprache eingesetzt werden, um moderne Programmiertechniken praktisch zu erproben.
+Ziel des Projekts ist es, den Roboterarm mithilfe inverser Kinematik gleichmäßig und zielorientiert zu steuern. Neben vordefinierten Abläufen soll perspektivisch auch eine manuelle Bedienung über einen Nintendo Switch Pro Controller möglich sein. Gleichzeitig soll auf einem ESP32-Modul eine höherwertige Programmiersprache eingesetzt werden, um moderne Programmiertechniken praktisch zu erproben.
 
 Eine weitere zentrale Anforderung ist der Einsatz einer Servokarte mit PCA9685-Chip [[4]](#ref-4). Dadurch können die sechs Servos mithilfe verfügbarer Bibliotheken in Echtzeit angesteuert werden.
 
@@ -217,6 +217,24 @@ Konzeptionell kann ein solcher Ablauf als generische Liste von Ablaufschritten v
 
 Die Run Engine erweitert damit die Anwendungsebene um eine einfache Form der Bewegungsprogrammierung. Anstatt ausschließlich einzelne Zielpositionen ad hoc zu übergeben, kann ein vollständiger Bewegungsablauf beschrieben, gestartet und in definierter Reihenfolge abgearbeitet werden. Dies ist insbesondere für wiederkehrende Demonstrationsabläufe, einfache Pick-and-Place-Sequenzen oder Testprogramme sinnvoll.
 
+### Manuelle Bedienung über Switch Pro Controller
+
+Zusätzlich zur programmierbaren Ablaufsteuerung soll das System um eine manuelle Bedienmöglichkeit über einen Nintendo Switch Pro Controller erweitert werden. Der Controller dient dabei als externe Eingabequelle für Bedienbefehle, nicht als direkter Ersatz für Orchestrator, Validierung oder Hardwareabstraktion.
+
+Die Controller-Eingaben sollen zunächst als fachliche Steuerkommandos interpretiert werden. Analoge Sticks können beispielsweise kontinuierliche Bewegungswünsche im kartesischen Raum oder im Gelenkraum ausdrücken, während Tasten diskrete Roboter-Aktionen wie Greifer öffnen, Greifer schließen, Start, Stop, Home oder Moduswechsel auslösen können. Die konkrete Belegung der Tasten und Achsen wird in der umsetzungsnahen Software- oder Bedienungsdokumentation festgelegt.
+
+Aus Architektursicht ist wichtig, dass Controller-Befehle denselben fachlichen Verarbeitungspfad nutzen wie REST-Anfragen oder Ablaufschritte der Run Engine. Eine manuelle Eingabe wird daher in eine Bewegungsanforderung, eine Roboter-Aktion oder ein kontrolliertes Abbruchkommando übersetzt und anschließend durch Orchestrator, Validierung, Bewegungsplanung und Hardwareabstraktion verarbeitet. Dadurch gelten Gelenkgrenzen, Kalibration, Bewegungsprofile und Fehlerbehandlung auch für die manuelle Bedienung.
+
+Für den sicheren Betrieb sind insbesondere folgende Anforderungen relevant:
+
+* Controller-Eingaben dürfen keine ungeprüften PWM-Werte direkt an die Servos ausgeben.
+* Verbindungsverlust, ungültige Eingaben oder widersprüchliche Tastenbelegungen müssen zu einem definierten sicheren Verhalten führen.
+* Ein Stop- oder Hold-Kommando muss laufende Bewegungsabläufe kontrolliert anhalten können.
+* Die Umschaltung zwischen automatischem Ablauf und manueller Bedienung muss eindeutig modelliert werden.
+* Die Bedienung soll mit reduzierten Geschwindigkeiten und begrenzten Schrittweiten starten, bis das Verhalten am realen Arm praktisch verifiziert wurde.
+
+Damit ergänzt der Switch Pro Controller die Anwendungsschicht um eine interaktive Bedienquelle. Er erweitert jedoch nicht die Grundannahme, dass das System ohne sensorische Positionsrückmeldung arbeitet und physische Zielerreichung nicht selbst verifizieren kann.
+
 ## SW Architektur
 
 Die Softwarearchitektur dieses Projekts soll so aufgebaut sein, dass fachliche Logik, mathematische Modellierung und hardwarenahe Ansteuerung klar voneinander getrennt sind. Dadurch bleibt das System übersichtlich, testbar und später erweiterbar, auch wenn sich einzelne Algorithmen oder Hardwarekomponenten ändern.
@@ -233,6 +251,7 @@ Die Architektur verfolgt insbesondere folgende Ziele:
 * Erweiterbarkeit für spätere Funktionen wie z.B. Bahnplanung
 * klare Trennung zwischen fachlicher Berechnung, Orchestrierung, Bewegungsfreigabe und hardwarenaher Ausgabe
 * Unterstützung sequenzieller Bewegungsabläufe durch eine einfache Anwendungskomponente
+* Erweiterbarkeit der Anwendungsschicht um manuelle Bedienquellen wie einen Switch Pro Controller
 
 ### Logische Schichten
 
@@ -240,7 +259,7 @@ Eine sinnvolle logische Zerlegung besteht aus mehreren Schichten mit klar abgegr
 
 #### Bedien- und Anwendungsschicht
 
-Diese Schicht nimmt Sollvorgaben entgegen und stellt die Schnittstelle zur Benutzerinteraktion oder zu höheren Programmlogiken dar. In der ersten Ausbaustufe wird sie insbesondere durch eine Run Engine geprägt, welche vordefinierte Bewegungsabläufe verwaltet und schrittweise an die darunterliegende Steuerung übergibt. Die Anwendungsschicht arbeitet dabei ausschließlich mit fachlichen Größen wie Zielposition, Orientierung, Greiferöffnung, Wartezeiten, optionalen Statusaktionen und optionalen Roboter-Aktionen.
+Diese Schicht nimmt Sollvorgaben entgegen und stellt die Schnittstelle zur Benutzerinteraktion oder zu höheren Programmlogiken dar. In der ersten Ausbaustufe wird sie insbesondere durch eine Run Engine geprägt, welche vordefinierte Bewegungsabläufe verwaltet und schrittweise an die darunterliegende Steuerung übergibt. Zusätzlich kann sie externe Bedienquellen wie REST-Anfragen oder einen Switch Pro Controller kapseln und deren Eingaben in dieselben fachlichen Modelle überführen. Die Anwendungsschicht arbeitet dabei ausschließlich mit fachlichen Größen wie Zielposition, Orientierung, Greiferöffnung, Wartezeiten, optionalen Statusaktionen und optionalen Roboter-Aktionen.
 
 #### Orchestrierungs- und Steuerungsschicht
 
@@ -317,6 +336,12 @@ Die [Zielpose des Endeffektors](#target-description) (`Target Pose`) enthält di
 #### Ablaufschritt
 
 Ein [Ablaufschritt](#sequence-step) (`Sequence Step`) beschreibt eine einzelne Anweisung innerhalb eines Bewegungsprogramms. Er enthält mindestens eine [Zielpose des Endeffektors](#target-description) (`Target Pose`) und kann zusätzlich eine Haltezeit, optionale Begleitaktionen oder optionale [Roboter-Aktionen](#robot-action) (`Robot Action`) umfassen. Unter Roboter-Aktionen werden dabei diskrete, fachlich benennbare Aktionen verstanden, die nicht ausschließlich über eine kartesische Zielbeschreibung modelliert werden, beispielsweise das gezielte Öffnen oder Schließen des Greifers. Dadurch bildet der Ablaufschritt die kleinste fachliche Einheit, welche von der [Run Engine](#run-engine) an den Orchestrator übergeben wird.
+
+#### Controller-Eingabe
+
+Eine [Controller-Eingabe](#controller-input) (`Controller Input`) beschreibt eine manuelle Bedieninformation aus einem externen Eingabegerät wie dem Switch Pro Controller. Sie enthält noch keine freigegebenen Servo- oder PWM-Werte, sondern wird zunächst als fachliches Bedienereignis verstanden. Beispiele sind Richtungswünsche über Analogsticks, diskrete Tastendrücke, Moduswechsel, Stop-Kommandos oder Greiferaktionen.
+
+Aus einer Controller-Eingabe kann die Anwendungsschicht je nach aktivem Bedienmodus eine [Bewegungsanforderung](#motion-request) (`Motion Request`), eine [Roboter-Aktion](#robot-action) (`Robot Action`) oder ein Abbruch-/Haltekommando ableiten. Dadurch bleibt auch die manuelle Bedienung an die gleichen Prüf- und Freigabepfade gebunden wie programmierte Abläufe.
 
 #### Bewegungsanforderung
 
@@ -423,6 +448,7 @@ Die Architektur soll bewusst offen für spätere Erweiterungen bleiben. Dazu geh
 * Ergänzung um Modelle für Ausführbarkeit, Lastgrenzen und dynamische Begrenzungen
 * Ausbau des Orchestrators um komplexere Bewegungsabläufe oder Befehlsfolgen
 * Erweiterung der Run Engine um zusätzliche Schrittarten oder alternative Konfigurationsquellen
+* Einbindung manueller Bedienquellen wie eines Switch Pro Controllers
 * Erweiterung um Sicherheitsmechanismen, beispielsweise zur Begrenzung kritischer Bewegungen
 
 Durch diese Struktur kann die Software schrittweise weiterentwickelt werden, ohne dass fachliche Modellierung, numerische Verfahren und hardwarenahe Steuerung unnötig stark miteinander gekoppelt werden.
@@ -470,6 +496,8 @@ flowchart LR
         A9[RestApiServer]
         A10[Calibration HMI]
         A11[ApiContracts]
+        A12[Controller Input]
+        A13[Switch Pro Controller]
 
         A2 -->|contains| A3
         A1 -->|uses| A2
@@ -481,6 +509,9 @@ flowchart LR
         A10 -->|calls| A8
         A8 -->|is implemented by| A9
         A9 -->|uses| A11
+        A13 -->|provides input to| A12
+        A12 -->|creates| A7
+        A12 -->|may trigger| A6
     end
 ```
 
@@ -639,6 +670,7 @@ flowchart TD
     L --> M[RunEngine handles wait]
     M --> B
     N[REST external request] --> B
+    T[Switch Pro Controller input] --> B
 ```
 
 ## SW Design
@@ -765,6 +797,7 @@ Die funktionalen Anforderungen beschreiben, welche fachlichen Fähigkeiten das S
 * Das System muss für zulässige Zielzustände passende Gelenksollzustände berechnen können.
 * Das System muss Gelenksollzustände unter Berücksichtigung von Kalibrationsdaten in hardwaregeeignete Stellwerte überführen können.
 * Das System muss vordefinierte Bewegungsabläufe aus mehreren Ablaufschritten ausführen können.
+* Das System soll manuelle Bedienbefehle eines Switch Pro Controllers als fachliche Eingaben entgegennehmen können.
 * Das System muss für jede Bewegungsanforderung ein Bewegungsergebnis bereitstellen können.
 * Das System muss Begleitaktionen wie Wartezeiten oder LED-Signale innerhalb eines Ablaufs unterstützen können.
 * Das System muss unerreichbare oder unzulässige Zielzustände erkennen und ablehnen können.
@@ -793,6 +826,7 @@ Die folgenden Randbedingungen und Annahmen prägen den Entwurf des Systems:
 * Als Zielhardware wird ein ESP32 mit PCA9685-basierter Servoansteuerung verwendet.
 * Auf der Zielhardware steht möglicherweise kein komfortables Dateisystem oder keine Speicherkarte zur Verfügung.
 * Bewegungsabläufe werden deshalb zunächst als programmnahe oder zur Build-Zeit bereitgestellte Definitionen betrachtet.
+* Manuelle Controller-Bedienung ist als zusätzliche Eingabequelle vorgesehen und ersetzt keine sensorische Rückmeldung.
 * Die Home Position muss aus dem stromlosen Zustand reproduzierbar erreichbar sein.
 
 ### Abgrenzung des Projektumfangs
@@ -877,6 +911,7 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 | <a id="application"></a>Application | Softwarebaustein der Anwendungsebene. Er umfasst im Projekt insbesondere `Run Engine`, `Sequence Definition`, `Sequence Step`, `Sequence State`, `LED Action`, `Robot Action` und `Target Pose`. |
 | CCD | Cyclic Coordinate Descent. Iteratives Verfahren zur Lösung inverser Kinematik, bei dem Gelenke nacheinander so angepasst werden, dass sich der Endeffektor schrittweise an ein Ziel annähert. |
 | <a id="common"></a>Common | Gemeinsamer Softwarebaustein für fachliche Datenmodelle, die von mehreren anderen Komponenten verwendet werden. |
+| <a id="controller-input"></a>Controller Input | Fachliches Eingabemodell für manuelle Bedienereignisse aus einem externen Controller, beispielsweise einem Switch Pro Controller. |
 | <a id="calibration"></a>Hardware Calibration | Datenmodell zur Abbildung fachlicher Gelenk- und Greiferwerte auf hardwarenahe Stellwerte unter Berücksichtigung fachlicher Grenzen und gerichteter PWM-Endpunkte. |
 | <a id="calibration-data"></a>Robot Model Offset | Modellbezogene Offsets und Korrekturwerte, welche das reale Robotermodell gegenüber dem idealisierten Modell beschreiben. |
 | Endeffektor | Das funktionale Ende des Roboterarms. Im vorliegenden Projekt besteht der Endeffektor aus Handgelenk und Greifer. |

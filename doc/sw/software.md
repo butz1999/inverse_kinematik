@@ -762,6 +762,35 @@ Noch nicht Teil dieses Dokuments sind:
 
 Die Architektur soll dabei so offen bleiben, dass der ESP32 zunächst ein kleines REST API und später zusätzlich eine kleine statische HMI-Seite über dieselbe Netzwerkschnittstelle anbieten kann.
 
+### Manuelle Controller-Bedienung
+
+Für die manuelle Bedienung wird als primäre Controller-Komponente `Bluepad32` vorgesehen. Die Bibliothek wird gewählt, weil sie bereits als Gamepad-Host für ESP32-Plattformen ausgelegt ist und Controller-Eingaben auf einer höheren fachlichen Ebene bereitstellt als eine direkte BLE-HID-Implementierung. Dadurch muss die Firmware nicht sofort rohe HID-Reports, Pairing-Details und controller-spezifische Reportformate selbst auswerten.
+
+Die Einbindung von `Bluepad32` soll dennoch nicht direkt in Anwendung, Orchestrator oder Bewegungslogik hineinreichen. Stattdessen wird eine projektinterne Wrapper-Grenze vorgesehen:
+
+```text
+Bluepad32
+  -> ControllerDriver
+  -> ControllerInput / ControllerStatus
+  -> ControllerMapper
+  -> MotionRequest / RobotAction / Stop
+```
+
+Der produktive Anwendungscode arbeitet damit zunächst nur gegen projektinterne Modelle wie `ControllerInput` und `ControllerStatus`. Ob diese Daten später von `Bluepad32`, einer direkten `NimBLE`-Implementierung oder einem anderen Treiber stammen, bleibt lokal auf den `ControllerDriver` begrenzt.
+
+Für den ersten Proof-of-concept wird die Controller-Integration bewusst als read-only Debug-Pfad umgesetzt. Ziel dieses Schritts ist nicht die direkte Bewegung des Roboterarms, sondern der Nachweis, dass Controller-Verbindung, Eingabedaten, REST API und Dilbert-HMI zusammenspielen. Controller-Eingaben dürfen in diesem Zustand keine Servobewegung auslösen.
+
+Für den Proof-of-concept sind insbesondere folgende REST-Endpunkte vorgesehen:
+
+* `POST /api/controller/connect` aktiviert den Controller-Verbindungspfad beziehungsweise Pairing/Discovery.
+* `POST /api/controller/disconnect` trennt den aktuell bekannten Controller-Zustand.
+* `GET /api/controller/status` liefert Verbindungsstatus, Treiberstatus und Basisinformationen.
+* `GET /api/controller/debug` liefert zusätzlich die zuletzt bekannten Stick-, Trigger-, Button- und D-Pad-Werte.
+
+Erst nach erfolgreichem Debug-PoC wird der nächste Schritt umgesetzt: ein `ControllerMapper`, der Controller-Eingaben abhängig vom Bedienmodus in fachliche Kommandos übersetzt. Dazu gehören beispielsweise `manual_joint`, `manual_cartesian`, `hold`, `stop`, `home` oder Greiferaktionen. Diese Übersetzung muss Deadzones, Skalierung, Rate Limiting, Priorität gegenüber laufenden Sequenzen und sichere Fehlerpfade berücksichtigen.
+
+Die Abhängigkeit auf `Bluepad32` soll nach Möglichkeit referenziert und nicht dupliziert werden. Für die produktive Einbindung wird daher ein fester Git-Tag oder Commit in der Build-Konfiguration bevorzugt. Vor einer dauerhaften Einbindung in den Haupt-Build ist zu verifizieren, ob der gewählte Controller, insbesondere ein Switch 2 Pro Controller, mit dem aktuellen ESP32-S3-Board und dem verwendeten PlatformIO/Arduino-Buildweg zuverlässig verbunden und ausgelesen werden kann.
+
 ### Orchestrator
 
 Der `Orchestrator` ist die zentrale Koordinationsinstanz zwischen Anwendung, Robotik und Hardware.

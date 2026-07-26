@@ -9,6 +9,13 @@
 #include "robotics/Kinematics.h"
 #include "robotics/Validation.h"
 
+#if defined(ARDUINO) && __has_include(<bt/uni_bt_le.h>)
+#include <bt/uni_bt_le.h>
+#define IK_HAS_BLUEPAD32_BLE_DEBUG 1
+#else
+#define IK_HAS_BLUEPAD32_BLE_DEBUG 0
+#endif
+
 // ToDo: Das ist grosser Spaghetti-Code. Alternativen?
 
 namespace application
@@ -17,7 +24,7 @@ namespace application
 namespace
 {
 
-constexpr std::size_t kRestJsonCapacity = 1536;
+constexpr std::size_t kRestJsonCapacity = 4096;
 using RestJsonDocument = StaticJsonDocument<kRestJsonCapacity>;
 
 template <typename JsonDocumentType>
@@ -109,6 +116,57 @@ void setHardwareDriverResultJson(JsonObject object, const hardware::HardwareDriv
   object["message"] = result.message;
 }
 
+void setControllerInputJson(JsonObject object, const ControllerInput &input)
+{
+  object["valid"] = input.valid;
+  object["leftX"] = input.left_x;
+  object["leftY"] = input.left_y;
+  object["rightX"] = input.right_x;
+  object["rightY"] = input.right_y;
+  object["buttons"] = input.buttons;
+  object["dpad"] = input.dpad;
+  object["updatedAtMs"] = input.updated_at_ms;
+}
+
+void setControllerStateJson(JsonObject object, const ControllerDebugState &state, uint32_t now_ms)
+{
+  object["status"] = toString(state.connection_status);
+  object["driver"] = state.driver_name;
+  object["controllerName"] = state.controller_name;
+  object["message"] = state.message;
+  object["pairingRequested"] = state.pairing_requested;
+  object["acceptsNewConnections"] = state.accepts_new_connections;
+  object["bluepadScanning"] = state.bluepad_scanning;
+  object["connectedAtMs"] = state.connected_at_ms;
+  object["lastUpdateMs"] = state.last_update_ms;
+  object["ageMs"] = state.last_update_ms > 0U ? now_ms - state.last_update_ms : 0U;
+  setControllerInputJson(object.createNestedObject("input"), state.input);
+}
+
+void setBleAdvertisementDebugJson(JsonArray array)
+{
+#if IK_HAS_BLUEPAD32_BLE_DEBUG
+  uni_bt_le_advertisement_debug_t entries[12];
+  const auto count = uni_bt_le_get_advertisement_debug(entries, 12);
+  for (int i = 0; i < count; i++)
+  {
+    JsonObject entry = array.createNestedObject();
+    entry["address"] = entries[i].address;
+    entry["addressType"] = entries[i].address_type;
+    entry["eventType"] = entries[i].event_type;
+    entry["rssi"] = entries[i].rssi;
+    entry["dataLen"] = entries[i].data_len;
+    entry["appearance"] = entries[i].appearance;
+    entry["name"] = entries[i].name;
+    entry["hasHidService"] = entries[i].has_hid_service;
+    entry["hasGenericAccessService"] = entries[i].has_generic_access_service;
+    entry["matchedRelaxedFilter"] = entries[i].matched_relaxed_filter;
+  }
+#else
+  static_cast<void>(array);
+#endif
+}
+
 }  // namespace
 
 RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver,
@@ -120,6 +178,7 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
       hardware_calibration_(hardware::defaultHardwareCalibration()),
       orchestrator_(robotics::defaultRobotModel(), robotics::defaultRobotModelOffset()),
       run_engine_(orchestrator_),
+      controller_driver_(),
       current_joint_state_(common::initialJointState()),
       current_joint_pwm_state_(hardware_calibration_.initial_pwm_state),
       active_motion_plan_{common::defaultMotionProfile(), 0U, 0U, 0U, {}},
@@ -229,6 +288,36 @@ void RestApiServer::init()
              {
                handleSequenceStatus();
              });
+  server_.on(kControllerConnectPath, HTTP_POST,
+             [this]()
+             {
+               handleControllerConnectRequest();
+             });
+  server_.on(kControllerConnectPath, HTTP_OPTIONS,
+             [this]()
+             {
+               handleCorsPreflight();
+             });
+  server_.on(kControllerDisconnectPath, HTTP_POST,
+             [this]()
+             {
+               handleControllerDisconnectRequest();
+             });
+  server_.on(kControllerDisconnectPath, HTTP_OPTIONS,
+             [this]()
+             {
+               handleCorsPreflight();
+             });
+  server_.on(kControllerStatusPath, HTTP_GET,
+             [this]()
+             {
+               handleControllerStatus();
+             });
+  server_.on(kControllerDebugPath, HTTP_GET,
+             [this]()
+             {
+               handleControllerDebug();
+             });
   server_.on("/favicon.ico", HTTP_GET,
              [this]()
              {
@@ -242,9 +331,15 @@ void RestApiServer::init()
   server_.begin();
 }
 
+bool RestApiServer::ingestSwitch2ProBleInputReport(const uint8_t *report, std::size_t report_size, uint32_t now_ms)
+{
+  return controller_driver_.ingestSwitch2ProBleInputReport(report, report_size, now_ms);
+}
+
 void RestApiServer::handleClient()
 {
   server_.handleClient();
+  serviceControllerInput();
   servicePendingLedStep();
   serviceActiveMotionPlan();
   serviceSequenceRun();
@@ -334,6 +429,11 @@ void RestApiServer::serviceSequenceRun()
   startMotionPlan(*service_result.motion_plan, service_result.target_joint_state);
 }
 
+void RestApiServer::serviceControllerInput()
+{
+  controller_driver_.service(millis());
+}
+
 void RestApiServer::queueLedStep(const steps::LedStep &step)
 {
   pending_led_step_ = step;
@@ -394,10 +494,12 @@ void RestApiServer::handleStatus()
   doc["jointPwmHardwareInitialized"] = servo_driver_.isInitialized();
   doc["motionEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["sequenceEndpoint"] = toString(ApiCapabilityStatus::Available);
+  doc["controllerEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["motionPlanActive"] = hasActiveMotionPlan();
   doc["motionPlanSampleIndex"] = active_motion_sample_index_;
   doc["motionPlanSampleCount"] = active_motion_plan_.sample_count;
   setSequenceStateJson(doc.createNestedObject("sequence"), run_engine_.state(), millis());
+  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
   doc["uptimeMs"] = millis();
 
   sendJson(200, jsonBody(doc));
@@ -953,6 +1055,64 @@ void RestApiServer::handleSequenceStatus()
   setSequenceStateJson(doc.createNestedObject("sequence"), run_engine_.state(), millis());
   setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
   setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
+  sendJson(200, jsonBody(doc));
+}
+
+void RestApiServer::handleControllerConnectRequest()
+{
+  logRequest("POST", kControllerConnectPath);
+
+  controller_driver_.requestPairing(millis());
+  logResult("[REST] Controller pairing requested");
+
+  RestJsonDocument doc;
+  doc["status"] = "accepted";
+  doc["code"] = toString(ApiResultCode::Ok);
+  doc["mode"] = "controller_debug_only";
+  doc["readOnly"] = true;
+  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
+  sendJson(202, jsonBody(doc));
+}
+
+void RestApiServer::handleControllerDisconnectRequest()
+{
+  logRequest("POST", kControllerDisconnectPath);
+
+  controller_driver_.disconnect(millis());
+  logResult("[REST] Controller disconnected");
+
+  RestJsonDocument doc;
+  doc["status"] = "accepted";
+  doc["code"] = toString(ApiResultCode::Ok);
+  doc["mode"] = "controller_debug_only";
+  doc["readOnly"] = true;
+  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
+  sendJson(202, jsonBody(doc));
+}
+
+void RestApiServer::handleControllerStatus()
+{
+  RestJsonDocument doc;
+  doc["status"] = toString(ApiResultCode::Ok);
+  doc["code"] = toString(ApiResultCode::Ok);
+  doc["mode"] = "controller_debug_only";
+  doc["readOnly"] = true;
+  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
+  sendJson(200, jsonBody(doc));
+}
+
+void RestApiServer::handleControllerDebug()
+{
+  logRequest("GET", kControllerDebugPath);
+
+  RestJsonDocument doc;
+  doc["status"] = toString(ApiResultCode::Ok);
+  doc["code"] = toString(ApiResultCode::Ok);
+  doc["mode"] = "controller_debug_only";
+  doc["readOnly"] = true;
+  doc["motionOutput"] = "disabled";
+  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
+  setBleAdvertisementDebugJson(doc.createNestedArray("bleAdvertisements"));
   sendJson(200, jsonBody(doc));
 }
 

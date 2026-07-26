@@ -267,8 +267,7 @@ SequenceDefinitionParseResult parseLedStepObject(JsonObjectConst step, steps::Le
 
   if (!led_step.has_status_color && !led_step.has_rgb_color)
   {
-    return sequenceDefinitionError(ApiResultCode::MissingField, "color",
-                                   "LED step must contain either color or rgb.");
+    return sequenceDefinitionError(ApiResultCode::MissingField, "color", "LED step must contain either color or rgb.");
   }
 
   if (!step["mode"].is<const char *>())

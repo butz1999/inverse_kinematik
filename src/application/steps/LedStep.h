@@ -23,8 +23,13 @@ struct LedStep
 
 inline LedStep emptyLedStep()
 {
-  return LedStep{false, hardware::StatusColor::Off, false, hardware::StatusLed::RgbColor{0U, 0U, 0U},
-                 hardware::StatusLed::Mode::On, 0U, ""};
+  return LedStep{false,
+                 hardware::StatusColor::Off,
+                 false,
+                 hardware::StatusLed::RgbColor{0U, 0U, 0U},
+                 hardware::StatusLed::Mode::On,
+                 0U,
+                 ""};
 }
 
 }  // namespace application::steps

@@ -15,12 +15,80 @@
       <h2>Basics</h2>
       <section class="toolbar">
         <button id="init-button" type="button">Init</button>
-        <input id="base-url" type="url" value="http://robot.fritz.box" list="base-url-options" aria-label="Base URL" />
+        <input id="base-url" type="url" value="http://robot.local" list="base-url-options" aria-label="Base URL" />
         <datalist id="base-url-options">
-          <option value="http://robot.fritz.box"></option>
           <option value="http://robot.local"></option>
+          <option value="http://robot.fritz.box"></option>
         </datalist>
       </section>
+
+      <details open>
+        <summary>
+          <h2>Controller</h2>
+        </summary>
+        <section class="toolbar">
+          <button id="controller-connect-button" type="button">Connect Controller</button>
+          <button id="controller-disconnect-button" type="button">Disconnect</button>
+          <button id="controller-status-button" type="button">Status</button>
+          <button id="controller-debug-button" type="button">Debug</button>
+        </section>
+        <dl id="controller-panel" class="controller-panel">
+          <div>
+            <dt>Status</dt>
+            <dd id="controller-status-value">unknown</dd>
+          </div>
+          <div>
+            <dt>Driver</dt>
+            <dd id="controller-driver-value">unknown</dd>
+          </div>
+          <div>
+            <dt>Controller</dt>
+            <dd id="controller-name-value">unknown</dd>
+          </div>
+          <div>
+            <dt>Input</dt>
+            <dd id="controller-input-value">no data</dd>
+          </div>
+          <div>
+            <dt>Scan</dt>
+            <dd id="controller-scan-value">unknown</dd>
+          </div>
+          <div>
+            <dt>Message</dt>
+            <dd id="controller-message-value">unknown</dd>
+          </div>
+        </dl>
+        <section class="controller-visualizer" aria-label="Controller input visualizer">
+          <div class="controller-stick-row">
+            <figure class="stick-pad">
+              <figcaption>Left Stick</figcaption>
+              <span id="controller-left-stick-dot" class="stick-dot"></span>
+              <output id="controller-left-stick-value">0 / 0</output>
+            </figure>
+            <figure class="stick-pad">
+              <figcaption>Right Stick</figcaption>
+              <span id="controller-right-stick-dot" class="stick-dot"></span>
+              <output id="controller-right-stick-value">0 / 0</output>
+            </figure>
+          </div>
+          <div class="controller-button-row" id="controller-dpad-buttons" aria-label="D-pad"></div>
+          <div class="controller-button-row" id="controller-action-buttons" aria-label="Buttons"></div>
+          <dl class="controller-raw-grid">
+            <div>
+              <dt>buttons</dt>
+              <dd id="controller-buttons-raw">0x00000000</dd>
+            </div>
+            <div>
+              <dt>dpad</dt>
+              <dd id="controller-dpad-raw">0x00000000</dd>
+            </div>
+            <div>
+              <dt>updated</dt>
+              <dd id="controller-updated-value">0 ms</dd>
+            </div>
+          </dl>
+        </section>
+      </details>
 
       <details>
         <summary>

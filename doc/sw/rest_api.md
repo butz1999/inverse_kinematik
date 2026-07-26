@@ -31,6 +31,10 @@ Der Server ist nach erfolgreicher WLAN-Initialisierung über die IP-Adresse des 
 | `POST` | `/api/sequence/start` | Sequenz aus mehreren Task-Space-Schritten starten | `202` |
 | `POST` | `/api/sequence/stop` | Laufende Sequenz und aktiven Motion-Plan abbrechen | `202` |
 | `GET` | `/api/sequence/status` | Sequenzfortschritt und aktive Planposition abfragen | `200` |
+| `POST` | `/api/controller/connect` | Controller-Verbindungspfad für den Debug-PoC aktivieren | `202` |
+| `POST` | `/api/controller/disconnect` | Controller-Verbindungspfad zurücksetzen | `202` |
+| `GET` | `/api/controller/status` | Controller-Status abfragen | `200` |
+| `GET` | `/api/controller/debug` | Controller-Status und letzte Eingabewerte abfragen | `200` |
 | `GET` | `/favicon.ico` | Browser-Favicon unterdrücken | `204` |
 | alle | sonstige Pfade | Unbekannter Pfad | `404` |
 
@@ -47,6 +51,7 @@ flowchart TD
   Server --> ServoInit["POST /api/servo-driver/init"]
   Server --> PwmMotion["POST /api/joint-pwm-motion"]
   Server --> Motion["POST /api/motion"]
+  Server --> Controller["Controller debug endpoints"]
   Server --> NotFound[Not Found Handler]
 
   JointMotion --> AssumedJointState[Assumed joint state]
@@ -142,6 +147,32 @@ Beispiel:
   "g_pwm": 307
 }
 ```
+
+### ControllerStatus
+
+Der Controller-Pfad ist zunächst ein read-only Debug-PoC. Die Endpunkte lösen keine Servobewegung aus. Die konkrete Bluetooth-Anbindung wird hinter einem projektinternen `ControllerDriver` gekapselt; als Zielkomponente ist `Bluepad32` vorgesehen.
+
+| Feld | Bedeutung |
+| --- | --- |
+| `status` | Verbindungsstatus, z. B. `disconnected`, `pairing`, `connected` oder `driver_unavailable` |
+| `driver` | Name des aktuell eingebundenen Controller-Treibers oder Adapters |
+| `controllerName` | Name des verbundenen Controllers, falls bekannt |
+| `pairingRequested` | Gibt an, ob der Verbindungspfad aktiviert wurde |
+| `acceptsNewConnections` | Gibt an, ob neue Controller-Verbindungen angenommen werden sollen |
+| `lastUpdateMs` | Zeitpunkt der letzten Aktualisierung in Millisekunden seit Boot |
+| `input` | Letzte bekannte normalisierte Controller-Eingabe |
+
+Das `input`-Objekt enthält zunächst normalisierte Rohwerte:
+
+| Feld | Bedeutung |
+| --- | --- |
+| `valid` | Gibt an, ob eine gültige Eingabe vorliegt |
+| `leftX`, `leftY` | Linker Analogstick |
+| `rightX`, `rightY` | Rechter Analogstick |
+| `leftTrigger`, `rightTrigger` | Triggerwerte |
+| `buttons` | Button-Bitmaske |
+| `dpad` | D-Pad-Bitmaske |
+| `updatedAtMs` | Zeitpunkt der letzten Eingabeaktualisierung |
 
 ## Endpunkte
 

@@ -42,6 +42,10 @@ constexpr const char *kForwardKinematicsPath = "/api/forward-kinematics";
 constexpr const char *kSequenceStartPath =     "/api/sequence/start";
 constexpr const char *kSequenceStopPath =      "/api/sequence/stop";
 constexpr const char *kSequenceStatusPath =    "/api/sequence/status";
+constexpr const char *kControllerConnectPath = "/api/controller/connect";
+constexpr const char *kControllerDisconnectPath = "/api/controller/disconnect";
+constexpr const char *kControllerStatusPath =  "/api/controller/status";
+constexpr const char *kControllerDebugPath =   "/api/controller/debug";
 // clang-format on
 
 const char *toString(ApiCapabilityStatus status);
