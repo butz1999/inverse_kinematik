@@ -6,7 +6,7 @@ Ziel des Projekts ist es, den Roboterarm mithilfe inverser Kinematik gleichmäß
 
 Eine weitere zentrale Anforderung ist der Einsatz einer Servokarte mit PCA9685-Chip [[4]](#ref-4). Dadurch können die sechs Servos mithilfe verfügbarer Bibliotheken in Echtzeit angesteuert werden.
 
-![Joy-it Grab-it Roboterarm](datasheet/Robot02-1.png)
+![Joy-it Grab-it Roboterarm](datasheet/roboter/Robot02-1.png)
 
 ## Technisches Konzept
 
@@ -67,13 +67,13 @@ Abschließend wird der Gelenkraum definiert. Die Rotationsachsen werden in [°] 
 
 ### Beschreibung des realen Roboterarms
 
-> [!WARNING] Muss noch überarbeitet werden.
-> Die mechanische Konstruktion des Arms weist folgende Abweichungen vom idealen Modell auf:
-> * Die Schulter besitzt einen festen Offset nach vorne (positive y-Achse)
-> * Pitch und Roll haben einen festen Offset zueinander.
-> * Roll und das Zentrum des Greifers haben einen festen Offset (Achsen) zueinander.
-> 
-> Weitere Offsets werden im aktuellen Modell zunächst vernachlässigt.
+Die mechanische Konstruktion des Arms weist folgende Abweichungen vom idealen Modell auf:
+* Der Drehteller hat einen Offset in y- und z-Richtung.
+* Die Schulter besitzt einen festen Offset nach hinten und links.
+* Pitch und Roll haben einen festen Offset in Richtung der Unterarm-Achse.
+* Roll und das Zentrum des Greifers haben einen festen Offset in Richtung des Handgelenks.
+
+Weitere Offsets werden im aktuellen Modell zunächst vernachlässigt.
 
 ### Servo-Kalibration
 
@@ -93,7 +93,7 @@ Darüber hinaus bildet die Kalibration eine wichtige Grundlage für die Wiederho
 
 ### Initialisierung und sichere Startlage
 
-Da der Roboterarm in der ersten Ausbaustufe ohne sensorische Rückmeldung betrieben wird, kommt der Initialisierung des Systems besondere Bedeutung zu. Nach dem Einschalten kann die Software die reale mechanische Stellung des Arms nicht eigenständig verifizieren. Deshalb muss ein definierter Zusammenhang zwischen dem angenommenen Softwarezustand und der tatsächlichen physischen Ausgangslage hergestellt werden.
+Da der Roboterarm ohne sensorische Rückmeldung betrieben wird, kommt der Initialisierung des Systems besondere Bedeutung zu. Nach dem Einschalten kann die Software die reale mechanische Stellung des Arms nicht eigenständig verifizieren. Deshalb muss ein definierter Zusammenhang zwischen dem angenommenen Softwarezustand und der tatsächlichen physischen Ausgangslage hergestellt werden.
 
 Für den praktischen Betrieb bedeutet dies, dass der Arm vor dem Start der normalen Ablaufsteuerung in eine bekannte und mechanisch unkritische [Home Position](#home-position) gebracht werden muss. Diese Startlage dient als Bezugspunkt für Kalibration, Testläufe und wiederholbare Bewegungsprogramme. Sie sollte so gewählt werden, dass alle Gelenke ausreichend Abstand zu mechanischen Anschlägen besitzen und der Greifer keine kritische Kollision mit der Standfläche oder der eigenen Struktur verursacht.
 
@@ -109,7 +109,6 @@ Konzeptionell sind dafür mindestens folgende Schritte sinnvoll:
 
 * Festlegung einer dokumentierten Startkonfiguration des Arms
 * Zuordnung dieser Startkonfiguration zu den angenommenen Gelenkwerten in der Software
-* kontrollierte Aktivierung der Servos ohne abrupte oder unplausible Stellwertsprünge
 * optionales Anfahren einer sicheren Ruheposition vor Beginn eines eigentlichen Bewegungsablaufs
 
 Für die sichere Inbetriebnahme wird zusätzlich festgelegt, dass die Achsen beginnend beim Greifer rückwärts angesteckt und ihr jeweiliger Fahrbereich kontrolliert werden. Dadurch kann die Zuordnung zwischen mechanischer Achse, elektrischer Ansteuerung und logischem Modell schrittweise geprüft werden, bevor der vollständige Arm im Verbund betrieben wird.
@@ -193,8 +192,8 @@ Langfristig sind unterschiedliche Strategien denkbar:
 
 * direkte Übernahme diskreter Gelenksollwerte
 * lineare Interpolation im Gelenkraum
-* spätere Erweiterung um kartesische Bahnsegmente oder stärker profilierte Bewegungsmodelle
 * Bewegungsprofile mit sanfter Beschleunigung und Verzögerung, beispielsweise auf Basis von S-Kurven
+* Erweiterung um kartesische Bahnsegmente oder stärker profilierte Bewegungsmodelle
 
 Eine wichtige mögliche Erweiterung ist ein expliziter Modus für gerade Bewegungen im kartesischen Raum. Das aktuelle Verhalten plant eine Bewegung im Gelenkraum: Aus Start- und Zielpose werden passende Gelenkzustände berechnet, anschließend werden die Gelenkwinkel zwischen diesen Zuständen interpoliert. Dadurch kann eine Bewegung entstehen, die mechanisch sinnvoll und kurz ist, im kartesischen Raum aber nicht als gerade Linie verläuft. Ein typisches Beispiel sind zwei Zielposen mit gleicher Höhe und gleichem Abstand zur Arm-Ebene, aber entgegengesetztem `x`-Wert. Wenn Schulter, Ellenbogen und Handgelenk für Start und Ziel nahezu dieselben Winkel benötigen, trägt der Drehteller die Bewegung fast allein, obwohl der Greifer im Raum eigentlich eine seitliche Strecke beschreibt.
 
@@ -212,6 +211,7 @@ Die Run Engine beschreibt damit keinen einzelnen Zielpunkt, sondern einen vollst
 * eine optionale Warte- oder Haltezeit
 * optionale Zusatzaktionen wie Statussignale über die RGB-LED
 * optionale Roboter-Aktionen, die nicht allein durch eine kartesische Zielvorgabe beschrieben werden
+* Ansteuerung der RGB LED auf dem ESP32 Modul
 
 Konzeptionell kann ein solcher Ablauf als generische Liste von Ablaufschritten verstanden werden. Die konkrete Herkunft dieser Liste bleibt zunächst offen. Sie kann beispielsweise fest im Programm hinterlegt, zur Compile-Zeit generiert oder später durch eine andere Konfigurationsquelle bereitgestellt werden. Da auf der Zielhardware möglicherweise keine Speicherkarte vorhanden ist, wird bewusst keine persistente Dateistruktur vorausgesetzt.
 
@@ -230,7 +230,7 @@ Die Architektur verfolgt insbesondere folgende Ziele:
 * klare Datenflüsse zwischen Ablaufdefinition, Zielvorgabe, Modellberechnung und Aktoransteuerung
 * Berücksichtigung mechanischer Randbedingungen wie Gelenkgrenzen und Offsets
 * Berücksichtigung dynamischer und physikalischer Randbedingungen bei der Bewegungsausführung
-* Erweiterbarkeit für spätere Funktionen wie Bahnplanung, Kalibrierung oder alternative Greifer
+* Erweiterbarkeit für spätere Funktionen wie z.B. Bahnplanung
 * klare Trennung zwischen fachlicher Berechnung, Orchestrierung, Bewegungsfreigabe und hardwarenaher Ausgabe
 * Unterstützung sequenzieller Bewegungsabläufe durch eine einfache Anwendungskomponente
 
@@ -417,7 +417,7 @@ Ein typischer Ablauf innerhalb der Softwarearchitektur kann unabhängig von eine
 Die Architektur soll bewusst offen für spätere Erweiterungen bleiben. Dazu gehören insbesondere:
 
 * Austausch oder Vergleich verschiedener IK-Verfahren wie analytische Lösungen, CCD oder FABRIK
-* Einführung von Kalibrierungsdaten für den realen Roboterarm
+* Einführung von Kalibrierungsdaten für den realen **Roboterarm**
 * Unterstützung für Bewegungsprofile anstelle sprunghafter Sollwertänderungen
 * Protokollierung und Diagnose von Zielvorgaben, Berechnungsergebnissen und Servozuständen
 * Ergänzung um Modelle für Ausführbarkeit, Lastgrenzen und dynamische Begrenzungen
@@ -617,19 +617,18 @@ Das folgende Ablaufdiagramm beschreibt den typischen fachlichen und technischen 
 
 ```mermaid
 flowchart TD
-    A[RunEngine selects next SequenceStep] --> B[Create MotionRequest]
-    N[REST Interface receives external request] --> B
-    B --> O[Orchestrator coordinates processing]
+    A[Create MotionRequest] --> B[RunEngine<br/>select next SequenceStep]
+    B --> O[Orchestrator<br/>coordinates processing]
     O --> C[TargetPose validation]
-    C -->|invalid TargetPose| D[MotionResult rejected]
+    C -->|invalid| D[MotionResult rejected]
     C -->|valid| E[Apply RobotModelOffset]
     E --> F[OffsetTargetPose]
-    F --> G[Kinematics computes JointState]
-    G --> H[Validation validates JointState]
+    F --> G[Kinematics<br/>computes JointState]
+    G --> H[Validation<br/>validates JointState]
     H -->|not approved| D
-    H -->|approved| R[Motion Profile Generator creates MotionPlan]
-    R --> S[Orchestrator streams TimedJointState samples]
-    S --> I[Hardware Abstraction applies HardwareCalibration]
+    H -->|approved| R[MotionProfileGenerator<br/>creates MotionPlan]
+    R --> S[Orchestrator<br/>streams TimedJointState samples]
+    S --> I[Hardware Abstraction<br/>applies HardwareCalibration]
     I --> P[HardwareResult]
     P -->|ok, next sample| S
     P -->|plan complete| J[MotionPlan output completed]
@@ -638,7 +637,8 @@ flowchart TD
     K --> L[MotionResult to RunEngine]
     K --> Q[REST response]
     L --> M[RunEngine handles wait]
-    M --> A
+    M --> B
+    N[REST external request] --> B
 ```
 
 ## SW Design
