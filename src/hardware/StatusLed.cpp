@@ -9,7 +9,7 @@
 #else
 namespace
 {
-void neopixelWrite(uint8_t, uint8_t, uint8_t, uint8_t)
+void rgbLedWrite(uint8_t, uint8_t, uint8_t, uint8_t)
 {
 }
 }  // namespace
@@ -241,7 +241,7 @@ void StatusLed::writeCurrentStaticOutputIfNeeded()
 
 void StatusLed::writeColor(NeopixelWriteColor color) const
 {
-  neopixelWrite(pin_, color.red_arg, color.green_arg, color.blue_arg);
+  rgbLedWrite(pin_, color.red_arg, color.green_arg, color.blue_arg);
 }
 
 const char *toString(StatusLed::Mode mode)

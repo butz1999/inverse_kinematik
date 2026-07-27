@@ -50,6 +50,7 @@ void uni_bt_le_set_enabled(bool enabled);
 bool uni_bt_le_is_enabled(void);
 int uni_bt_le_get_advertisement_debug(uni_bt_le_advertisement_debug_t* out_entries, int max_entries);
 void uni_bt_le_switch2_pro_poc_disconnect(void);
+bool uni_bt_le_switch2_pro_poc_is_connected(void);
 
 #ifdef __cplusplus
 }

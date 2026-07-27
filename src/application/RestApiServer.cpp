@@ -137,8 +137,14 @@ void setControllerStateJson(JsonObject object, const ControllerDebugState &state
   object["pairingRequested"] = state.pairing_requested;
   object["acceptsNewConnections"] = state.accepts_new_connections;
   object["bluepadScanning"] = state.bluepad_scanning;
+  object["batteryLevel"] = state.battery_level;
   object["connectedAtMs"] = state.connected_at_ms;
   object["lastUpdateMs"] = state.last_update_ms;
+  object["reconnectDeadlineMs"] = state.reconnect_deadline_ms;
+  object["reconnectRemainingMs"] =
+      state.reconnect_deadline_ms > 0U && static_cast<int32_t>(state.reconnect_deadline_ms - now_ms) > 0
+          ? state.reconnect_deadline_ms - now_ms
+          : 0U;
   object["ageMs"] = state.last_update_ms > 0U ? now_ms - state.last_update_ms : 0U;
   setControllerInputJson(object.createNestedObject("input"), state.input);
 }

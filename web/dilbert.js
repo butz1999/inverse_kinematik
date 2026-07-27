@@ -44,6 +44,7 @@ const controllerDriverValue = document.querySelector("#controller-driver-value")
 const controllerNameValue = document.querySelector("#controller-name-value");
 const controllerInputValue = document.querySelector("#controller-input-value");
 const controllerScanValue = document.querySelector("#controller-scan-value");
+const controllerBatteryValue = document.querySelector("#controller-battery-value");
 const controllerMessageValue = document.querySelector("#controller-message-value");
 const controllerLeftStickDot = document.querySelector("#controller-left-stick-dot");
 const controllerRightStickDot = document.querySelector("#controller-right-stick-dot");
@@ -876,6 +877,17 @@ function updateControllerVisualizer(input) {
   controllerUpdatedValue.textContent = `${input.updatedAtMs ?? 0} ms`;
 }
 
+function formatControllerBattery(level) {
+  const numericLevel = Number(level) || 0;
+  if (numericLevel <= 0) {
+    return "unknown";
+  }
+  if (numericLevel <= 100) {
+    return `${numericLevel}%`;
+  }
+  return `${Math.round((numericLevel / 255) * 100)}%`;
+}
+
 function updateControllerPanel(controller) {
   if (!controller) {
     return;
@@ -886,12 +898,13 @@ function updateControllerPanel(controller) {
   controllerNameValue.textContent = controller.controllerName || "not connected";
   controllerInputValue.textContent = formatControllerInput(controller.input);
   controllerScanValue.textContent = controller.bluepadScanning ? "active" : "inactive";
+  controllerBatteryValue.textContent = formatControllerBattery(controller.batteryLevel);
   controllerMessageValue.textContent = controller.message || "none";
   updateControllerVisualizer(controller.input);
 }
 
 function shouldPollController(controller) {
-  return ["pairing", "connected"].includes(controller?.status);
+  return ["pairing", "reconnecting", "connected"].includes(controller?.status);
 }
 
 function stopControllerPolling() {

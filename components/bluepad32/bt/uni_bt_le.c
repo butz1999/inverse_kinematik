@@ -351,6 +351,13 @@ void uni_bt_le_switch2_pro_poc_disconnect(void) {
         gap_disconnect(con_handle);
 }
 
+bool uni_bt_le_switch2_pro_poc_is_connected(void) {
+    if (service_dump_con_handle == UNI_BT_CONN_HANDLE_INVALID)
+        return false;
+
+    return gap_get_connection_type(service_dump_con_handle) != GAP_CONNECTION_INVALID;
+}
+
 /**
  * Connect to remote device but set timer for timeout
  */

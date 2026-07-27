@@ -66,6 +66,7 @@ void test_switch2_pro_ble_parser_decodes_neutral_sticks()
   TEST_ASSERT_EQUAL_INT16(0, result.input.right_x);
   TEST_ASSERT_EQUAL_INT16(0, result.input.right_y);
   TEST_ASSERT_EQUAL_UINT32(1234U, result.input.updated_at_ms);
+  TEST_ASSERT_EQUAL_UINT8(1U, result.battery_level);
 }
 
 void test_switch2_pro_ble_parser_accepts_real_ble_notification_size()
@@ -115,11 +116,31 @@ void test_switch2_pro_ble_parser_decodes_buttons_and_dpad()
   TEST_ASSERT_BITS_LOW(application::kControllerDpadRight | application::kControllerDpadLeft, result.input.dpad);
 }
 
+void test_switch2_pro_ble_parser_decodes_battery_status_byte()
+{
+  uint8_t report[63] = {};
+  prepareNeutralReport(report, sizeof(report));
+  report[11] = static_cast<uint8_t>(4U << 5U);
+
+  const auto result = application::parseSwitch2ProBleInputReport(report, sizeof(report), 1234U);
+
+  TEST_ASSERT_TRUE(result.ok);
+  TEST_ASSERT_EQUAL_UINT8(100U, result.battery_level);
+
+  report[11] = static_cast<uint8_t>(1U << 5U);
+
+  const auto low_result = application::parseSwitch2ProBleInputReport(report, sizeof(report), 1234U);
+
+  TEST_ASSERT_TRUE(low_result.ok);
+  TEST_ASSERT_EQUAL_UINT8(25U, low_result.battery_level);
+}
+
 void test_controller_debug_driver_ingests_switch2_pro_report()
 {
   uint8_t report[63] = {};
   prepareNeutralReport(report, sizeof(report));
   report[2] = 0b00000001U;
+  report[11] = static_cast<uint8_t>(3U << 5U);
 
   application::ControllerDebugDriver driver;
 
@@ -131,6 +152,26 @@ void test_controller_debug_driver_ingests_switch2_pro_report()
   TEST_ASSERT_EQUAL_STRING("Nintendo Switch 2 Pro Controller", state.controller_name);
   TEST_ASSERT_TRUE(state.input.valid);
   TEST_ASSERT_BITS_HIGH(application::kControllerButtonB, state.input.buttons);
+  TEST_ASSERT_EQUAL_UINT8(75U, state.battery_level);
+}
+
+void test_controller_status_string_includes_reconnecting()
+{
+  TEST_ASSERT_EQUAL_STRING("reconnecting", application::toString(application::ControllerConnectionStatus::Reconnecting));
+}
+
+void test_controller_debug_driver_sets_reconnect_deadline_after_switch2_pro_report()
+{
+  uint8_t report[63] = {};
+  prepareNeutralReport(report, sizeof(report));
+
+  application::ControllerDebugDriver driver;
+
+  TEST_ASSERT_TRUE(driver.ingestSwitch2ProBleInputReport(report, sizeof(report), 500U));
+
+  const auto state = driver.state();
+  TEST_ASSERT_EQUAL_UINT32(500U + application::ControllerDebugDriver::kControllerReconnectWindowMs,
+                           state.reconnect_deadline_ms);
 }
 
 int main(int argc, char **argv)
@@ -142,6 +183,9 @@ int main(int argc, char **argv)
   RUN_TEST(test_switch2_pro_ble_parser_accepts_real_ble_notification_size);
   RUN_TEST(test_switch2_pro_ble_parser_decodes_stick_axes_with_positive_y_up);
   RUN_TEST(test_switch2_pro_ble_parser_decodes_buttons_and_dpad);
+  RUN_TEST(test_switch2_pro_ble_parser_decodes_battery_status_byte);
   RUN_TEST(test_controller_debug_driver_ingests_switch2_pro_report);
+  RUN_TEST(test_controller_status_string_includes_reconnecting);
+  RUN_TEST(test_controller_debug_driver_sets_reconnect_deadline_after_switch2_pro_report);
   return UNITY_END();
 }

@@ -110,15 +110,6 @@
                 "clear": true
             },
             "problemMatcher": []
-        },
-        {
-            "type": "PlatformIO",
-            "task": "Test",
-            "problemMatcher": [
-                "$platformio"
-            ],
-            "group": "test",
-            "label": "PlatformIO: Test"
         }
     ]
 }
