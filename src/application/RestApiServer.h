@@ -7,6 +7,7 @@
 
 #include "application/ApiContracts.h"
 #include "application/ControllerInput.h"
+#include "application/ControllerJog.h"
 #include "application/RunEngine.h"
 #include "common/JointPwmState.h"
 #include "common/JointState.h"
@@ -55,6 +56,7 @@ class RestApiServer
   void serviceActiveMotionPlan();
   void serviceSequenceRun();
   void serviceControllerInput();
+  void serviceControllerJog(uint32_t now_ms);
   void queueLedStep(const steps::LedStep &step);
   void servicePendingLedStep();
   void logRequest(const char *method, const char *path) const;
@@ -80,6 +82,8 @@ class RestApiServer
   bool motion_plan_active_;
   steps::LedStep pending_led_step_;
   bool has_pending_led_step_;
+  uint32_t last_controller_jog_ms_;
+  bool controller_jog_active_;
 };
 
 }  // namespace application

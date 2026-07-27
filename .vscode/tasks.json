@@ -2,13 +2,13 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "PlatformIO: Build (esp32s3)",
+            "label": "PlatformIO: Build (esp32s3_bluepad32)",
             "type": "shell",
             "command": "/home/andi/.platformio/penv/bin/pio",
             "args": [
                 "run",
                 "-e",
-                "esp32s3"
+                "esp32s3_bluepad32"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -48,13 +48,13 @@
             "problemMatcher": []
         },
         {
-            "label": "PlatformIO: Upload (esp32s3)",
+            "label": "PlatformIO: Upload (esp32s3_bluepad32)",
             "type": "shell",
             "command": "/home/andi/.platformio/penv/bin/pio",
             "args": [
                 "run",
                 "-e",
-                "esp32s3",
+                "esp32s3_bluepad32",
                 "-t",
                 "upload"
             ],
@@ -69,14 +69,14 @@
             "problemMatcher": []
         },
         {
-            "label": "PlatformIO: Monitor (esp32s3)",
+            "label": "PlatformIO: Monitor (esp32s3_bluepad32)",
             "type": "shell",
             "command": "/home/andi/.platformio/penv/bin/pio",
             "args": [
                 "device",
                 "monitor",
                 "-e",
-                "esp32s3",
+                "esp32s3_bluepad32",
                 "-b",
                 "115200"
             ],
@@ -91,13 +91,13 @@
             "problemMatcher": []
         },
         {
-            "label": "PlatformIO: Clean (esp32s3)",
+            "label": "PlatformIO: Clean (esp32s3_bluepad32)",
             "type": "shell",
             "command": "/home/andi/.platformio/penv/bin/pio",
             "args": [
                 "run",
                 "-e",
-                "esp32s3",
+                "esp32s3_bluepad32",
                 "-t",
                 "clean"
             ],

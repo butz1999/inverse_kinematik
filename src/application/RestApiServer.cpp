@@ -2,6 +2,8 @@
 
 #include "application/RestApiServer.h"
 
+#include <algorithm>
+
 #include <ArduinoJson.h>
 
 #include "application/ApiJson.h"
@@ -193,7 +195,9 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
       active_motion_started_ms_(0UL),
       motion_plan_active_(false),
       pending_led_step_(steps::emptyLedStep()),
-      has_pending_led_step_(false)
+      has_pending_led_step_(false),
+      last_controller_jog_ms_(0U),
+      controller_jog_active_(false)
 {
 }
 
@@ -437,7 +441,65 @@ void RestApiServer::serviceSequenceRun()
 
 void RestApiServer::serviceControllerInput()
 {
-  controller_driver_.service(millis());
+  const auto now_ms = millis();
+  controller_driver_.service(now_ms);
+  serviceControllerJog(now_ms);
+}
+
+void RestApiServer::serviceControllerJog(uint32_t now_ms)
+{
+  const auto state = controller_driver_.state();
+  if (state.connection_status != ControllerConnectionStatus::Connected || !state.input.valid ||
+      !servo_driver_.isInitialized() || hasActiveMotionPlan() || run_engine_.isActive())
+  {
+    controller_jog_active_ = false;
+    last_controller_jog_ms_ = now_ms;
+    return;
+  }
+
+  if (!controller_jog_active_)
+  {
+    controller_jog_active_ = true;
+    last_controller_jog_ms_ = now_ms;
+    return;
+  }
+
+  constexpr uint32_t kMaxControllerJogElapsedMs = 100U;
+  const auto elapsed_ms = std::min(static_cast<uint32_t>(now_ms - last_controller_jog_ms_), kMaxControllerJogElapsedMs);
+  if (elapsed_ms == 0U)
+  {
+    return;
+  }
+
+  last_controller_jog_ms_ = now_ms;
+  const auto jog_result = applyDefaultControllerJog(state.input, current_joint_state_, elapsed_ms);
+  if (!jog_result.active)
+  {
+    return;
+  }
+  if (!jog_result.changed)
+  {
+    return;
+  }
+
+  const auto calibration_result = hardware::mapJointStateToPwm(jog_result.joint_state, hardware_calibration_);
+  if (!calibration_result.ok)
+  {
+    logResult("[REST] Controller jog stopped by calibration failure");
+    controller_jog_active_ = false;
+    return;
+  }
+
+  const auto write_result = servo_driver_.write(calibration_result.joint_pwm_state);
+  if (write_result.status != hardware::HardwareDriverStatus::Ok)
+  {
+    logResult("[REST] Controller jog stopped by hardware failure");
+    controller_jog_active_ = false;
+    return;
+  }
+
+  current_joint_state_ = jog_result.joint_state;
+  current_joint_pwm_state_ = servo_driver_.jointPwmState();
 }
 
 void RestApiServer::queueLedStep(const steps::LedStep &step)
