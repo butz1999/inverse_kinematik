@@ -123,7 +123,7 @@ Nach Abschluss des Controller-PoC bleiben zwei ESP32-S3-Build-Umgebungen erhalte
 * `esp32s3` ist der aktuelle Firmware-Default. Diese Umgebung baut den Controller-PoC mit Bluepad32/BTstack, ESP-IDF und Arduino-Kompatibilität.
 * `esp32s3_arduino_native` bleibt als schlankerer Arduino-Build erhalten. Diese Umgebung dient als Vergleichs- und Bring-up-Pfad ohne vollständigen Bluepad32-Controller-Stack.
 
-Die gemeinsamen Board- und Portannahmen liegen in `platformio.ini` im Abschnitt `esp32s3_common`. Dadurch sind Zielboard, Flashgrösse, Upload-Port, Monitor-Port, Monitor-Speed und gemeinsame Build-Flags nur einmal definiert. Die environmentspezifischen Abweichungen bleiben bewusst sichtbar:
+Die gemeinsamen Board- und Portannahmen liegen in `platformio.ini` im Abschnitt `esp32s3_common`. Dadurch sind Zielboard, Flashgrösse, Upload-Port, Monitor-Port, Monitor-Speed und gemeinsame Build-Flags nur einmal definiert. Das verwendete Waveshare `ESP32-S3-DEV-KIT-N8R8` wird mit `8 MB` Flash konfiguriert. Die Hardware besitzt zusätzlich `8 MB` PSRAM; die Firmware nutzt aktuell aber bewusst internes SRAM und lässt PSRAM deaktiviert. Die environmentspezifischen Abweichungen bleiben bewusst sichtbar:
 
 * `esp32s3` nutzt die grössere Partitionstabelle `partitions_bluepad32.csv` und das Build-Flag `IK_REQUIRE_BLUEPAD32`.
 * `esp32s3_arduino_native` nutzt weiterhin das Arduino-Framework und schliesst den Bluepad32-spezifischen Einstiegspunkt `src/bluepad32_app_main.c` aus.

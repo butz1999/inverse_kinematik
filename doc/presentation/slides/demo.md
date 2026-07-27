@@ -1,6 +1,6 @@
-# Fragen & Demo<span style="float: right">[⬅️](experiences_ki_neg.md) [⬆️](../slides.md)</span>
+# Fragen & Demo<span style="float: right">[⬅️](experiences_ki_neg.md) [⬆️](../slides.md) [➡️](praxis-transfer.md)</span>
 
-<img src="../../datasheet/Robot02-1.png" width="25%"/>
+<img src="../../datasheet/roboter/Robot02-1.png" width="25%"/>
 
 > [!note]
 > Dilbert im Browser öffnen.

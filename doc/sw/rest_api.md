@@ -159,8 +159,12 @@ Der Controller-Pfad ist zunächst ein read-only Debug-PoC. Die Endpunkte lösen 
 | `controllerName` | Name des verbundenen Controllers, falls bekannt |
 | `pairingRequested` | Gibt an, ob der Verbindungspfad aktiviert wurde |
 | `acceptsNewConnections` | Gibt an, ob neue Controller-Verbindungen angenommen werden sollen |
+| `batteryRaw` | Roher Batteriestatuswert aus dem aktuellen Controller-Pfad |
+| `batteryLevel` | Kompatibilitätsalias für `batteryRaw`, aktuell keine Prozentangabe |
 | `lastUpdateMs` | Zeitpunkt der letzten Aktualisierung in Millisekunden seit Boot |
 | `input` | Letzte bekannte normalisierte Controller-Eingabe |
+
+Die Batterie wird im Controller-PoC absichtlich nicht in Prozent umgerechnet. Für den Switch-2-Pro-GATT-Pfad ist die Semantik des beobachteten Batteriewerts noch nicht belastbar bestätigt; Clients sollen `batteryRaw` anzeigen.
 
 Das `input`-Objekt enthält zunächst normalisierte Rohwerte:
 

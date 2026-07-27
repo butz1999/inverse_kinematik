@@ -67,7 +67,7 @@ void test_switch2_pro_ble_parser_decodes_neutral_sticks()
   TEST_ASSERT_EQUAL_INT16(0, result.input.right_x);
   TEST_ASSERT_EQUAL_INT16(0, result.input.right_y);
   TEST_ASSERT_EQUAL_UINT32(1234U, result.input.updated_at_ms);
-  TEST_ASSERT_EQUAL_UINT8(1U, result.battery_level);
+  TEST_ASSERT_EQUAL_UINT8(0U, result.battery_raw);
 }
 
 void test_switch2_pro_ble_parser_accepts_real_ble_notification_size()
@@ -117,7 +117,7 @@ void test_switch2_pro_ble_parser_decodes_buttons_and_dpad()
   TEST_ASSERT_BITS_LOW(application::kControllerDpadRight | application::kControllerDpadLeft, result.input.dpad);
 }
 
-void test_switch2_pro_ble_parser_decodes_battery_status_byte()
+void test_switch2_pro_ble_parser_keeps_battery_status_byte_raw()
 {
   uint8_t report[63] = {};
   prepareNeutralReport(report, sizeof(report));
@@ -126,14 +126,14 @@ void test_switch2_pro_ble_parser_decodes_battery_status_byte()
   const auto result = application::parseSwitch2ProBleInputReport(report, sizeof(report), 1234U);
 
   TEST_ASSERT_TRUE(result.ok);
-  TEST_ASSERT_EQUAL_UINT8(100U, result.battery_level);
+  TEST_ASSERT_EQUAL_UINT8(128U, result.battery_raw);
 
   report[11] = static_cast<uint8_t>(1U << 5U);
 
   const auto low_result = application::parseSwitch2ProBleInputReport(report, sizeof(report), 1234U);
 
   TEST_ASSERT_TRUE(low_result.ok);
-  TEST_ASSERT_EQUAL_UINT8(25U, low_result.battery_level);
+  TEST_ASSERT_EQUAL_UINT8(32U, low_result.battery_raw);
 }
 
 void test_controller_debug_driver_ingests_switch2_pro_report()
@@ -153,7 +153,7 @@ void test_controller_debug_driver_ingests_switch2_pro_report()
   TEST_ASSERT_EQUAL_STRING("Nintendo Switch 2 Pro Controller", state.controller_name);
   TEST_ASSERT_TRUE(state.input.valid);
   TEST_ASSERT_BITS_HIGH(application::kControllerButtonB, state.input.buttons);
-  TEST_ASSERT_EQUAL_UINT8(75U, state.battery_level);
+  TEST_ASSERT_EQUAL_UINT8(96U, state.battery_raw);
 }
 
 void test_controller_status_string_includes_reconnecting()
@@ -249,7 +249,7 @@ int main(int argc, char **argv)
   RUN_TEST(test_switch2_pro_ble_parser_accepts_real_ble_notification_size);
   RUN_TEST(test_switch2_pro_ble_parser_decodes_stick_axes_with_positive_y_up);
   RUN_TEST(test_switch2_pro_ble_parser_decodes_buttons_and_dpad);
-  RUN_TEST(test_switch2_pro_ble_parser_decodes_battery_status_byte);
+  RUN_TEST(test_switch2_pro_ble_parser_keeps_battery_status_byte_raw);
   RUN_TEST(test_controller_debug_driver_ingests_switch2_pro_report);
   RUN_TEST(test_controller_status_string_includes_reconnecting);
   RUN_TEST(test_controller_debug_driver_sets_reconnect_deadline_after_switch2_pro_report);

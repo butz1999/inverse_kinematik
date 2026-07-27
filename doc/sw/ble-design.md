@@ -74,7 +74,6 @@ framework = espidf
 board_build.partitions = partitions_bluepad32.csv
 build_flags =
     -std=gnu++17
-    -DBOARD_HAS_PSRAM
     -DIK_REQUIRE_BLUEPAD32
 ```
 
@@ -102,10 +101,12 @@ Der ursprüngliche Arduino-Build `esp32s3_arduino_native` bildet dagegen einen e
 Damit die doppelte Konfiguration nicht auseinanderläuft, sind die gemeinsamen Board- und Portwerte in `esp32s3_common` zusammengezogen:
 
 * Boardprofil `esp32-s3-devkitc-1`,
-* Flashgrösse und maximale Firmwaregrösse,
+* Flashgrösse `8 MB` und maximale Firmwaregrösse,
 * Upload- und Monitor-Port `/dev/ttyACM0`,
 * Monitor-Speed `115200`,
-* gemeinsame C++17-/PSRAM-Build-Flags.
+* gemeinsame C++17-Build-Flags.
+
+Das Board besitzt `8 MB` PSRAM, die aktuelle Firmware aktiviert PSRAM jedoch nicht. Für den Controller-PoC und die bisherige REST-/Robotiklogik ist internes SRAM ausreichend und wegen Latenz und Determinismus vorzuziehen.
 
 Die Unterschiede sollen dadurch explizit bleiben. Wenn später eine Konfiguration entfernt wird, sollte die Entscheidung anhand der bis dahin benötigten Workflows fallen:
 
@@ -219,6 +220,7 @@ Der aktuelle Report-Pfad erwartet:
 | `report[4]` | weiterer Button-Block |
 | `report[5..7]` | linker Stick, zwei gepackte 12-Bit-Achsen |
 | `report[8..10]` | rechter Stick, zwei gepackte 12-Bit-Achsen |
+| `report[11]` | aktuell nur als roher Batteriestatuswert weitergereicht |
 
 Die Stick-Achsen werden als 12-Bit-Werte gelesen und um den Mittelpunkt `2048` normalisiert. Nach dem letzten Teststand gilt für beide Y-Achsen: Bewegung nach oben ist positiv.
 
@@ -287,12 +289,15 @@ Das Dilbert-Web-UI visualisiert:
 
 * Verbindungsstatus
 * Treibername und Controllername
+* rohen Batteriestatuswert ohne Prozentumrechnung
 * linken und rechten Stick
 * D-Pad-Bits
 * digitale Buttons inklusive `L`, `ZL`, `R`, `ZR`
 * rohe Button- und D-Pad-Bitmasken
 
 Die Anzeige für analoge Trigger wurde entfernt, weil sie für den Zielcontroller nicht sinnvoll ist.
+
+Die Batterieanzeige bleibt vorerst bewusst roh. Für ältere Switch-Pro-HID-Reports gibt es Hinweise, dass ein Controller-Datenbyte `battery_level` und `connection_info` enthält. Der aktuelle Switch-2-Pro-PoC nutzt jedoch keinen bestätigten Standard-HID-Report, sondern die proprietäre GATT-Notification auf Value-Handle `0x002e`. Deshalb wertet die Firmware `report[11]` aktuell nicht als Prozentangabe aus, sondern gibt das Byte unverändert als `batteryRaw` aus. Das bisherige REST-Feld `batteryLevel` bleibt nur als Kompatibilitätsalias bestehen und enthält ebenfalls diesen Rohwert.
 
 ## Logging
 

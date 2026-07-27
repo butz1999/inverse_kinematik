@@ -101,7 +101,7 @@ struct Switch2ProBleParseResult
   bool ok;
   const char *message;
   ControllerInput input;
-  uint8_t battery_level;
+  uint8_t battery_raw;
 };
 
 inline int16_t normalizeSwitch2StickAxis(uint16_t value, bool invert)
@@ -121,46 +121,14 @@ inline uint16_t decodeSwitch2Packed12BitSecondAxis(const uint8_t *data)
   return static_cast<uint16_t>((data[1] >> 4U) | (data[2] << 4U));
 }
 
-inline uint8_t decodeSwitchBatteryNibbleToPercent(uint8_t value)
-{
-  switch (value & 0x07U)
-  {
-    case 0:
-      return 1U;
-    case 1:
-      return 25U;
-    case 2:
-      return 50U;
-    case 3:
-      return 75U;
-    case 4:
-      return 100U;
-    default:
-      return 0U;
-  }
-}
-
-inline uint8_t decodeSwitch2ProBleBatteryPercent(const uint8_t *report, std::size_t report_size)
+inline uint8_t decodeSwitch2ProBleBatteryRaw(const uint8_t *report, std::size_t report_size)
 {
   constexpr std::size_t kSwitch2ProBleBatteryStatusOffset = 11U;
   if (report == nullptr || report_size <= kSwitch2ProBleBatteryStatusOffset)
   {
     return 0U;
   }
-  return decodeSwitchBatteryNibbleToPercent(static_cast<uint8_t>(report[kSwitch2ProBleBatteryStatusOffset] >> 5U));
-}
-
-inline uint8_t bluepadBatteryLevelToPercent(uint8_t battery)
-{
-  if (battery == 0U)
-  {
-    return 0U;
-  }
-  if (battery == 1U)
-  {
-    return 1U;
-  }
-  return static_cast<uint8_t>((static_cast<uint32_t>(battery) * 100U + 127U) / 255U);
+  return report[kSwitch2ProBleBatteryStatusOffset];
 }
 
 inline Switch2ProBleParseResult parseSwitch2ProBleInputReport(const uint8_t *report, std::size_t report_size,
@@ -223,7 +191,7 @@ inline Switch2ProBleParseResult parseSwitch2ProBleInputReport(const uint8_t *rep
                                                   dpad,
                                                   true,
                                                   now_ms},
-                                  decodeSwitch2ProBleBatteryPercent(report, report_size)};
+                                  decodeSwitch2ProBleBatteryRaw(report, report_size)};
 }
 
 struct ControllerDebugState
@@ -235,7 +203,7 @@ struct ControllerDebugState
   bool pairing_requested;
   bool accepts_new_connections;
   bool bluepad_scanning;
-  uint8_t battery_level;
+  uint8_t battery_raw;
   uint32_t connected_at_ms;
   uint32_t last_update_ms;
   uint32_t reconnect_deadline_ms;
@@ -253,7 +221,7 @@ class ControllerDebugDriver
         driver_name_(IK_HAS_BLUEPAD32 ? "bluepad32" : "bluepad32-unavailable"),
         pairing_requested_(false),
         accepts_new_connections_(false),
-        battery_level_(0U),
+        battery_raw_(0U),
         connected_at_ms_(0U),
         reconnect_deadline_ms_(0U),
         switch2_pro_ble_active_(false),
@@ -314,7 +282,7 @@ class ControllerDebugDriver
     accepts_new_connections_ = false;
     connected_at_ms_ = 0U;
     reconnect_deadline_ms_ = 0U;
-    battery_level_ = 0U;
+    battery_raw_ = 0U;
     switch2_pro_ble_active_ = false;
     input_ = emptyControllerInput();
     connection_status_ = ControllerConnectionStatus::Disconnected;
@@ -342,7 +310,7 @@ class ControllerDebugDriver
     connection_status_ = ControllerConnectionStatus::Connected;
     connected_at_ms_ = connected_at_ms_ == 0U ? now_ms : connected_at_ms_;
     reconnect_deadline_ms_ = now_ms + kControllerReconnectWindowMs;
-    battery_level_ = parse_result.battery_level;
+    battery_raw_ = parse_result.battery_raw;
     last_update_ms_ = now_ms;
     controller_name_ = "Nintendo Switch 2 Pro Controller";
     driver_name_ = "switch2-pro-ble-poc";
@@ -359,7 +327,7 @@ class ControllerDebugDriver
                                 pairing_requested_,
                                 accepts_new_connections_,
                                 isBluepad32Scanning(),
-                                battery_level_,
+                                battery_raw_,
                                 connected_at_ms_,
                                 last_update_ms_,
                                 reconnect_deadline_ms_,
@@ -487,7 +455,7 @@ class ControllerDebugDriver
     connection_status_ = ControllerConnectionStatus::Connected;
     connected_at_ms_ = connected_at_ms_ == 0U ? now_ms : connected_at_ms_;
     reconnect_deadline_ms_ = now_ms + kControllerReconnectWindowMs;
-    battery_level_ = bluepadBatteryLevelToPercent(active_controller->battery());
+    battery_raw_ = active_controller->battery();
     message_ = active_controller->hasData() ? "Bluepad32 controller data received."
                                             : "Bluepad32 controller connected; waiting for input data.";
   }
@@ -519,7 +487,7 @@ class ControllerDebugDriver
     accepts_new_connections_ = false;
     connected_at_ms_ = 0U;
     reconnect_deadline_ms_ = 0U;
-    battery_level_ = 0U;
+    battery_raw_ = 0U;
     switch2_pro_ble_active_ = false;
     input_ = emptyControllerInput();
     connection_status_ = ControllerConnectionStatus::Disconnected;
@@ -560,7 +528,7 @@ class ControllerDebugDriver
   const char *driver_name_;
   bool pairing_requested_;
   bool accepts_new_connections_;
-  uint8_t battery_level_;
+  uint8_t battery_raw_;
   uint32_t connected_at_ms_;
   uint32_t reconnect_deadline_ms_;
   bool switch2_pro_ble_active_;

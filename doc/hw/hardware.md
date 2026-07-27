@@ -60,6 +60,10 @@ Als Zielplattform ist für die erste Implementationsstufe das [Waveshare ESP32-S
 
 Für die Build-Konfiguration in PlatformIO wird dafür vorerst das generische Boardprofil `esp32-s3-devkitc-1` verwendet. Solange kein boardspezifisches Profil für das genaue Waveshare-Board benötigt wird, dient dieses Profil als pragmatische Entwicklungsgrundlage.
 
+Das verwendete Board ist als `ESP32-S3-DEV-KIT-N8R8` dokumentiert. Daraus ergeben sich `8 MB` Flash, `320 KB` internes SRAM und `8 MB` PSRAM. Die PlatformIO-Konfiguration setzt die Flashgrösse explizit, damit sie nicht versehentlich durch ältere lokale `sdkconfig`-Werte auf `4 MB` zurückfällt.
+
+Die PSRAM-Hardware ist vorhanden, wird in der aktuellen Firmware aber bewusst nicht aktiviert. Der aktuelle Code passt in das interne SRAM, das schneller und deterministischer ist. PSRAM soll erst aktiviert werden, wenn ein konkreter grosser Speicherbedarf entsteht, beispielsweise für grosse Webassets, umfangreiche Puffer oder lange Diagnoseaufzeichnungen.
+
 Aus aktueller Sicht ergeben sich daraus insbesondere folgende Eigenschaften und Erwartungen:
 
 * ESP32-S3 als zentrale Mikrocontroller-Plattform

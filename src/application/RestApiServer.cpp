@@ -139,7 +139,8 @@ void setControllerStateJson(JsonObject object, const ControllerDebugState &state
   object["pairingRequested"] = state.pairing_requested;
   object["acceptsNewConnections"] = state.accepts_new_connections;
   object["bluepadScanning"] = state.bluepad_scanning;
-  object["batteryLevel"] = state.battery_level;
+  object["batteryRaw"] = state.battery_raw;
+  object["batteryLevel"] = state.battery_raw;
   object["connectedAtMs"] = state.connected_at_ms;
   object["lastUpdateMs"] = state.last_update_ms;
   object["reconnectDeadlineMs"] = state.reconnect_deadline_ms;
