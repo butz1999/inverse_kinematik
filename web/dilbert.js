@@ -49,8 +49,10 @@ const controllerLeftStickDot = document.querySelector("#controller-left-stick-do
 const controllerRightStickDot = document.querySelector("#controller-right-stick-dot");
 const controllerLeftStickValue = document.querySelector("#controller-left-stick-value");
 const controllerRightStickValue = document.querySelector("#controller-right-stick-value");
-const controllerDpadButtons = document.querySelector("#controller-dpad-buttons");
-const controllerActionButtons = document.querySelector("#controller-action-buttons");
+const controllerLeftStickButton = document.querySelector("#controller-left-stick-button");
+const controllerRightStickButton = document.querySelector("#controller-right-stick-button");
+const controllerShoulderButtons = document.querySelector("#controller-shoulder-buttons");
+const controllerLowerButtons = document.querySelector("#controller-lower-buttons");
 const controllerButtonsRaw = document.querySelector("#controller-buttons-raw");
 const controllerDpadRaw = document.querySelector("#controller-dpad-raw");
 const controllerUpdatedValue = document.querySelector("#controller-updated-value");
@@ -65,30 +67,106 @@ const baseUrlStorageKey = "dilbert.baseUrl.v1";
 const controllerPairingPollMs = 1000;
 const controllerConnectedPollMs = 200;
 const controllerStickAxisMax = 2048;
-const controllerButtonBits = [
-  ["B", 1 << 0],
-  ["A", 1 << 1],
-  ["Y", 1 << 2],
-  ["X", 1 << 3],
-  ["R", 1 << 4],
-  ["ZR", 1 << 5],
-  ["+", 1 << 6],
-  ["RS", 1 << 7],
-  ["L", 1 << 8],
-  ["ZL", 1 << 9],
-  ["-", 1 << 10],
-  ["LS", 1 << 11],
-  ["Home", 1 << 12],
-  ["Capture", 1 << 13],
-  ["Grip R", 1 << 14],
-  ["Grip L", 1 << 15],
-  ["Camera", 1 << 16],
+const controllerButtonBits = {
+  b: 1 << 0,
+  a: 1 << 1,
+  y: 1 << 2,
+  x: 1 << 3,
+  r: 1 << 4,
+  zr: 1 << 5,
+  plus: 1 << 6,
+  rightStick: 1 << 7,
+  l: 1 << 8,
+  zl: 1 << 9,
+  minus: 1 << 10,
+  leftStick: 1 << 11,
+  home: 1 << 12,
+  capture: 1 << 13,
+  gripR: 1 << 14,
+  gripL: 1 << 15,
+  camera: 1 << 16,
+};
+const controllerDpadBits = {
+  down: 1 << 0,
+  right: 1 << 1,
+  left: 1 << 2,
+  up: 1 << 3,
+};
+const controllerShoulderButtonLayout = [
+  { label: "ZL", source: "buttons", bit: controllerButtonBits.zl },
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  { label: "ZR", source: "buttons", bit: controllerButtonBits.zr },
+  { label: "L", source: "buttons", bit: controllerButtonBits.l },
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  { label: "R", source: "buttons", bit: controllerButtonBits.r },
+  { label: "GL", source: "buttons", bit: controllerButtonBits.gripL },
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  { label: "GR", source: "buttons", bit: controllerButtonBits.gripR },
 ];
-const controllerDpadBits = [
-  ["Down", 1 << 0],
-  ["Right", 1 << 1],
-  ["Left", 1 << 2],
-  ["Up", 1 << 3],
+const controllerLowerButtonLayout = [
+  null,
+  { label: "Up", source: "dpad", bit: controllerDpadBits.up },
+  null,
+  null,
+  { label: "-", source: "buttons", bit: controllerButtonBits.minus },
+  null,
+  null,
+  { label: "+", source: "buttons", bit: controllerButtonBits.plus },
+  null,
+  null,
+  { label: "X", source: "buttons", bit: controllerButtonBits.x },
+  null,
+  { label: "Left", source: "dpad", bit: controllerDpadBits.left },
+  null,
+  { label: "Right", source: "dpad", bit: controllerDpadBits.right },
+  null,
+  null,
+  { label: "Cap", source: "buttons", bit: controllerButtonBits.capture },
+  { label: "Home", source: "buttons", bit: controllerButtonBits.home },
+  null,
+  null,
+  { label: "Y", source: "buttons", bit: controllerButtonBits.y },
+  null,
+  { label: "A", source: "buttons", bit: controllerButtonBits.a },
+  null,
+  { label: "Down", source: "dpad", bit: controllerDpadBits.down },
+  null,
+  null,
+  null,
+  { label: "Cam", source: "buttons", bit: controllerButtonBits.camera },
+  null,
+  null,
+  null,
+  null,
+  { label: "B", source: "buttons", bit: controllerButtonBits.b },
+  null,
 ];
 const committedFormStateSyncers = [];
 let poseHistory = loadPoseHistory();
@@ -745,24 +823,42 @@ function setStick(dot, valueOutput, x, y) {
   valueOutput.textContent = `${Number(x) || 0} / ${Number(y) || 0}`;
 }
 
-function renderBitButtons(container, definitions, value) {
-  const numericValue = Number(value) >>> 0;
+function setStickButton(button, values, bit) {
+  const numericButtons = Number(values?.buttons) >>> 0;
+  button.dataset.active = (numericButtons & bit) !== 0 ? "true" : "false";
+}
+
+function renderButtonLayout(container, layout, values) {
+  const numericButtons = Number(values?.buttons) >>> 0;
+  const numericDpad = Number(values?.dpad) >>> 0;
   container.replaceChildren();
-  for (const [label, bit] of definitions) {
+  for (const definition of layout) {
+    if (!definition) {
+      const placeholder = document.createElement("span");
+      placeholder.className = "controller-bit-placeholder";
+      container.append(placeholder);
+      continue;
+    }
+
+    const numericValue = definition.source === "dpad" ? numericDpad : numericButtons;
     const item = document.createElement("span");
     item.className = "controller-bit";
-    item.dataset.active = (numericValue & bit) !== 0 ? "true" : "false";
-    item.textContent = label;
+    item.dataset.active = (numericValue & definition.bit) !== 0 ? "true" : "false";
+    item.textContent = definition.label;
     container.append(item);
   }
 }
 
 function updateControllerVisualizer(input) {
+  const controllerValues = input && input.valid ? input : { buttons: 0, dpad: 0 };
+
   if (!input || !input.valid) {
     setStick(controllerLeftStickDot, controllerLeftStickValue, 0, 0);
     setStick(controllerRightStickDot, controllerRightStickValue, 0, 0);
-    renderBitButtons(controllerDpadButtons, controllerDpadBits, 0);
-    renderBitButtons(controllerActionButtons, controllerButtonBits, 0);
+    setStickButton(controllerLeftStickButton, controllerValues, controllerButtonBits.leftStick);
+    setStickButton(controllerRightStickButton, controllerValues, controllerButtonBits.rightStick);
+    renderButtonLayout(controllerShoulderButtons, controllerShoulderButtonLayout, controllerValues);
+    renderButtonLayout(controllerLowerButtons, controllerLowerButtonLayout, controllerValues);
     controllerButtonsRaw.textContent = formatHex(0);
     controllerDpadRaw.textContent = formatHex(0);
     controllerUpdatedValue.textContent = "0 ms";
@@ -771,8 +867,10 @@ function updateControllerVisualizer(input) {
 
   setStick(controllerLeftStickDot, controllerLeftStickValue, input.leftX, input.leftY);
   setStick(controllerRightStickDot, controllerRightStickValue, input.rightX, input.rightY);
-  renderBitButtons(controllerDpadButtons, controllerDpadBits, input.dpad);
-  renderBitButtons(controllerActionButtons, controllerButtonBits, input.buttons);
+  setStickButton(controllerLeftStickButton, controllerValues, controllerButtonBits.leftStick);
+  setStickButton(controllerRightStickButton, controllerValues, controllerButtonBits.rightStick);
+  renderButtonLayout(controllerShoulderButtons, controllerShoulderButtonLayout, controllerValues);
+  renderButtonLayout(controllerLowerButtons, controllerLowerButtonLayout, controllerValues);
   controllerButtonsRaw.textContent = formatHex(input.buttons);
   controllerDpadRaw.textContent = formatHex(input.dpad);
   controllerUpdatedValue.textContent = `${input.updatedAtMs ?? 0} ms`;
@@ -1460,3 +1558,4 @@ addCommittedNumberSend(jointForm, sendJointState);
 addCommittedNumberSend(pwmForm, sendPwmState);
 renderPoseHistory();
 renderSequence();
+updateControllerVisualizer(null);

@@ -109,11 +109,19 @@ select {
   gap: 12px;
 }
 
+.stick-control {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .stick-pad {
   position: relative;
   box-sizing: border-box;
   display: grid;
   place-items: center;
+  width: 100%;
   min-width: 0;
   aspect-ratio: 1;
   margin: 0;
@@ -159,22 +167,34 @@ select {
   transition: left 90ms linear, top 90ms linear;
 }
 
-.controller-button-row {
-  display: flex;
-  flex-wrap: wrap;
+.stick-control > .controller-bit {
+  width: 58px;
+}
+
+.controller-shoulder-grid,
+.controller-lower-grid {
+  --controller-button-width: 58px;
+  display: grid;
+  grid-template-columns: repeat(12, var(--controller-button-width));
   gap: 6px;
+  overflow-x: auto;
 }
 
 .controller-bit {
   display: inline-grid;
   place-items: center;
-  min-width: 48px;
+  box-sizing: border-box;
+  width: 100%;
   min-height: 30px;
   padding: 0 8px;
   border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
   border-radius: 7px;
   color: grey;
   font-size: 0.9rem;
+}
+
+.controller-bit-placeholder {
+  min-height: 30px;
 }
 
 .controller-bit[data-active="true"] {

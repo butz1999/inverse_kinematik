@@ -60,19 +60,25 @@
         </dl>
         <section class="controller-visualizer" aria-label="Controller input visualizer">
           <div class="controller-stick-row">
-            <figure class="stick-pad">
-              <figcaption>Left Stick</figcaption>
-              <span id="controller-left-stick-dot" class="stick-dot"></span>
-              <output id="controller-left-stick-value">0 / 0</output>
-            </figure>
-            <figure class="stick-pad">
-              <figcaption>Right Stick</figcaption>
-              <span id="controller-right-stick-dot" class="stick-dot"></span>
-              <output id="controller-right-stick-value">0 / 0</output>
-            </figure>
+            <div class="stick-control">
+              <figure class="stick-pad">
+                <figcaption>Left Stick</figcaption>
+                <span id="controller-left-stick-dot" class="stick-dot"></span>
+                <output id="controller-left-stick-value">0 / 0</output>
+              </figure>
+              <span id="controller-left-stick-button" class="controller-bit">LS</span>
+            </div>
+            <div class="stick-control">
+              <figure class="stick-pad">
+                <figcaption>Right Stick</figcaption>
+                <span id="controller-right-stick-dot" class="stick-dot"></span>
+                <output id="controller-right-stick-value">0 / 0</output>
+              </figure>
+              <span id="controller-right-stick-button" class="controller-bit">RS</span>
+            </div>
           </div>
-          <div class="controller-button-row" id="controller-dpad-buttons" aria-label="D-pad"></div>
-          <div class="controller-button-row" id="controller-action-buttons" aria-label="Buttons"></div>
+          <div class="controller-shoulder-grid" id="controller-shoulder-buttons" aria-label="Shoulder buttons"></div>
+          <div class="controller-lower-grid" id="controller-lower-buttons" aria-label="Controller buttons"></div>
           <dl class="controller-raw-grid">
             <div>
               <dt>buttons</dt>
