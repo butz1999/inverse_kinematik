@@ -20,7 +20,7 @@ Entwicklungsumgebung: Die Entwicklung erfolgt in der WSL. Berücksichtige bei ha
 
 Für PlatformIO-CLI-Aufrufe in WSL immer den vorbereiteten Projekt-Interpreter `~/.platformio/penv/bin/pio` verwenden. Das Systemkommando `/usr/bin/pio` ist in diesem Setup veraltet und kann mit der lokalen Python-Umgebung fehlschlagen. Alternativ kann `scripts/env.sh` gesourct werden, um den passenden `pio` in den `PATH` zu setzen.
 
-Hinweis: Die Hardware-Doku zielt auf ein Waveshare ESP32-S3-Board. In `platformio.ini` wird dafür aktuell das generische PlatformIO-Boardprofil `esp32-s3-devkitc-1` im Environment `esp32s3` verwendet. Diese Zuordnung ist bei hardwarenahen Änderungen explizit zu prüfen.
+Hinweis: Die Hardware-Doku zielt auf ein Waveshare ESP32-S3-Board. In `platformio.ini` wird dafür aktuell das generische PlatformIO-Boardprofil `esp32-s3-devkitc-1` im Environment `esp32s3` verwendet. Diese Zuordnung ist bei hardwarenahen Änderungen explizit zu prüfen. Die schlankere Arduino-Vergleichsumgebung heisst `esp32s3_arduino_native`.
 
 ## 4. Prioritäten bei Widersprüchen
 Bei Widersprüchen gilt folgende Reihenfolge:
@@ -85,6 +85,8 @@ Bevorzuge bei neuen Features diese Reihenfolge:
 
 ## 12. Erwartetes Antwort-Format
 * Liefere bei neuen Dateien immer die vollständige Ordnerstruktur als Kommentar.
+* Vermeide HTML- oder versteckte Kommentare in Markdown-Dateien. Nutze sie nur, wenn es dafür eine begründete und sinnvolle Ausnahme gibt, zum Beispiel für bewusst maschinenlesbare Metadaten oder temporäre Review-Hinweise.
+* Vermeide Kommentare in Shell-Skripten (`.sh`), ausser sie erklären eine nicht offensichtliche Betriebsannahme, einen Workaround oder eine bewusst gewählte Sicherheitsgrenze.
 * Erkläre kurz die Pins, falls neue Hardware eingebunden wird.
 * Zeige bei Updates der `platformio.ini` exakt, welche Zeilen unter `lib_deps` hinzugefügt werden müssen.
 
@@ -105,4 +107,4 @@ Bevorzuge bei neuen Features diese Reihenfolge:
   * Nutze sprechende Testnamen: `test_[funktion]_[erwartetes_verhalten]`.
   * Nutze typsichere Unity-Makros passend zum C++-Standard (z. B. `TEST_ASSERT_EQUAL_UINT32`).
   * Mocke Hardware-Schnittstellen, um Kinematik, Validierung, Kalibrationsabbildung und Bewegungslogik isoliert zu testen.
-* **CLI-Befehle für Codex:** Verwende in WSL immer `~/.platformio/penv/bin/pio`, z. B. `~/.platformio/penv/bin/pio run -e esp32s3`, `~/.platformio/penv/bin/pio test -e native` oder `~/.platformio/penv/bin/pio test -e esp32s3`.
+* **CLI-Befehle für Codex:** Verwende in WSL immer `~/.platformio/penv/bin/pio`, z. B. `~/.platformio/penv/bin/pio run -e esp32s3`, `~/.platformio/penv/bin/pio test -e native` oder `~/.platformio/penv/bin/pio test -e esp32s3_arduino_native`.

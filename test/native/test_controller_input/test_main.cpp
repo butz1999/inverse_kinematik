@@ -175,29 +175,32 @@ void test_controller_debug_driver_sets_reconnect_deadline_after_switch2_pro_repo
                            state.reconnect_deadline_ms);
 }
 
-void test_controller_jog_maps_dpad_to_joint_axes()
+void test_controller_jog_maps_default_sources_to_joint_axes()
 {
   auto input = application::emptyControllerInput();
   input.valid = true;
+  input.buttons = application::kControllerButtonGripR;
   input.dpad = application::kControllerDpadUp | application::kControllerDpadRight;
 
   const auto result = application::applyDefaultControllerJog(input, common::initialJointState(), 500U);
 
   TEST_ASSERT_TRUE(result.active);
   TEST_ASSERT_TRUE(result.changed);
-  TEST_ASSERT_FLOAT_WITHIN(0.001F, 10.0F, result.joint_state.d_deg);
-  TEST_ASSERT_FLOAT_WITHIN(0.001F, 10.0F, result.joint_state.s_deg);
-  TEST_ASSERT_FLOAT_WITHIN(0.001F, 0.0F, result.joint_state.e_deg);
+  TEST_ASSERT_FLOAT_WITHIN(0.001F, 20.0F, result.joint_state.d_deg);
+  TEST_ASSERT_FLOAT_WITHIN(0.001F, 20.0F, result.joint_state.s_deg);
+  TEST_ASSERT_FLOAT_WITHIN(0.001F, 20.0F, result.joint_state.e_deg);
 }
 
 void test_controller_jog_clamps_to_joint_limits()
 {
   auto input = application::emptyControllerInput();
   input.valid = true;
+  input.buttons = application::kControllerButtonGripR;
   input.dpad = application::kControllerDpadUp | application::kControllerDpadRight;
   auto state = common::initialJointState();
   state.d_deg = 89.0F;
   state.s_deg = 89.0F;
+  state.e_deg = 89.0F;
 
   const auto result = application::applyDefaultControllerJog(input, state, 1000U);
 
@@ -205,6 +208,7 @@ void test_controller_jog_clamps_to_joint_limits()
   TEST_ASSERT_TRUE(result.changed);
   TEST_ASSERT_FLOAT_WITHIN(0.001F, 90.0F, result.joint_state.d_deg);
   TEST_ASSERT_FLOAT_WITHIN(0.001F, 90.0F, result.joint_state.s_deg);
+  TEST_ASSERT_FLOAT_WITHIN(0.001F, 90.0F, result.joint_state.e_deg);
 }
 
 void test_controller_jog_ignores_invalid_input()
@@ -249,7 +253,7 @@ int main(int argc, char **argv)
   RUN_TEST(test_controller_debug_driver_ingests_switch2_pro_report);
   RUN_TEST(test_controller_status_string_includes_reconnecting);
   RUN_TEST(test_controller_debug_driver_sets_reconnect_deadline_after_switch2_pro_report);
-  RUN_TEST(test_controller_jog_maps_dpad_to_joint_axes);
+  RUN_TEST(test_controller_jog_maps_default_sources_to_joint_axes);
   RUN_TEST(test_controller_jog_clamps_to_joint_limits);
   RUN_TEST(test_controller_jog_ignores_invalid_input);
   RUN_TEST(test_controller_jog_source_detection_covers_buttons_and_dpad);

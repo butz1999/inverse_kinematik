@@ -93,7 +93,7 @@ Nach Reset, Reconnect oder Neuaufzählung des USB-Geräts kann ein erneutes `usb
 
 Auf Ubuntu 24.04 ist der von der Arduino-ESP32-S3-Toolchain mitgelieferte alte GDB nicht zuverlässig nutzbar, weil er eine nicht mehr vorhandene Python-2.7-Bibliothek erwartet. Die `platformio.ini` bindet deshalb das aktuelle Paket `platformio/tool-xtensa-esp-elf-gdb` ein; das Script `scripts/use_modern_esp32s3_gdb.py` setzt den PlatformIO-GDB-Pfad auf dieses Paket, ohne den Compiler für den Firmware-Build zu ersetzen.
 
-Zusätzlich werden `ARDUINO_RUNNING_CORE` und `ARDUINO_EVENT_RUNNING_CORE` auf `0` gesetzt. Damit laufen `setup()` und `loop()` auf dem von OpenOCD/GDB standardmäßig verwendeten Target `esp32s3.cpu0`; Source-Breakpoints in `src/main.cpp` können so zuverlässig auf demselben Core greifen.
+Zusätzlich werden `ARDUINO_RUNNING_CORE` und `ARDUINO_EVENT_RUNNING_CORE` auf `0` gesetzt. Damit laufen `setup()` und `loop()` auf dem von OpenOCD/GDB standardmäßig verwendeten Target `esp32s3_arduino_native.cpu0`; Source-Breakpoints in `src/main.cpp` können so zuverlässig auf demselben Core greifen.
 
 ### PlatformIO-Nutzung in WSL
 Im aktuellen Entwicklungssetup soll für CLI-Aufrufe in WSL nicht das Systemkommando `/usr/bin/pio` verwendet werden. Dort war eine alte PlatformIO-Version vorhanden, die mit der lokalen Python-Umgebung nicht zuverlässig funktionierte.
@@ -104,15 +104,31 @@ verwendet.
 
 Für den funktionierenden ersten Workflow sind insbesondere die folgenden Befehle relevant:
 
-* Upload der Firmware:
+* Upload der aktuellen Bluepad32-Firmware:
   `~/.platformio/penv/bin/pio run -e esp32s3 -t upload`
+* Vergleichs-Build ohne vollständigen Bluepad32-Controller-Pfad:
+  `~/.platformio/penv/bin/pio run -e esp32s3_arduino_native`
 * Serieller Monitor:
   `~/.platformio/penv/bin/pio device monitor -p /dev/ttyACM0 -b 115200`
 * Es kann nur entweder der Monitor oder aber der FW Upload aktiv sein.
 * Hardware-Debugging über GDB:
-  `~/.platformio/penv/bin/pio debug -e esp32s3 --interface gdb`
+  `~/.platformio/penv/bin/pio debug -e esp32s3_arduino_native --interface gdb`
 
 Der Befehl `pio debug` ohne `--interface gdb` führt nur den PlatformIO-Pre-Debug-Schritt aus und kann mit `SUCCESS` enden, ohne eine interaktive Debug-Sitzung zu starten. In VS Code soll stattdessen die Debug-Konfiguration `PIO Debug` aus dem Run-and-Debug-Bereich verwendet werden.
+
+### ESP32-S3-Build-Umgebungen
+
+Nach Abschluss des Controller-PoC bleiben zwei ESP32-S3-Build-Umgebungen erhalten:
+
+* `esp32s3` ist der aktuelle Firmware-Default. Diese Umgebung baut den Controller-PoC mit Bluepad32/BTstack, ESP-IDF und Arduino-Kompatibilität.
+* `esp32s3_arduino_native` bleibt als schlankerer Arduino-Build erhalten. Diese Umgebung dient als Vergleichs- und Bring-up-Pfad ohne vollständigen Bluepad32-Controller-Stack.
+
+Die gemeinsamen Board- und Portannahmen liegen in `platformio.ini` im Abschnitt `esp32s3_common`. Dadurch sind Zielboard, Flashgrösse, Upload-Port, Monitor-Port, Monitor-Speed und gemeinsame Build-Flags nur einmal definiert. Die environmentspezifischen Abweichungen bleiben bewusst sichtbar:
+
+* `esp32s3` nutzt die grössere Partitionstabelle `partitions_bluepad32.csv` und das Build-Flag `IK_REQUIRE_BLUEPAD32`.
+* `esp32s3_arduino_native` nutzt weiterhin das Arduino-Framework und schliesst den Bluepad32-spezifischen Einstiegspunkt `src/bluepad32_app_main.c` aus.
+
+Neue Controller-Funktionalität soll gegen `esp32s3` gebaut und verifiziert werden. Der `esp32s3_arduino_native`-Build ist vorerst kein zweiter Produktpfad, sondern ein bewusst erhaltener Referenzpunkt für Basishardware, Toolchain und Rückfallanalyse.
 
 ### Aktueller Bring-up-Stand
 Der aktuell bestätigte einfache Bring-up-Pfad basiert auf den folgenden Annahmen:

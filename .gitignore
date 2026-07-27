@@ -7,3 +7,4 @@ sdkconfig.*
 .vscode/launch.json
 .vscode/ipch
 src/config/WifiCredentials.h
+*:Zone.Identifier

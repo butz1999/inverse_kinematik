@@ -12,7 +12,7 @@
 #include "hardware/SerialLogger.h"
 #include "hardware/StatusLed.h"
 
-// ToDo: Klären, ob das genügt, oder aber architektonische Änderungen nötig sind.
+// The REST API handlers allocate JSON documents on the loop task stack.
 SET_LOOP_TASK_STACK_SIZE(16 * 1024)
 
 #if __has_include("config/WifiCredentials.h")

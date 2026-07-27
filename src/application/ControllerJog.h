@@ -14,7 +14,7 @@ namespace application
 
 enum class ControllerJogSource
 {
-  // Dpad
+  // D-pad
   DpadUp,
   DpadDown,
   DpadLeft,
@@ -24,21 +24,21 @@ enum class ControllerJogSource
   ButtonB,
   ButtonX,
   ButtonY,
-  // Links
+  // Left shoulder buttons
   ButtonL,
   ButtonZL,
   ButtonGripL,
-  // Rechts
+  // Right shoulder buttons
   ButtonR,
   ButtonZR,
   ButtonGripR,
-  // + und -
+  // + and - buttons
   ButtonPlus,
   ButtonMinus,
-  // Analog Sticks
+  // Analog stick buttons
   ButtonLeftStick,
   ButtonRightStick,
-  // Andere
+  // Other buttons
   ButtonHome,
   ButtonCapture,
   ButtonCamera,
