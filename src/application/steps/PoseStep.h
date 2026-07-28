@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include <string>
-
+#include "common/FixedString.h"
 #include "common/MotionProfile.h"
 #include "common/TargetPose.h"
 
@@ -14,7 +13,7 @@ struct PoseStep
 {
   common::TargetPose target_pose;
   common::MotionProfile motion_profile;
-  std::string name;
+  common::FixedString<64U> name;
 };
 
 }  // namespace application::steps

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include <string>
-
 #include "common/MotionPlan.h"
 #include "common/MotionProfile.h"
 
@@ -23,14 +21,14 @@ struct MotionProfileGeneratorResult
   bool ok;
   MotionProfileGeneratorStatus status;
   common::MotionPlan plan;
-  std::string message;
+  const char *message;
 };
 
 struct MotionProfileGenerationStatus
 {
   bool ok;
   MotionProfileGeneratorStatus status;
-  std::string message;
+  const char *message;
 };
 
 MotionProfileGenerationStatus generateMotionPlanInto(const common::JointState &start_state,

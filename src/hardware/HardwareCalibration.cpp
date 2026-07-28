@@ -106,9 +106,9 @@ HardwareCalibration defaultHardwareCalibration()
       ServoAxisCalibration{ -90.0F,   0.0F, 110U, 320U}, // hp
       ServoAxisCalibration{ -90.0F,  90.0F, 100U, 500U}, // hr
       GripperCalibration{     0.0F, 100.0F, 130U, 375U}, // g
-      // Inital PWM State per axis:
-      //                    d,    s,    e,    hp,   hr,   g
-      common::JointPwmState{310U, 290U, 290U, 320U, 310U, 130U},
+      // The manually established reference pose used by both the PCA9685
+      // initialization and the logical robot state.
+      common::initialJointState(),
   };
   // clang-format on
 }

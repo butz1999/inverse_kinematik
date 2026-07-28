@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include <string>
-
 #include "common/JointState.h"
 #include "robotics/MathUtilities.h"
 #include "robotics/RobotModel.h"
@@ -39,7 +37,7 @@ struct InverseKinematicsResult
   bool ok;
   KinematicsStatus status;
   common::JointState joint_state;
-  std::string message;
+  const char *message;
 };
 
 ForwardKinematicsResult forwardKinematics(const common::JointState &state, const RobotModel &model);

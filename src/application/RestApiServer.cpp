@@ -29,6 +29,13 @@ namespace
 constexpr std::size_t kRestJsonCapacity = 4096;
 using RestJsonDocument = StaticJsonDocument<kRestJsonCapacity>;
 
+RestJsonDocument &sequenceResponseJsonDocument()
+{
+  static RestJsonDocument document;
+  document.clear();
+  return document;
+}
+
 template <typename JsonDocumentType>
 String jsonBody(const JsonDocumentType &doc)
 {
@@ -104,7 +111,7 @@ void setSequenceStateJson(JsonObject object, const SequenceState &state, uint32_
   object["status"] = toString(state.status);
   object["stepIndex"] = state.step_index;
   object["stepCount"] = state.step_count;
-  object["message"] = state.message.c_str();
+  object["message"] = state.message != nullptr ? state.message : "";
   object["lastMotionStatus"] = orchestration::toString(state.last_motion_status);
   object["waitRemainingMs"] =
       state.status == SequenceRunStatus::Waiting && static_cast<int32_t>(state.wait_until_ms - now_ms) > 0
@@ -188,8 +195,10 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
       orchestrator_(robotics::defaultRobotModel(), robotics::defaultRobotModelOffset()),
       run_engine_(orchestrator_),
       controller_driver_(),
-      current_joint_state_(common::initialJointState()),
-      current_joint_pwm_state_(hardware_calibration_.initial_pwm_state),
+      current_joint_state_(hardware_calibration_.initial_joint_state),
+      current_joint_pwm_state_(hardware::mapJointStateToPwm(hardware_calibration_.initial_joint_state,
+                                                             hardware_calibration_)
+                                   .joint_pwm_state),
       active_motion_plan_{common::defaultMotionProfile(), 0U, 0U, 0U, {}},
       active_motion_target_joint_state_(common::initialJointState()),
       active_motion_sample_index_(0U),
@@ -743,7 +752,7 @@ void RestApiServer::handleServoDriverInitRequest()
     return;
   }
 
-  current_joint_state_ = common::initialJointState();
+  current_joint_state_ = hardware_calibration_.initial_joint_state;
   current_joint_pwm_state_ = servo_driver_.jointPwmState();
   logResult("[REST] PCA9685 initialized");
 
@@ -882,11 +891,11 @@ void RestApiServer::handleMotionRequest()
     doc["code"] = motion_result.target_validation_status == robotics::ValidationStatus::TargetPoseOutOfWorkspace
                       ? toString(ApiResultCode::TargetPoseOutOfWorkspace)
                       : toString(ApiResultCode::InvalidTargetPose);
-    if (!motion_result.field_name.empty())
+    if (motion_result.field_name[0] != '\0')
     {
-      doc["field"] = motion_result.field_name.c_str();
+      doc["field"] = motion_result.field_name;
     }
-    doc["message"] = motion_result.message.c_str();
+    doc["message"] = motion_result.message;
     setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
     logResult("[REST] Motion request rejected by target validation");
     sendJson(400, jsonBody(doc));
@@ -899,7 +908,7 @@ void RestApiServer::handleMotionRequest()
     doc["status"] = "rejected";
     doc["code"] = toString(ApiResultCode::KinematicsFailure);
     doc["kinematicsStatus"] = robotics::toString(motion_result.kinematics_status);
-    doc["message"] = motion_result.message.c_str();
+    doc["message"] = motion_result.message;
     setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
     setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), motion_result.offset_target_pose);
     logResult("[REST] Motion request rejected by inverse kinematics");
@@ -912,11 +921,11 @@ void RestApiServer::handleMotionRequest()
     RestJsonDocument doc;
     doc["status"] = "rejected";
     doc["code"] = toString(ApiResultCode::JointLimitViolation);
-    if (!motion_result.field_name.empty())
+    if (motion_result.field_name[0] != '\0')
     {
-      doc["field"] = motion_result.field_name.c_str();
+      doc["field"] = motion_result.field_name;
     }
-    doc["message"] = motion_result.message.c_str();
+    doc["message"] = motion_result.message;
     setJointStateJson(doc.createNestedObject("jointState"), motion_result.joint_state);
     logResult("[REST] Motion request rejected by joint validation");
     sendJson(400, jsonBody(doc));
@@ -930,7 +939,7 @@ void RestApiServer::handleMotionRequest()
     doc["code"] = toString(ApiResultCode::KinematicsFailure);
     doc["motionStatus"] = orchestration::toString(motion_result.status);
     doc["motionProfileStatus"] = orchestration::toString(motion_result.motion_profile_status);
-    doc["message"] = motion_result.message.c_str();
+    doc["message"] = motion_result.message;
     setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
     setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), motion_result.offset_target_pose);
     setJointStateJson(doc.createNestedObject("jointState"), motion_result.joint_state);
@@ -999,12 +1008,12 @@ void RestApiServer::handleSequenceStartRequest()
   logRequest("POST", kSequenceStartPath);
 
   const auto body_arg = server_.arg("plain");
-  auto sequence = emptySequenceDefinition();
+  static SequenceDefinition sequence;
   const auto parsed = parseSequenceDefinitionRequestJson(body_arg.c_str(), sequence);
 
   if (!parsed.ok)
   {
-    RestJsonDocument doc;
+    auto &doc = sequenceResponseJsonDocument();
     doc["status"] = "rejected";
     doc["code"] = toString(parsed.code);
     if (parsed.field_name[0] != '\0')
@@ -1020,7 +1029,7 @@ void RestApiServer::handleSequenceStartRequest()
   if (hasActiveMotionPlan() || run_engine_.isActive())
   {
     logResult("[REST] Sequence request rejected because motion is already active");
-    RestJsonDocument doc;
+    auto &doc = sequenceResponseJsonDocument();
     doc["status"] = "busy";
     doc["code"] = toString(ApiResultCode::SequenceBusy);
     doc["message"] = "A motion plan or sequence is already active.";
@@ -1032,7 +1041,7 @@ void RestApiServer::handleSequenceStartRequest()
   if (!servo_driver_.isInitialized())
   {
     logResult("[REST] Sequence request rejected because PCA9685 is not initialized");
-    RestJsonDocument doc;
+    auto &doc = sequenceResponseJsonDocument();
     doc["status"] = "hardware_not_initialized";
     doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
     doc["hardware"] = toString(ApiCapabilityStatus::Available);
@@ -1052,13 +1061,13 @@ void RestApiServer::handleSequenceStartRequest()
   if (!run_result.has_motion_plan && !run_result.has_led_step && !run_engine_.isActive())
   {
     const auto &sequence_state = run_engine_.state();
-    RestJsonDocument doc;
+    auto &doc = sequenceResponseJsonDocument();
     doc["status"] = sequence_state.status == SequenceRunStatus::Completed ? "completed" : "rejected";
     doc["code"] = sequence_state.status == SequenceRunStatus::Completed ? toString(ApiResultCode::Ok)
                                                                         : toString(ApiResultCode::KinematicsFailure);
     doc["motionStatus"] =
         run_result.motion_result != nullptr ? orchestration::toString(run_result.motion_result->status) : "accepted";
-    doc["message"] = sequence_state.message.c_str();
+    doc["message"] = sequence_state.message;
     setSequenceStateJson(doc.createNestedObject("sequence"), sequence_state, millis());
     logResult("[REST] Sequence request rejected by motion planning");
     sendJson(sequence_state.status == SequenceRunStatus::Completed ? 202 : 422, jsonBody(doc));
@@ -1072,7 +1081,7 @@ void RestApiServer::handleSequenceStartRequest()
   current_joint_pwm_state_ = servo_driver_.jointPwmState();
   logResult("[REST] Sequence started");
 
-  RestJsonDocument doc;
+  auto &doc = sequenceResponseJsonDocument();
   doc["status"] = "accepted";
   doc["code"] = toString(ApiResultCode::Ok);
   doc["execution"] = hasActiveMotionPlan() ? "motion_plan_active" : "motion_plan_completed";
@@ -1137,8 +1146,8 @@ void RestApiServer::handleControllerConnectRequest()
   RestJsonDocument doc;
   doc["status"] = "accepted";
   doc["code"] = toString(ApiResultCode::Ok);
-  doc["mode"] = "controller_debug_only";
-  doc["readOnly"] = true;
+  doc["mode"] = "controller_jog";
+  doc["readOnly"] = false;
   setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
   sendJson(202, jsonBody(doc));
 }
@@ -1153,8 +1162,8 @@ void RestApiServer::handleControllerDisconnectRequest()
   RestJsonDocument doc;
   doc["status"] = "accepted";
   doc["code"] = toString(ApiResultCode::Ok);
-  doc["mode"] = "controller_debug_only";
-  doc["readOnly"] = true;
+  doc["mode"] = "controller_jog";
+  doc["readOnly"] = false;
   setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
   sendJson(202, jsonBody(doc));
 }
@@ -1164,8 +1173,8 @@ void RestApiServer::handleControllerStatus()
   RestJsonDocument doc;
   doc["status"] = toString(ApiResultCode::Ok);
   doc["code"] = toString(ApiResultCode::Ok);
-  doc["mode"] = "controller_debug_only";
-  doc["readOnly"] = true;
+  doc["mode"] = "controller_jog";
+  doc["readOnly"] = false;
   setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
   sendJson(200, jsonBody(doc));
 }
@@ -1177,9 +1186,9 @@ void RestApiServer::handleControllerDebug()
   RestJsonDocument doc;
   doc["status"] = toString(ApiResultCode::Ok);
   doc["code"] = toString(ApiResultCode::Ok);
-  doc["mode"] = "controller_debug_only";
-  doc["readOnly"] = true;
-  doc["motionOutput"] = "disabled";
+  doc["mode"] = "controller_jog";
+  doc["readOnly"] = false;
+  doc["motionOutput"] = "enabled_when_connected_and_idle";
   setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
   setBleAdvertisementDebugJson(doc.createNestedArray("bleAdvertisements"));
   sendJson(200, jsonBody(doc));

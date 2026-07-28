@@ -34,6 +34,7 @@ uint8_t scale(uint8_t value, uint8_t brightness)
 StatusLed::StatusLed(uint8_t pin, uint8_t brightness)
     : pin_(pin),
       brightness_(brightness),
+      status_color_(Color::Off),
       color_(rgbFromStatusColor(Color::Off)),
       mode_(Mode::Off),
       interval_ms_(kDefaultIntervalMs),
@@ -46,21 +47,30 @@ StatusLed::StatusLed(uint8_t pin, uint8_t brightness)
 
 void StatusLed::set(Color color)
 {
-  set(rgbFromStatusColor(color), color == Color::Off ? Mode::Off : Mode::On, interval_ms_);
+  status_color_ = color;
+  updateColor(rgbFromStatusColor(color));
+  updateMode(color == Color::Off ? Mode::Off : Mode::On);
+  writeCurrentStaticOutputIfNeeded();
 }
 
 void StatusLed::set(RgbColor color)
 {
+  status_color_ = Color::Off;
   set(color, Mode::On, interval_ms_);
 }
 
 void StatusLed::set(Color color, Mode mode, uint32_t interval_ms)
 {
-  set(rgbFromStatusColor(color), mode, interval_ms);
+  status_color_ = color;
+  updateColor(rgbFromStatusColor(color));
+  updateMode(mode);
+  updateIntervalMs(interval_ms);
+  writeCurrentStaticOutputIfNeeded();
 }
 
 void StatusLed::set(RgbColor color, Mode mode, uint32_t interval_ms)
 {
+  status_color_ = Color::Off;
   updateColor(color);
   updateMode(mode);
   updateIntervalMs(interval_ms);
@@ -140,8 +150,7 @@ void StatusLed::updateOutput(uint32_t now_ms)
 
 StatusLed::Color StatusLed::color() const
 {
-  // Free RGB colors do not necessarily map back to a named status color.
-  return Color::Off;
+  return status_color_;
 }
 
 StatusLed::RgbColor StatusLed::rgbColor() const

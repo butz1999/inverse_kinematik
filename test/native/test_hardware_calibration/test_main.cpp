@@ -4,21 +4,22 @@
 
 #include "hardware/HardwareCalibration.h"
 
-void test_default_calibration_exposes_initial_pwm_state()
+void test_default_calibration_uses_zero_joint_state_as_initial_reference()
 {
-  const auto state = hardware::defaultHardwareCalibration().initial_pwm_state;
+  const auto state = hardware::defaultHardwareCalibration().initial_joint_state;
 
-  TEST_ASSERT_EQUAL_UINT16(310U, state.d_pwm);
-  TEST_ASSERT_EQUAL_UINT16(290U, state.s_pwm);
-  TEST_ASSERT_EQUAL_UINT16(290U, state.e_pwm);
-  TEST_ASSERT_EQUAL_UINT16(320U, state.hp_pwm);
-  TEST_ASSERT_EQUAL_UINT16(310U, state.hr_pwm);
-  TEST_ASSERT_EQUAL_UINT16(130U, state.g_pwm);
+  TEST_ASSERT_EQUAL_FLOAT(0.0F, state.d_deg);
+  TEST_ASSERT_EQUAL_FLOAT(0.0F, state.s_deg);
+  TEST_ASSERT_EQUAL_FLOAT(0.0F, state.e_deg);
+  TEST_ASSERT_EQUAL_FLOAT(0.0F, state.hp_deg);
+  TEST_ASSERT_EQUAL_FLOAT(0.0F, state.hr_deg);
+  TEST_ASSERT_EQUAL_FLOAT(0.0F, state.g_pct);
 }
 
 void test_default_calibration_maps_values_linearly_between_axis_limits()
 {
-  const auto result = hardware::mapJointStateToPwm(common::initialJointState(), hardware::defaultHardwareCalibration());
+  const auto calibration = hardware::defaultHardwareCalibration();
+  const auto result = hardware::mapJointStateToPwm(calibration.initial_joint_state, calibration);
 
   TEST_ASSERT_TRUE(result.ok);
   TEST_ASSERT_EQUAL(hardware::HardwareCalibrationStatus::Ok, result.status);
@@ -86,7 +87,7 @@ void test_invalid_calibration_is_reported()
 int main(int argc, char **argv)
 {
   UNITY_BEGIN();
-  RUN_TEST(test_default_calibration_exposes_initial_pwm_state);
+  RUN_TEST(test_default_calibration_uses_zero_joint_state_as_initial_reference);
   RUN_TEST(test_default_calibration_maps_values_linearly_between_axis_limits);
   RUN_TEST(test_default_calibration_maps_axis_limits_to_pwm_limits);
   RUN_TEST(test_default_calibration_clamps_values_before_mapping);

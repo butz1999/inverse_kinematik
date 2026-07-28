@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 
 namespace hardware
@@ -60,14 +62,25 @@ inline bool isValidPca9685Channel(uint8_t channel)
 
 inline bool isValidChannelMap(const ServoChannelMap &channels)
 {
-  // clang-format off
-  return isValidPca9685Channel(channels.d) &&
-         isValidPca9685Channel(channels.s) &&
-         isValidPca9685Channel(channels.e) &&
-         isValidPca9685Channel(channels.hp) &&
-         isValidPca9685Channel(channels.hr) &&
-         isValidPca9685Channel(channels.g);
-  // clang-format on
+  const std::array<uint8_t, 6U> mapped_channels = {channels.d, channels.s, channels.e,
+                                                     channels.hp, channels.hr, channels.g};
+  for (std::size_t index = 0U; index < mapped_channels.size(); ++index)
+  {
+    if (!isValidPca9685Channel(mapped_channels[index]))
+    {
+      return false;
+    }
+
+    for (std::size_t other_index = index + 1U; other_index < mapped_channels.size(); ++other_index)
+    {
+      if (mapped_channels[index] == mapped_channels[other_index])
+      {
+        return false;
+      }
+    }
+  }
+
+  return true;
 }
 
 const char *toString(HardwareDriverStatus status);

@@ -37,6 +37,14 @@ void test_pca9685_channel_map_rejects_invalid_axis_channel()
   TEST_ASSERT_FALSE(hardware::isValidChannelMap(config.channels));
 }
 
+void test_pca9685_channel_map_rejects_duplicate_axis_channels()
+{
+  auto config = hardware::defaultPca9685ServoDriverConfig();
+  config.channels.hr = config.channels.hp;
+
+  TEST_ASSERT_FALSE(hardware::isValidChannelMap(config.channels));
+}
+
 void test_hardware_driver_status_values_are_stable_api_strings()
 {
   TEST_ASSERT_EQUAL_STRING("ok", hardware::toString(hardware::HardwareDriverStatus::Ok));
@@ -56,6 +64,7 @@ int main(int argc, char **argv)
   RUN_TEST(test_pca9685_channel_validation_accepts_0_to_15);
   RUN_TEST(test_pca9685_channel_validation_rejects_values_above_15);
   RUN_TEST(test_pca9685_channel_map_rejects_invalid_axis_channel);
+  RUN_TEST(test_pca9685_channel_map_rejects_duplicate_axis_channels);
   RUN_TEST(test_hardware_driver_status_values_are_stable_api_strings);
   return UNITY_END();
 }

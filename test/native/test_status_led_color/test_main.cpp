@@ -106,6 +106,17 @@ void test_status_led_parses_modes()
   TEST_ASSERT_EQUAL_STRING("pulsing", hardware::toString(mode));
 }
 
+void test_status_led_reports_the_last_named_color()
+{
+  hardware::StatusLed led(38U, 15U);
+
+  led.set(hardware::StatusColor::Green);
+  TEST_ASSERT_EQUAL(hardware::StatusColor::Green, led.color());
+
+  led.set(hardware::StatusLed::RgbColor{1U, 2U, 3U});
+  TEST_ASSERT_EQUAL(hardware::StatusColor::Off, led.color());
+}
+
 int main(int argc, char **argv)
 {
   UNITY_BEGIN();
@@ -119,5 +130,6 @@ int main(int argc, char **argv)
   RUN_TEST(test_status_led_color_maps_violet_for_grb_led_order);
   RUN_TEST(test_status_led_color_maps_raw_rgb_to_grb_arguments_with_brightness);
   RUN_TEST(test_status_led_parses_modes);
+  RUN_TEST(test_status_led_reports_the_last_named_color);
   return UNITY_END();
 }

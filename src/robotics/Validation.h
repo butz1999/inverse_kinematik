@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include <string>
-
 #include "common/JointState.h"
 #include "common/TargetPose.h"
 #include "robotics/RobotModel.h"
@@ -24,8 +22,8 @@ struct ValidationResult
 {
   bool ok;
   ValidationStatus status;
-  std::string field_name;
-  std::string message;
+  const char *field_name;
+  const char *message;
 };
 
 using TargetPoseResult = ValidationResult;

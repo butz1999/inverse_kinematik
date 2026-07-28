@@ -3,8 +3,7 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
-
+#include "common/FixedString.h"
 #include "hardware/StatusLed.h"
 
 namespace application::steps
@@ -18,7 +17,7 @@ struct LedStep
   hardware::StatusLed::RgbColor rgb_color;
   hardware::StatusLed::Mode mode;
   uint32_t interval_ms;
-  std::string name;
+  common::FixedString<64U> name;
 };
 
 inline LedStep emptyLedStep()

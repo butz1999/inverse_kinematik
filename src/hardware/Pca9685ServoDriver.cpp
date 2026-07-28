@@ -88,7 +88,13 @@ HardwareDriverResult Pca9685ServoDriver::init()
   pwm_driver_.setPWMFreq(config_.pwm_frequency_hz);
 
   const auto calibration = defaultHardwareCalibration();
-  const auto initial_write_result = writeChannels(calibration.initial_pwm_state);
+  const auto initial_pwm_result = mapJointStateToPwm(calibration.initial_joint_state, calibration);
+  if (!initial_pwm_result.ok)
+  {
+    return driverConfigurationFailed();
+  }
+
+  const auto initial_write_result = writeChannels(initial_pwm_result.joint_pwm_state);
   if (initial_write_result.status != HardwareDriverStatus::Ok)
   {
     return initial_write_result;

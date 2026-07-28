@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include <string>
-
 #include "common/MotionProfile.h"
 #include "common/TargetPose.h"
 #include "orchestration/MotionProfileGenerator.h"
@@ -31,8 +29,8 @@ struct MotionRequest
 struct MotionResult
 {
   bool ok{false};          // The actual result
-  std::string field_name;  // Name of the field the error caused
-  std::string message;     // The message text
+  const char *field_name{""};  // Name of the field that caused the error.
+  const char *message{""};     // Static message text.
   MotionStatus status{MotionStatus::KinematicsFailure};
   common::TargetPose target_pose{common::initialTargetPose()};
   common::JointState joint_state{common::initialJointState()};

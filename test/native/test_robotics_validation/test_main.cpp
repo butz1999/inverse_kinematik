@@ -25,7 +25,7 @@ void test_target_pose_validation_rejects_non_finite_pose()
 
   TEST_ASSERT_FALSE(result.ok);
   TEST_ASSERT_EQUAL(robotics::ValidationStatus::InvalidTargetPose, result.status);
-  TEST_ASSERT_EQUAL_STRING("y_mm", result.field_name.c_str());
+  TEST_ASSERT_EQUAL_STRING("y_mm", result.field_name);
 }
 
 void test_target_pose_validation_rejects_gripper_outside_range()
@@ -37,7 +37,7 @@ void test_target_pose_validation_rejects_gripper_outside_range()
 
   TEST_ASSERT_FALSE(result.ok);
   TEST_ASSERT_EQUAL(robotics::ValidationStatus::InvalidTargetPose, result.status);
-  TEST_ASSERT_EQUAL_STRING("g_pct", result.field_name.c_str());
+  TEST_ASSERT_EQUAL_STRING("g_pct", result.field_name);
 }
 
 void test_target_pose_validation_defers_workspace_reach_to_kinematics()
@@ -70,7 +70,7 @@ void test_joint_state_validation_uses_common_joint_limits()
 
   TEST_ASSERT_FALSE(result.ok);
   TEST_ASSERT_EQUAL(robotics::ValidationStatus::JointLimitViolation, result.status);
-  TEST_ASSERT_EQUAL_STRING("hp_deg", result.field_name.c_str());
+  TEST_ASSERT_EQUAL_STRING("hp_deg", result.field_name);
 }
 
 int main(int argc, char **argv)

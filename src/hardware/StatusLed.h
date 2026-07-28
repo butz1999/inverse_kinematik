@@ -72,6 +72,7 @@ class StatusLed
 
   uint8_t pin_;
   uint8_t brightness_;
+  Color status_color_;
   RgbColor color_;
   Mode mode_;
   uint32_t interval_ms_;

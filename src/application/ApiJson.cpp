@@ -15,6 +15,7 @@ namespace
 constexpr const char *kEmptyField = "";
 constexpr const char *kRequestBodyRequired = "Request body must contain a JSON object.";
 constexpr const char *kMalformedJson = "Request body must be valid JSON.";
+StaticJsonDocument<4096> sequence_json_document;
 
 JointMotionParseResult jointMotionError(ApiResultCode code, const char *field_name, const char *message)
 {
@@ -232,7 +233,10 @@ ApiResultCode targetPoseParseCode(const char *field_name, const char *message)
 SequenceDefinitionParseResult parseLedStepObject(JsonObjectConst step, steps::LedStep &led_step)
 {
   led_step = steps::emptyLedStep();
-  led_step.name = step["name"].is<const char *>() ? step["name"].as<const char *>() : "";
+  if (!led_step.name.assign(step["name"].is<const char *>() ? step["name"].as<const char *>() : ""))
+  {
+    return sequenceDefinitionError(ApiResultCode::InvalidTargetPose, "name", "LED step name is too long.");
+  }
 
   if (!step["color"].isNull())
   {
@@ -444,14 +448,14 @@ SequenceDefinitionParseResult parseSequenceDefinitionRequestJson(const char *bod
     return sequenceDefinitionError(ApiResultCode::InvalidJson, kEmptyField, kRequestBodyRequired);
   }
 
-  DynamicJsonDocument doc(4096);
-  const auto error = deserializeJson(doc, body);
+  sequence_json_document.clear();
+  const auto error = deserializeJson(sequence_json_document, body);
   if (error)
   {
     return sequenceDefinitionError(ApiResultCode::InvalidJson, kEmptyField, kMalformedJson);
   }
 
-  JsonObjectConst root = doc.as<JsonObjectConst>();
+  JsonObjectConst root = sequence_json_document.as<JsonObjectConst>();
   if (root.isNull())
   {
     return sequenceDefinitionError(ApiResultCode::InvalidJson, kEmptyField, "Request body must be a JSON object.");
@@ -507,8 +511,12 @@ SequenceDefinitionParseResult parseSequenceDefinitionRequestJson(const char *bod
         return sequenceDefinitionError(ApiResultCode::InvalidTargetPose, field_name, message);
       }
 
-      const char *name = step["name"].is<const char *>() ? step["name"].as<const char *>() : "";
-      sequence.steps[sequence.step_count] = steps::poseSequenceStep(steps::PoseStep{pose, profile, name});
+      steps::PoseStep pose_step{pose, profile, ""};
+      if (!pose_step.name.assign(step["name"].is<const char *>() ? step["name"].as<const char *>() : ""))
+      {
+        return sequenceDefinitionError(ApiResultCode::InvalidTargetPose, "name", "Pose step name is too long.");
+      }
+      sequence.steps[sequence.step_count] = steps::poseSequenceStep(pose_step);
       ++sequence.step_count;
       continue;
     }

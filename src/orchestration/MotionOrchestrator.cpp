@@ -14,22 +14,12 @@ MotionResult baseResult(const MotionRequest &request)
   return result;
 }
 
-MotionResult rejected(const MotionRequest &request, MotionStatus status, const std::string &field_name,
-                      const std::string &message)
-{
-  auto result = baseResult(request);
-  result.status = status;
-  result.field_name = field_name;
-  result.message = message;
-  return result;
-}
-
 void resetResult(const MotionRequest &request, MotionResult &result)
 {
   result.ok = false;
   result.status = MotionStatus::KinematicsFailure;
-  result.field_name.clear();
-  result.message.clear();
+  result.field_name = "";
+  result.message = "";
   result.target_pose = request.target_pose;
   result.offset_target_pose = robotics::OffsetTargetPose{0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
   result.joint_state = common::initialJointState();
@@ -42,8 +32,8 @@ void resetResult(const MotionRequest &request, MotionResult &result)
   result.motion_profile_status = MotionProfileGeneratorStatus::Ok;
 }
 
-void rejectInto(const MotionRequest &request, MotionResult &result, MotionStatus status, const std::string &field_name,
-                const std::string &message)
+void rejectInto(const MotionRequest &request, MotionResult &result, MotionStatus status, const char *field_name,
+                const char *message)
 {
   resetResult(request, result);
   result.status = status;

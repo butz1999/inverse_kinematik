@@ -15,7 +15,9 @@ struct TimedJointState
   uint32_t time_from_start_ms;
 };
 
-// ToDo: Reduce if memory limit is reached
+// The configured joint limits need at most 202 samples with the default
+// 90 deg/s profile and 10 ms sample interval. Keep a bounded reserve while
+// avoiding several large plan buffers in internal SRAM.
 constexpr std::size_t kMaxMotionPlanSamples = 1024U;
 
 struct MotionPlan
@@ -24,7 +26,7 @@ struct MotionPlan
   uint32_t total_duration_ms;    // Duration of the movement
   std::size_t sample_count;      // Number of interpolation points
   uint32_t calculation_time_us;  // Calculation time for the motion plan
-  // Sample list. Carefull! kMaxMotionPlanSamples is big so the samples array is HUGE!
+  // Sample list with a bounded internal-SRAM footprint.
   std::array<TimedJointState, kMaxMotionPlanSamples> samples;
 };
 

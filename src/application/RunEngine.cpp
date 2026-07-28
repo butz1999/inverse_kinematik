@@ -104,7 +104,7 @@ RunEngineServiceResult RunEngine::planCurrentStep(const common::JointState &curr
   if (!motion_result_.ok)
   {
     state_.status = SequenceRunStatus::Failed;
-    state_.message = motion_result_.message;
+    state_.message = motion_result_.message != nullptr ? motion_result_.message : "motion planning failed";
     return RunEngineServiceResult{false,          false, nullptr, common::initialJointState(), steps::emptyLedStep(),
                                   &motion_result_};
   }

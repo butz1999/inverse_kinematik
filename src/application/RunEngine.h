@@ -5,7 +5,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <string>
 
 #include "application/steps/SequenceStep.h"
 #include "common/MotionPlan.h"
@@ -41,7 +40,7 @@ struct SequenceState
   std::size_t step_index;
   std::size_t step_count;
   uint32_t wait_until_ms;
-  std::string message;
+  const char *message{""};
   orchestration::MotionStatus last_motion_status;
 };
 

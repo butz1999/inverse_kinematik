@@ -187,7 +187,7 @@ MotionProfileGeneratorResult generateMotionPlan(const common::JointState &start_
   const auto status = generateMotionPlanInto(start_state, target_state, profile, plan);
   if (!status.ok)
   {
-    return error(status.status, profile, status.message.c_str());
+    return error(status.status, profile, status.message);
   }
 
   return ok(plan);
