@@ -16,6 +16,14 @@ struct Vector3
   float z_mm;
 };
 
+struct Orientation3
+{
+  // Orthonormal tool-frame axes expressed in world coordinates.
+  Vector3 side_axis;
+  Vector3 forward_axis;
+  Vector3 up_axis;
+};
+
 inline float degreesToRadians(float degrees)
 {
   return degrees * kPi / 180.0F;
@@ -34,6 +42,11 @@ inline Vector3 add(const Vector3 &left, const Vector3 &right)
 inline Vector3 subtract(const Vector3 &left, const Vector3 &right)
 {
   return Vector3{left.x_mm - right.x_mm, left.y_mm - right.y_mm, left.z_mm - right.z_mm};
+}
+
+inline Vector3 scale(const Vector3 &vector, float factor)
+{
+  return Vector3{vector.x_mm * factor, vector.y_mm * factor, vector.z_mm * factor};
 }
 
 /**
@@ -76,6 +89,24 @@ inline Vector3 vectorFromTurntableLocal(float local_x_mm, float local_y_mm, floa
   const auto d_rad = degreesToRadians(d_deg);
   return Vector3{(local_x_mm * std::cos(d_rad)) + (local_y_mm * std::sin(d_rad)),
                  (-local_x_mm * std::sin(d_rad)) + (local_y_mm * std::cos(d_rad)), local_z_mm};
+}
+
+// Builds the world-space tool frame from turntable yaw, world elevation and axial tool roll.
+inline Orientation3 toolOrientationFromWorldAngles(float d_deg, float p_deg, float r_deg)
+{
+  const auto d_rad = degreesToRadians(d_deg);
+  const auto p_rad = degreesToRadians(p_deg);
+  const auto r_rad = degreesToRadians(r_deg);
+
+  const Vector3 base_side{std::cos(d_rad), -std::sin(d_rad), 0.0F};
+  const Vector3 base_forward{std::sin(d_rad), std::cos(d_rad), 0.0F};
+  const Vector3 base_up{0.0F, 0.0F, 1.0F};
+  const auto pitched_forward = add(scale(base_forward, std::cos(p_rad)), scale(base_up, std::sin(p_rad)));
+  const auto pitched_up = add(scale(base_up, std::cos(p_rad)), scale(base_forward, -std::sin(p_rad)));
+
+  return Orientation3{add(scale(base_side, std::cos(r_rad)), scale(pitched_up, -std::sin(r_rad))),
+                      pitched_forward,
+                      add(scale(base_side, std::sin(r_rad)), scale(pitched_up, std::cos(r_rad)))};
 }
 
 }  // namespace robotics

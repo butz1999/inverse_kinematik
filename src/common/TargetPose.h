@@ -12,7 +12,9 @@ struct TargetPose
   float x_mm;
   float y_mm;
   float z_mm;
+  // Elevation of the tool forward axis in the world frame.
   float p_deg;
+  // Right-handed rotation around the tool forward axis.
   float r_deg;
   float g_pct;
 };

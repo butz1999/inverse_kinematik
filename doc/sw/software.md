@@ -388,9 +388,11 @@ classDiagram
 Bedeutung der Felder:
 
 * `x_mm`, `y_mm`, `z_mm`: kartesische Position des Endeffektors in Millimetern
-* `p_deg`: Pitch im Task Space in Grad
-* `r_deg`: Roll im Task Space in Grad
+* `p_deg`: Weltneigung der Greifer-Längsachse gegen die horizontale Ebene in Grad. Positive Werte neigen die Achse nach oben, negative nach unten.
+* `r_deg`: rechtshändige axiale Drehung um die Greifer-Längsachse in Grad. Die Roll-Nullstellung ist die Lage, in der die Werkzeug-`up`-Achse bei `p_deg = 0` nach Welt-`+z` zeigt.
 * `g_pct`: Greiferöffnung in Prozent
+
+`p_deg` und `r_deg` sind bewusst keine zwei unabhängigen globalen Euler-Winkel. Der Arm hat neben der Greiferöffnung fünf Gelenkfreiheitsgrade; bei vorgegebener Position bestimmt der Drehteller die verbleibende Welt-Yaw. Die FK liefert deshalb zusätzlich einen Werkzeugrahmen mit `side`, `forward` und `up` im Weltkoordinatensystem. Die IK verwendet `p_deg` zur Ausrichtung der Werkzeug-Längsachse und `r_deg` für die Drehung um diese Achse.
 
 ### JointState
 
@@ -804,6 +806,8 @@ Für den Proof-of-concept sind insbesondere folgende REST-Endpunkte vorgesehen:
 * `GET /api/controller/debug` liefert zusätzlich die zuletzt bekannten Stick-, Trigger-, Button- und D-Pad-Werte.
 
 Erst nach erfolgreichem Debug-PoC wird der nächste Schritt umgesetzt: ein `ControllerMapper`, der Controller-Eingaben abhängig vom Bedienmodus in fachliche Kommandos übersetzt. Dazu gehören beispielsweise `manual_joint`, `manual_cartesian`, `hold`, `stop`, `home` oder Greiferaktionen. Diese Übersetzung muss Deadzones, Skalierung, Rate Limiting, Priorität gegenüber laufenden Sequenzen und sichere Fehlerpfade berücksichtigen.
+
+Für kartesisches Jogging hält der rechte Stick-Klick optional die Welt-Roll-Orientierung des Greifers. Der Lock lässt sich nur bei einer Werkzeugneigung von `p = -90° ±20°` einschalten. Beim Einschalten wird die aktuelle Summe aus Drehteller- und Handgelenk-Roll gespeichert; bei einer anschließenden Drehtellerbewegung wird `hr` gegenläufig angepasst. Außerhalb dieses Neigungsbereichs wird der Lock automatisch deaktiviert, weil die Handgelenk-Rollachse die Welt-Yaw dann nicht mehr sinnvoll kompensieren kann.
 
 Die Abhängigkeit auf `Bluepad32` soll nach Möglichkeit referenziert und nicht dupliziert werden. Für die produktive Einbindung wird daher ein fester Git-Tag oder Commit in der Build-Konfiguration bevorzugt. Vor einer dauerhaften Einbindung in den Haupt-Build ist zu verifizieren, ob der gewählte Controller, insbesondere ein Switch 2 Pro Controller, mit dem aktuellen ESP32-S3-Board und dem verwendeten PlatformIO/Arduino-Buildweg zuverlässig verbunden und ausgelesen werden kann.
 

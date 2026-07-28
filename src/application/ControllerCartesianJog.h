@@ -35,10 +35,10 @@ struct ControllerCartesianJogResult
 };
 
 inline constexpr ControllerCartesianJogConfig kDefaultControllerCartesianJogConfig{
-    250,
-    2047,
-    60.0F,
-    180.0F,
+    250,     // Dead-zone Analog Stick
+    2047,    // Maximum input Analog Stick
+    120.0F,   // Move-Speed
+    180.0F,  // Move-Velocity
 };
 
 inline ControllerCartesianJogState emptyControllerCartesianJogState()

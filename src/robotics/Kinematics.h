@@ -17,7 +17,9 @@ struct ForwardKinematicsResult
   Vector3 e_mm;
   Vector3 h_mm;
   Vector3 g_mm;
-  // Hand pitch, rotation and gripper open percentage as value.
+  // Tool-frame orientation in world coordinates.
+  Orientation3 tool_orientation;
+  // World elevation of the tool forward axis, axial tool roll and gripper opening.
   float p_deg;
   float r_deg;
   float g_pct;
@@ -46,6 +48,9 @@ ForwardKinematicsResult forwardKinematics(const common::JointState &state, const
 InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model);
 InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model,
                                           const RobotModelOffset &offset);
+InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model,
+                                          const RobotModelOffset &offset,
+                                          const common::JointState &reference_joint_state);
 const char *toString(KinematicsStatus status);
 
 }  // namespace robotics

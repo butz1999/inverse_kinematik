@@ -67,6 +67,7 @@ const sequenceStorageKey = "dilbert.sequence.v1";
 const baseUrlStorageKey = "dilbert.baseUrl.v1";
 const controllerPairingPollMs = 1000;
 const controllerConnectedPollMs = 200;
+const controllerFormUpdateIntervalMs = 500;
 const controllerStickAxisMax = 2048;
 const controllerButtonBits = {
   b: 1 << 0,
@@ -175,6 +176,7 @@ let sequenceSteps = loadSequence();
 let sequenceStatusTimer = 0;
 let controllerStatusTimer = 0;
 let controllerStatusPollDelayMs = 0;
+let lastControllerFormUpdateMs = 0;
 
 function loadBaseUrl() {
   try {
@@ -204,7 +206,11 @@ function setStatus(message, payload) {
 }
 
 function roundedNumber(value) {
-  return Number.parseFloat(Number(value).toFixed(3));
+  return Number.parseFloat(Number(value).toFixed(1));
+}
+
+function formatReportedNumber(value) {
+  return roundedNumber(value).toFixed(1);
 }
 
 function normalizePoseName(name) {
@@ -397,7 +403,9 @@ function setPoseHistory(nextPoseHistory) {
 }
 
 function formatPose(pose) {
-  return `x ${pose.x_mm}, y ${pose.y_mm}, z ${pose.z_mm}, p ${pose.p_deg}, r ${pose.r_deg}, g ${pose.g_pct}`;
+  return `x ${formatReportedNumber(pose.x_mm)}, y ${formatReportedNumber(pose.y_mm)}, ` +
+         `z ${formatReportedNumber(pose.z_mm)}, p ${formatReportedNumber(pose.p_deg)}, ` +
+         `r ${formatReportedNumber(pose.r_deg)}, g ${formatReportedNumber(pose.g_pct)}`;
 }
 
 function formatMotionProfile(motionProfile) {
@@ -761,7 +769,7 @@ function updatePoseForm(targetPose) {
   for (const [name, value] of Object.entries(entry.pose)) {
     const input = poseForm.elements.namedItem(name);
     if (input instanceof HTMLInputElement) {
-      input.value = String(value);
+      input.value = formatReportedNumber(value);
     }
   }
 }
@@ -774,7 +782,7 @@ function updateJointForm(jointState) {
   for (const [name, value] of Object.entries(jointState)) {
     const input = jointForm.elements.namedItem(name);
     if (input instanceof HTMLInputElement) {
-      input.value = String(value);
+      input.value = formatReportedNumber(value);
     }
   }
 }
@@ -903,13 +911,29 @@ function updateControllerPanel(controller) {
   updateControllerVisualizer(controller.input);
 }
 
+function updateControllerMotionForms(body, force = false) {
+  if (!body?.jointState || !body?.targetPose) {
+    return;
+  }
+
+  const nowMs = Date.now();
+  if (!force && nowMs - lastControllerFormUpdateMs < controllerFormUpdateIntervalMs) {
+    return;
+  }
+
+  updateJointForm(body.jointState);
+  updatePoseForm(body.targetPose);
+  refreshCommittedFormStates();
+  lastControllerFormUpdateMs = nowMs;
+}
+
 function shouldPollController(controller) {
   return ["pairing", "reconnecting", "connected"].includes(controller?.status);
 }
 
 function stopControllerPolling() {
   if (controllerStatusTimer) {
-    window.clearInterval(controllerStatusTimer);
+    window.clearTimeout(controllerStatusTimer);
     controllerStatusTimer = 0;
   }
   controllerStatusPollDelayMs = 0;
@@ -928,15 +952,28 @@ function syncControllerPolling(controller) {
 
   stopControllerPolling();
   controllerStatusPollDelayMs = nextDelayMs;
-  controllerStatusTimer = window.setInterval(async () => {
+  controllerStatusTimer = window.setTimeout(async () => {
+    controllerStatusTimer = 0;
     try {
       const body = await getJson("/api/controller/status");
       updateControllerPanel(body.controller);
+      updateControllerMotionForms(body);
       syncControllerPolling(body.controller);
     } catch {
       stopControllerPolling();
     }
   }, nextDelayMs);
+}
+
+async function initializeControllerPolling() {
+  try {
+    const body = await getJson("/api/controller/status");
+    updateControllerPanel(body.controller);
+    updateControllerMotionForms(body, true);
+    syncControllerPolling(body.controller);
+  } catch {
+    stopControllerPolling();
+  }
 }
 
 function refreshCommittedFormStates() {
@@ -1205,6 +1242,7 @@ async function refreshControllerStatus() {
   try {
     const body = await getJson("/api/controller/status");
     updateControllerPanel(body.controller);
+    updateControllerMotionForms(body, true);
     syncControllerPolling(body.controller);
     setStatus("Controller status.", body);
   } finally {
@@ -1217,6 +1255,7 @@ async function refreshControllerDebug() {
   try {
     const body = await getJson("/api/controller/debug");
     updateControllerPanel(body.controller);
+    updateControllerMotionForms(body, true);
     syncControllerPolling(body.controller);
     setStatus("Controller debug.", body);
   } finally {
@@ -1572,3 +1611,4 @@ addCommittedNumberSend(pwmForm, sendPwmState);
 renderPoseHistory();
 renderSequence();
 updateControllerVisualizer(null);
+initializeControllerPolling();

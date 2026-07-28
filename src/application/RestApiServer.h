@@ -8,7 +8,9 @@
 #include "application/ApiContracts.h"
 #include "application/ControllerCartesianJog.h"
 #include "application/ControllerInput.h"
+#include "application/ControllerJointSlewLimiter.h"
 #include "application/ControllerJog.h"
+#include "application/ControllerWorldRollLock.h"
 #include "application/RunEngine.h"
 #include "common/JointPwmState.h"
 #include "common/JointState.h"
@@ -86,6 +88,8 @@ class RestApiServer
   uint32_t last_controller_jog_ms_;
   bool controller_jog_active_;
   ControllerCartesianJogState controller_cartesian_jog_state_;
+  ControllerJointSlewLimiterState controller_joint_slew_limiter_state_;
+  ControllerWorldRollLockState controller_world_roll_lock_state_;
 };
 
 }  // namespace application

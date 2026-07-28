@@ -89,8 +89,8 @@ void test_default_motion_profile_covers_full_joint_range_at_fine_sample_time()
   const auto result = orchestration::generateMotionPlan(start_state, target_state, common::defaultMotionProfile());
 
   TEST_ASSERT_TRUE(result.ok);
-  TEST_ASSERT_EQUAL_UINT32(2000U, result.plan.total_duration_ms);
-  TEST_ASSERT_EQUAL_UINT32(201U, result.plan.sample_count);
+  TEST_ASSERT_EQUAL_UINT32(4500U, result.plan.total_duration_ms);
+  TEST_ASSERT_EQUAL_UINT32(451U, result.plan.sample_count);
   TEST_ASSERT_TRUE(result.plan.sample_count <= common::kMaxMotionPlanSamples);
 }
 

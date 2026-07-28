@@ -73,7 +73,7 @@ void MotionOrchestrator::processMotionRequestInto(const MotionRequest &request,
   }
 
   const auto offset_pose = robotics::applyRobotModelOffset(request.target_pose, robot_offset_);
-  const auto ik_result = robotics::inverseKinematics(offset_pose, robot_model_, robot_offset_);
+  const auto ik_result = robotics::inverseKinematics(offset_pose, robot_model_, robot_offset_, current_joint_state);
   if (!ik_result.ok)
   {
     rejectInto(request, result, MotionStatus::KinematicsFailure, "", ik_result.message);

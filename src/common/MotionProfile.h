@@ -28,7 +28,7 @@ struct MotionProfile
 
 inline MotionProfile defaultMotionProfile()
 {
-  return MotionProfile{MotionProfileType::SmoothStartStop, 90.0F, 10U};
+  return MotionProfile{MotionProfileType::SmoothStartStop, 40.0F, 10U};
 }
 
 inline const char *toString(MotionProfileType type)

@@ -42,7 +42,7 @@ beschrieben.
 Damit wird festgelegt, an welcher Position (x,y,z) sich der Greifer relativ zum Nullpunkt befinden soll. Zusätzlich werden seine Neigung (p), seine Drehung (r) sowie seine Öffnung (g) beschrieben.
 
 Die Positionen werden in [mm] gemessen. Der Bezugspunkt `O(0,0,0)` liegt auf der Grundplatte vor dem Roboter und kann damit als praktisch messbarer Arbeitsursprung gewählt werden. Die Lage des Drehtellers relativ zu diesem Ursprung wird als fester Origin-Drehteller-Offset modelliert.
-Pitch und Roll werden in [°] gemessen; Bezugsebene ist die Horizontalebene. Ein Kippen nach unten ist eine Änderung in negativer Richtung. Ein Kippen nach oben in positiver Richtung.
+Pitch und Roll werden in [°] gemessen. Pitch ist die Weltneigung der Greifer-Längsachse gegen die Horizontalebene; ein Kippen nach unten ist negativ, nach oben positiv. Roll ist die rechtshändige Drehung um diese Greifer-Längsachse und kein unabhängiger globaler Euler-Winkel. Die Welt-Yaw folgt bei diesem 5-Achs-Arm aus der Drehtellerstellung und damit aus der gewählten Positionslösung.
 Die Greiferöffnung wird in [%] gemessen, 0% entspricht vollständig geschlossen, 100% entspricht vollständig geöffnet.
 
 #### Definition des Arbeitsraumes (cartesian space)

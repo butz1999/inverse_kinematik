@@ -16,11 +16,13 @@ constexpr float kCosTolerance = 0.000001F;
 constexpr float kTurntableCandidateToleranceDeg = 0.01F;
 constexpr float kFkPositionToleranceMm = 0.5F;
 constexpr float kFkAngleToleranceDeg = 0.05F;
+constexpr float kPoseErrorTieTolerance = 0.0001F;
 
 struct CandidateScore
 {
   common::JointState joint_state;
   float pose_error;
+  float reference_distance;
 };
 
 Vector3 segmentVector(float length_mm, float angle_from_radial_deg, float d_deg)
@@ -85,9 +87,23 @@ bool matchesTargetPose(const OffsetTargetPose &pose, const ForwardKinematicsResu
          std::fabs(fk.g_pct - pose.g_pct) <= kFkAngleToleranceDeg;
 }
 
-bool isBetterCandidate(const CandidateScore &candidate, const CandidateScore &best)
+float jointDistanceSquared(const common::JointState &candidate, const common::JointState &reference)
 {
-  return candidate.pose_error < best.pose_error - 0.0001F;
+  return square(candidate.d_deg - reference.d_deg) + square(candidate.s_deg - reference.s_deg) +
+         square(candidate.e_deg - reference.e_deg) + square(candidate.hp_deg - reference.hp_deg) +
+         square(candidate.hr_deg - reference.hr_deg);
+}
+
+bool isBetterCandidate(const CandidateScore &candidate, const CandidateScore &best,
+                       const common::JointState *reference_joint_state)
+{
+  if (candidate.pose_error < best.pose_error - kPoseErrorTieTolerance)
+  {
+    return true;
+  }
+
+  return reference_joint_state != nullptr && std::fabs(candidate.pose_error - best.pose_error) <= kPoseErrorTieTolerance &&
+         candidate.reference_distance < best.reference_distance;
 }
 
 bool solveArmPlane(float wrist_radial_mm, float wrist_z_mm, float p_deg, float e_delta_deg, float d_deg,
@@ -146,6 +162,10 @@ float localRadialForTurntableDeg(const OffsetTargetPose &pose, float d_deg)
 
 }  // namespace
 
+static InverseKinematicsResult inverseKinematicsImpl(const OffsetTargetPose &pose, const RobotModel &model,
+                                                      const RobotModelOffset &offset,
+                                                      const common::JointState *reference_joint_state);
+
 ForwardKinematicsResult forwardKinematics(const common::JointState &state, const RobotModel &model)
 {
   return forwardKinematics(state, model, defaultRobotModelOffset());
@@ -166,7 +186,15 @@ ForwardKinematicsResult forwardKinematics(const common::JointState &state, const
   const auto hr_point = add(h_point, hpToHrVector(hp_angle_deg, state.d_deg, offset));
   const auto g_point = add(hr_point, segmentVector(model.segments.hr_g_length_mm, hp_angle_deg, state.d_deg));
 
-  return ForwardKinematicsResult{d_point, s_point, e_point, h_point, g_point, hp_angle_deg, state.hr_deg, state.g_pct};
+  return ForwardKinematicsResult{d_point,
+                                 s_point,
+                                 e_point,
+                                 h_point,
+                                 g_point,
+                                 toolOrientationFromWorldAngles(state.d_deg, hp_angle_deg, state.hr_deg),
+                                 hp_angle_deg,
+                                 state.hr_deg,
+                                 state.g_pct};
 }
 
 InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model)
@@ -176,6 +204,20 @@ InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const Ro
 
 InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model,
                                           const RobotModelOffset &offset)
+{
+  return inverseKinematicsImpl(pose, model, offset, nullptr);
+}
+
+InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model,
+                                          const RobotModelOffset &offset,
+                                          const common::JointState &reference_joint_state)
+{
+  return inverseKinematicsImpl(pose, model, offset, &reference_joint_state);
+}
+
+static InverseKinematicsResult inverseKinematicsImpl(const OffsetTargetPose &pose, const RobotModel &model,
+                                                      const RobotModelOffset &offset,
+                                                      const common::JointState *reference_joint_state)
 {
   if (!isValidRobotModel(model))
   {
@@ -197,7 +239,8 @@ InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const Ro
 
   bool had_geometric_solution = false;
   bool had_verified_solution = false;
-  CandidateScore best_candidate{common::initialJointState(), std::numeric_limits<float>::max()};
+  CandidateScore best_candidate{common::initialJointState(), std::numeric_limits<float>::max(),
+                                std::numeric_limits<float>::max()};
   const auto candidates = turntableCandidatesDeg(pose, local_side_offset_mm);
   for (const auto d_deg : candidates)
   {
@@ -246,8 +289,11 @@ InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const Ro
         continue;
       }
 
-      const CandidateScore candidate{joint_state, poseErrorSquared(pose, fk)};
-      if (!had_verified_solution || isBetterCandidate(candidate, best_candidate))
+      const CandidateScore candidate{joint_state, poseErrorSquared(pose, fk),
+                                     reference_joint_state != nullptr
+                                         ? jointDistanceSquared(joint_state, *reference_joint_state)
+                                         : std::numeric_limits<float>::max()};
+      if (!had_verified_solution || isBetterCandidate(candidate, best_candidate, reference_joint_state))
       {
         best_candidate = candidate;
         had_verified_solution = true;

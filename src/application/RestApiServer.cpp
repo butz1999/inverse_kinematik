@@ -3,6 +3,7 @@
 #include "application/RestApiServer.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include <ArduinoJson.h>
 
@@ -45,34 +46,40 @@ String jsonBody(const JsonDocumentType &doc)
   return body;
 }
 
+float roundReportedValue(float value)
+{
+  const auto rounded = std::round(value * 10.0F) / 10.0F;
+  return rounded == 0.0F ? 0.0F : rounded;
+}
+
 void setJointStateJson(JsonObject object, const common::JointState &state)
 {
-  object["d_deg"] = state.d_deg;
-  object["s_deg"] = state.s_deg;
-  object["e_deg"] = state.e_deg;
-  object["hp_deg"] = state.hp_deg;
-  object["hr_deg"] = state.hr_deg;
-  object["g_pct"] = state.g_pct;
+  object["d_deg"] = roundReportedValue(state.d_deg);
+  object["s_deg"] = roundReportedValue(state.s_deg);
+  object["e_deg"] = roundReportedValue(state.e_deg);
+  object["hp_deg"] = roundReportedValue(state.hp_deg);
+  object["hr_deg"] = roundReportedValue(state.hr_deg);
+  object["g_pct"] = roundReportedValue(state.g_pct);
 }
 
 void setTargetPoseJson(JsonObject object, const common::TargetPose &pose)
 {
-  object["x_mm"] = pose.x_mm;
-  object["y_mm"] = pose.y_mm;
-  object["z_mm"] = pose.z_mm;
-  object["p_deg"] = pose.p_deg;
-  object["r_deg"] = pose.r_deg;
-  object["g_pct"] = pose.g_pct;
+  object["x_mm"] = roundReportedValue(pose.x_mm);
+  object["y_mm"] = roundReportedValue(pose.y_mm);
+  object["z_mm"] = roundReportedValue(pose.z_mm);
+  object["p_deg"] = roundReportedValue(pose.p_deg);
+  object["r_deg"] = roundReportedValue(pose.r_deg);
+  object["g_pct"] = roundReportedValue(pose.g_pct);
 }
 
 void setOffsetTargetPoseJson(JsonObject object, const robotics::OffsetTargetPose &pose)
 {
-  object["x_mm"] = pose.x_mm;
-  object["y_mm"] = pose.y_mm;
-  object["z_mm"] = pose.z_mm;
-  object["p_deg"] = pose.p_deg;
-  object["r_deg"] = pose.r_deg;
-  object["g_pct"] = pose.g_pct;
+  object["x_mm"] = roundReportedValue(pose.x_mm);
+  object["y_mm"] = roundReportedValue(pose.y_mm);
+  object["z_mm"] = roundReportedValue(pose.z_mm);
+  object["p_deg"] = roundReportedValue(pose.p_deg);
+  object["r_deg"] = roundReportedValue(pose.r_deg);
+  object["g_pct"] = roundReportedValue(pose.g_pct);
 }
 
 common::TargetPose targetPoseFromForwardKinematics(const robotics::ForwardKinematicsResult &fk,
@@ -84,6 +91,14 @@ common::TargetPose targetPoseFromForwardKinematics(const robotics::ForwardKinema
                             fk.p_deg,
                             fk.r_deg,
                             fk.g_pct};
+}
+
+common::TargetPose targetPoseFromJointState(const common::JointState &joint_state)
+{
+  const auto robot_model = robotics::defaultRobotModel();
+  const auto robot_offset = robotics::defaultRobotModelOffset();
+  const auto fk = robotics::forwardKinematics(joint_state, robot_model, robot_offset);
+  return targetPoseFromForwardKinematics(fk, robot_offset);
 }
 
 void setJointPwmStateJson(JsonObject object, const common::JointPwmState &state)
@@ -208,7 +223,9 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
       has_pending_led_step_(false),
       last_controller_jog_ms_(0U),
       controller_jog_active_(false),
-      controller_cartesian_jog_state_(emptyControllerCartesianJogState())
+      controller_cartesian_jog_state_(emptyControllerCartesianJogState()),
+      controller_joint_slew_limiter_state_(emptyControllerJointSlewLimiterState()),
+      controller_world_roll_lock_state_(emptyControllerWorldRollLockState())
 {
 }
 
@@ -465,6 +482,8 @@ void RestApiServer::serviceControllerJog(uint32_t now_ms)
   {
     controller_jog_active_ = false;
     resetControllerCartesianJog(controller_cartesian_jog_state_);
+    resetControllerJointSlewLimiter(controller_joint_slew_limiter_state_);
+    resetControllerWorldRollLock(controller_world_roll_lock_state_);
     last_controller_jog_ms_ = now_ms;
     return;
   }
@@ -484,10 +503,30 @@ void RestApiServer::serviceControllerJog(uint32_t now_ms)
   }
 
   last_controller_jog_ms_ = now_ms;
+  const auto robot_model = robotics::defaultRobotModel();
+  const auto robot_offset = robotics::defaultRobotModelOffset();
+  const auto current_fk = robotics::forwardKinematics(current_joint_state_, robot_model, robot_offset);
+  const auto roll_lock_update =
+      updateControllerWorldRollLock((state.input.buttons & kControllerButtonRightStick) != 0U, current_fk.p_deg,
+                                    current_joint_state_.d_deg, current_joint_state_.hr_deg, controller_world_roll_lock_state_);
+  if (roll_lock_update == ControllerWorldRollLockUpdate::Enabled)
+  {
+    logResult("[REST] Controller world-roll lock enabled");
+  }
+  else if (roll_lock_update == ControllerWorldRollLockUpdate::Disabled)
+  {
+    logResult("[REST] Controller world-roll lock disabled");
+  }
+  else if (roll_lock_update == ControllerWorldRollLockUpdate::Rejected)
+  {
+    logResult("[REST] Controller world-roll lock requires pitch near -90 degrees");
+  }
+
   const auto joint_jog_result = applyDefaultControllerJog(state.input, current_joint_state_, elapsed_ms);
   if (joint_jog_result.active)
   {
     resetControllerCartesianJog(controller_cartesian_jog_state_);
+    resetControllerJointSlewLimiter(controller_joint_slew_limiter_state_);
     if (!joint_jog_result.changed)
     {
       return;
@@ -514,10 +553,7 @@ void RestApiServer::serviceControllerJog(uint32_t now_ms)
     return;
   }
 
-  const auto robot_model = robotics::defaultRobotModel();
-  const auto robot_offset = robotics::defaultRobotModelOffset();
-  const auto current_pose =
-      targetPoseFromForwardKinematics(robotics::forwardKinematics(current_joint_state_, robot_model, robot_offset), robot_offset);
+  const auto current_pose = targetPoseFromForwardKinematics(current_fk, robot_offset);
   const auto cartesian_jog_result =
       applyControllerCartesianJog(state.input, current_pose, elapsed_ms, controller_cartesian_jog_state_);
   if (cartesian_jog_result.active)
@@ -533,15 +569,33 @@ void RestApiServer::serviceControllerJog(uint32_t now_ms)
       return;
     }
 
-    const auto ik_result =
-        robotics::inverseKinematics(robotics::applyRobotModelOffset(cartesian_jog_result.target_pose, robot_offset), robot_model,
-                                     robot_offset);
+    const auto ik_result = robotics::inverseKinematics(
+        robotics::applyRobotModelOffset(cartesian_jog_result.target_pose, robot_offset), robot_model, robot_offset,
+        current_joint_state_);
     if (!ik_result.ok || !robotics::validateJointState(ik_result.joint_state).ok)
     {
       return;
     }
 
-    const auto calibration_result = hardware::mapJointStateToPwm(ik_result.joint_state, hardware_calibration_);
+    auto target_joint_state = ik_result.joint_state;
+    if (controller_world_roll_lock_state_.enabled)
+    {
+      target_joint_state.hr_deg = handRollForControllerWorldRollLock(controller_world_roll_lock_state_, target_joint_state.d_deg);
+    }
+    if (!robotics::validateJointState(target_joint_state).ok)
+    {
+      return;
+    }
+
+    const auto limited_joint_result = applyControllerJointSlewLimiter(
+        current_joint_state_, target_joint_state, elapsed_ms, controller_joint_slew_limiter_state_);
+    if (!limited_joint_result.changed)
+    {
+      return;
+    }
+    target_joint_state = limited_joint_result.joint_state;
+
+    const auto calibration_result = hardware::mapJointStateToPwm(target_joint_state, hardware_calibration_);
     if (!calibration_result.ok)
     {
       logResult("[REST] Controller Cartesian jog stopped by calibration failure");
@@ -557,7 +611,7 @@ void RestApiServer::serviceControllerJog(uint32_t now_ms)
       return;
     }
 
-    current_joint_state_ = ik_result.joint_state;
+    current_joint_state_ = target_joint_state;
     current_joint_pwm_state_ = servo_driver_.jointPwmState();
     return;
   }
@@ -1227,6 +1281,8 @@ void RestApiServer::handleControllerStatus()
   doc["mode"] = "controller_jog";
   doc["readOnly"] = false;
   setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
+  setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
+  setTargetPoseJson(doc.createNestedObject("targetPose"), targetPoseFromJointState(current_joint_state_));
   sendJson(200, jsonBody(doc));
 }
 
@@ -1241,6 +1297,8 @@ void RestApiServer::handleControllerDebug()
   doc["readOnly"] = false;
   doc["motionOutput"] = "enabled_when_connected_and_idle";
   setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
+  setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
+  setTargetPoseJson(doc.createNestedObject("targetPose"), targetPoseFromJointState(current_joint_state_));
   setBleAdvertisementDebugJson(doc.createNestedArray("bleAdvertisements"));
   sendJson(200, jsonBody(doc));
 }

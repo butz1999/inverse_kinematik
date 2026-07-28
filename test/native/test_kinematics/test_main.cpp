@@ -28,6 +28,14 @@ void assertVectorNear(float expected_x_mm, float expected_y_mm, float expected_z
   TEST_ASSERT_FLOAT_WITHIN(kTolerance, expected_z_mm, actual.z_mm);
 }
 
+void assertOrientationNear(const robotics::Vector3 &expected_side, const robotics::Vector3 &expected_forward,
+                           const robotics::Vector3 &expected_up, const robotics::Orientation3 &actual)
+{
+  assertVectorNear(expected_side.x_mm, expected_side.y_mm, expected_side.z_mm, actual.side_axis);
+  assertVectorNear(expected_forward.x_mm, expected_forward.y_mm, expected_forward.z_mm, actual.forward_axis);
+  assertVectorNear(expected_up.x_mm, expected_up.y_mm, expected_up.z_mm, actual.up_axis);
+}
+
 void assertForwardMatchesPose(const robotics::OffsetTargetPose &pose, const common::JointState &state,
                               const robotics::RobotModel &model, const robotics::RobotModelOffset &offset)
 {
@@ -102,6 +110,22 @@ void test_forward_kinematics_rotates_radial_plane_with_turntable()
   const auto result = robotics::forwardKinematics(state, model, offset);
 
   assertVectorNear(260.0F, 0.0F, 0.0F, result.g_mm);
+  assertOrientationNear(robotics::Vector3{0.0F, -1.0F, 0.0F}, robotics::Vector3{1.0F, 0.0F, 0.0F},
+                        robotics::Vector3{0.0F, 0.0F, 1.0F}, result.tool_orientation);
+}
+
+void test_forward_kinematics_expresses_pitch_and_roll_in_world_coordinates()
+{
+  const auto model = idealRobotModel();
+  const auto offset = zeroRobotModelOffset();
+  const common::JointState state{0.0F, -90.0F, 0.0F, -90.0F, 90.0F, 0.0F};
+
+  const auto result = robotics::forwardKinematics(state, model, offset);
+
+  TEST_ASSERT_FLOAT_WITHIN(kTolerance, -90.0F, result.p_deg);
+  TEST_ASSERT_FLOAT_WITHIN(kTolerance, 90.0F, result.r_deg);
+  assertOrientationNear(robotics::Vector3{0.0F, -1.0F, 0.0F}, robotics::Vector3{0.0F, 0.0F, -1.0F},
+                        robotics::Vector3{1.0F, 0.0F, 0.0F}, result.tool_orientation);
 }
 
 void test_forward_kinematics_accumulates_elbow_and_pitch_angles()
@@ -198,6 +222,23 @@ void test_inverse_kinematics_maps_elbow_and_pitch_solution()
   TEST_ASSERT_FLOAT_WITHIN(kTolerance, -90.0F, result.joint_state.hp_deg);
   TEST_ASSERT_FLOAT_WITHIN(kTolerance, 25.0F, result.joint_state.hr_deg);
   TEST_ASSERT_FLOAT_WITHIN(kTolerance, 75.0F, result.joint_state.g_pct);
+}
+
+void test_inverse_kinematics_prefers_elbow_solution_near_reference_joint_state()
+{
+  const auto model = idealRobotModel();
+  const auto offset = zeroRobotModelOffset();
+  const common::JointState elbow_up{0.0F, -30.0F, 90.0F, -90.0F, 0.0F, 50.0F};
+  const common::JointState elbow_down{0.0F, 60.0F, -90.0F, 0.0F, 0.0F, 50.0F};
+  const auto pose = offsetPoseFromForwardKinematics(robotics::forwardKinematics(elbow_up, model, offset));
+
+  const auto up_result = robotics::inverseKinematics(pose, model, offset, elbow_up);
+  const auto down_result = robotics::inverseKinematics(pose, model, offset, elbow_down);
+
+  TEST_ASSERT_TRUE(up_result.ok);
+  TEST_ASSERT_TRUE(down_result.ok);
+  assertJointStateNear(elbow_up, up_result.joint_state);
+  assertJointStateNear(elbow_down, down_result.joint_state);
 }
 
 void test_inverse_kinematics_applies_turntable_to_shoulder_offset()
@@ -397,12 +438,14 @@ int main(int argc, char **argv)
   RUN_TEST(test_forward_kinematics_maps_home_pose_upwards);
   RUN_TEST(test_forward_kinematics_maps_horizontal_arm_along_positive_y);
   RUN_TEST(test_forward_kinematics_rotates_radial_plane_with_turntable);
+  RUN_TEST(test_forward_kinematics_expresses_pitch_and_roll_in_world_coordinates);
   RUN_TEST(test_forward_kinematics_accumulates_elbow_and_pitch_angles);
   RUN_TEST(test_forward_kinematics_applies_turntable_to_shoulder_offset);
   RUN_TEST(test_forward_kinematics_rotates_turntable_to_shoulder_offset);
   RUN_TEST(test_inverse_kinematics_maps_reachable_forward_target);
   RUN_TEST(test_inverse_kinematics_maps_turntable_angle);
   RUN_TEST(test_inverse_kinematics_maps_elbow_and_pitch_solution);
+  RUN_TEST(test_inverse_kinematics_prefers_elbow_solution_near_reference_joint_state);
   RUN_TEST(test_inverse_kinematics_applies_turntable_to_shoulder_offset);
   RUN_TEST(test_inverse_kinematics_rotates_turntable_to_shoulder_offset);
   RUN_TEST(test_world_target_pose_maps_to_offset_pose_and_joint_space);
