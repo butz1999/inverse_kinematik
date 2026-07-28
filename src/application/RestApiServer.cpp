@@ -207,7 +207,8 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
       pending_led_step_(steps::emptyLedStep()),
       has_pending_led_step_(false),
       last_controller_jog_ms_(0U),
-      controller_jog_active_(false)
+      controller_jog_active_(false),
+      controller_cartesian_jog_state_(emptyControllerCartesianJogState())
 {
 }
 
@@ -463,6 +464,7 @@ void RestApiServer::serviceControllerJog(uint32_t now_ms)
       !servo_driver_.isInitialized() || hasActiveMotionPlan() || run_engine_.isActive())
   {
     controller_jog_active_ = false;
+    resetControllerCartesianJog(controller_cartesian_jog_state_);
     last_controller_jog_ms_ = now_ms;
     return;
   }
@@ -482,34 +484,83 @@ void RestApiServer::serviceControllerJog(uint32_t now_ms)
   }
 
   last_controller_jog_ms_ = now_ms;
-  const auto jog_result = applyDefaultControllerJog(state.input, current_joint_state_, elapsed_ms);
-  if (!jog_result.active)
+  const auto joint_jog_result = applyDefaultControllerJog(state.input, current_joint_state_, elapsed_ms);
+  if (joint_jog_result.active)
   {
-    return;
-  }
-  if (!jog_result.changed)
-  {
+    resetControllerCartesianJog(controller_cartesian_jog_state_);
+    if (!joint_jog_result.changed)
+    {
+      return;
+    }
+
+    const auto calibration_result = hardware::mapJointStateToPwm(joint_jog_result.joint_state, hardware_calibration_);
+    if (!calibration_result.ok)
+    {
+      logResult("[REST] Controller jog stopped by calibration failure");
+      controller_jog_active_ = false;
+      return;
+    }
+
+    const auto write_result = servo_driver_.write(calibration_result.joint_pwm_state);
+    if (write_result.status != hardware::HardwareDriverStatus::Ok)
+    {
+      logResult("[REST] Controller jog stopped by hardware failure");
+      controller_jog_active_ = false;
+      return;
+    }
+
+    current_joint_state_ = joint_jog_result.joint_state;
+    current_joint_pwm_state_ = servo_driver_.jointPwmState();
     return;
   }
 
-  const auto calibration_result = hardware::mapJointStateToPwm(jog_result.joint_state, hardware_calibration_);
-  if (!calibration_result.ok)
+  const auto robot_model = robotics::defaultRobotModel();
+  const auto robot_offset = robotics::defaultRobotModelOffset();
+  const auto current_pose =
+      targetPoseFromForwardKinematics(robotics::forwardKinematics(current_joint_state_, robot_model, robot_offset), robot_offset);
+  const auto cartesian_jog_result =
+      applyControllerCartesianJog(state.input, current_pose, elapsed_ms, controller_cartesian_jog_state_);
+  if (cartesian_jog_result.active)
   {
-    logResult("[REST] Controller jog stopped by calibration failure");
-    controller_jog_active_ = false;
+    if (!cartesian_jog_result.changed)
+    {
+      return;
+    }
+
+    const auto target_validation = robotics::validateTargetPose(cartesian_jog_result.target_pose, robot_model);
+    if (!target_validation.ok)
+    {
+      return;
+    }
+
+    const auto ik_result =
+        robotics::inverseKinematics(robotics::applyRobotModelOffset(cartesian_jog_result.target_pose, robot_offset), robot_model,
+                                     robot_offset);
+    if (!ik_result.ok || !robotics::validateJointState(ik_result.joint_state).ok)
+    {
+      return;
+    }
+
+    const auto calibration_result = hardware::mapJointStateToPwm(ik_result.joint_state, hardware_calibration_);
+    if (!calibration_result.ok)
+    {
+      logResult("[REST] Controller Cartesian jog stopped by calibration failure");
+      resetControllerCartesianJog(controller_cartesian_jog_state_);
+      return;
+    }
+
+    const auto write_result = servo_driver_.write(calibration_result.joint_pwm_state);
+    if (write_result.status != hardware::HardwareDriverStatus::Ok)
+    {
+      logResult("[REST] Controller Cartesian jog stopped by hardware failure");
+      resetControllerCartesianJog(controller_cartesian_jog_state_);
+      return;
+    }
+
+    current_joint_state_ = ik_result.joint_state;
+    current_joint_pwm_state_ = servo_driver_.jointPwmState();
     return;
   }
-
-  const auto write_result = servo_driver_.write(calibration_result.joint_pwm_state);
-  if (write_result.status != hardware::HardwareDriverStatus::Ok)
-  {
-    logResult("[REST] Controller jog stopped by hardware failure");
-    controller_jog_active_ = false;
-    return;
-  }
-
-  current_joint_state_ = jog_result.joint_state;
-  current_joint_pwm_state_ = servo_driver_.jointPwmState();
 }
 
 void RestApiServer::queueLedStep(const steps::LedStep &step)

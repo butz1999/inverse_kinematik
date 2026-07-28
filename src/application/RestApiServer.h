@@ -6,6 +6,7 @@
 #include <WebServer.h>
 
 #include "application/ApiContracts.h"
+#include "application/ControllerCartesianJog.h"
 #include "application/ControllerInput.h"
 #include "application/ControllerJog.h"
 #include "application/RunEngine.h"
@@ -84,6 +85,7 @@ class RestApiServer
   bool has_pending_led_step_;
   uint32_t last_controller_jog_ms_;
   bool controller_jog_active_;
+  ControllerCartesianJogState controller_cartesian_jog_state_;
 };
 
 }  // namespace application
