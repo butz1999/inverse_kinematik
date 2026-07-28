@@ -4,6 +4,7 @@
 
 #include <limits>
 
+#include "config/RobotSettings.h"
 #include "robotics/Validation.h"
 
 void test_target_pose_validation_accepts_reachable_pose()
@@ -61,10 +62,12 @@ void test_target_pose_validation_rejects_invalid_model()
   TEST_ASSERT_EQUAL_STRING("invalid_robot_model", robotics::toString(result.status));
 }
 
-void test_joint_state_validation_uses_common_joint_limits()
+void test_joint_state_validation_uses_configured_joint_limits()
 {
+  const auto &limits = config::robotSettings().joint_limits;
+  const auto &hp_limit = common::jointLimitForAxis(limits, common::JointAxis::Hp);
   common::JointState state = common::initialJointState();
-  state.hp_deg = 1.0F;
+  state.hp_deg = hp_limit.min_value - 1.0F;
 
   const auto result = robotics::validateJointState(state);
 
@@ -81,6 +84,6 @@ int main(int argc, char **argv)
   RUN_TEST(test_target_pose_validation_rejects_gripper_outside_range);
   RUN_TEST(test_target_pose_validation_defers_workspace_reach_to_kinematics);
   RUN_TEST(test_target_pose_validation_rejects_invalid_model);
-  RUN_TEST(test_joint_state_validation_uses_common_joint_limits);
+  RUN_TEST(test_joint_state_validation_uses_configured_joint_limits);
   return UNITY_END();
 }

@@ -28,10 +28,17 @@ void test_joint_state_accepts_values_inside_hardware_ranges()
   TEST_ASSERT_FALSE(common::findFirstLimitViolation(state, limits).has_value());
 }
 
-void test_joint_state_rejects_first_axis_outside_limit()
+void test_joint_state_rejects_first_axis_outside_supplied_test_limits()
 {
-  const common::JointState state{91.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
-  const auto &limits = config::robotSettings().joint_limits;
+  const common::JointLimits limits{{
+      common::JointLimit{.min_value = -10.0F, .max_value = 10.0F},
+      common::JointLimit{.min_value = -20.0F, .max_value = 20.0F},
+      common::JointLimit{.min_value = -30.0F, .max_value = 30.0F},
+      common::JointLimit{.min_value = -40.0F, .max_value = 40.0F},
+      common::JointLimit{.min_value = -50.0F, .max_value = 50.0F},
+      common::JointLimit{.min_value = 0.0F, .max_value = 100.0F},
+  }};
+  const common::JointState state{11.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
 
   const auto violation = common::findFirstLimitViolation(state, limits);
 
@@ -40,8 +47,8 @@ void test_joint_state_rejects_first_axis_outside_limit()
   TEST_ASSERT_EQUAL(common::JointAxis::D, *violation);
   TEST_ASSERT_EQUAL_STRING("d_deg", common::jointAxisFieldName(*violation));
   const auto &limit = common::jointLimitForAxis(limits, *violation);
-  TEST_ASSERT_EQUAL_FLOAT(-90.0F, limit.min_value);
-  TEST_ASSERT_EQUAL_FLOAT(90.0F, limit.max_value);
+  TEST_ASSERT_EQUAL_FLOAT(-10.0F, limit.min_value);
+  TEST_ASSERT_EQUAL_FLOAT(10.0F, limit.max_value);
 }
 
 void test_joint_state_rejects_non_finite_values()
@@ -58,7 +65,7 @@ int main(int argc, char **argv)
   UNITY_BEGIN();
   RUN_TEST(test_initial_joint_state_uses_documented_zero_position);
   RUN_TEST(test_joint_state_accepts_values_inside_hardware_ranges);
-  RUN_TEST(test_joint_state_rejects_first_axis_outside_limit);
+  RUN_TEST(test_joint_state_rejects_first_axis_outside_supplied_test_limits);
   RUN_TEST(test_joint_state_rejects_non_finite_values);
   return UNITY_END();
 }
