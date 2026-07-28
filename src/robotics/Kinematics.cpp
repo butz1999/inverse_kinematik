@@ -4,6 +4,8 @@
 #include <cmath>
 #include <limits>
 
+#include "config/RobotSettings.h"
+
 namespace robotics
 {
 
@@ -63,7 +65,7 @@ InverseKinematicsResult ikOkResult(const common::JointState &joint_state)
 
 bool isWithinKinematicsJointLimits(const common::JointState &state)
 {
-  return common::isWithinJointLimits(state);
+  return common::isWithinJointLimits(state, config::robotSettings().joint_limits);
 }
 
 float square(float value)
@@ -244,8 +246,10 @@ static InverseKinematicsResult inverseKinematicsImpl(const OffsetTargetPose &pos
   const auto candidates = turntableCandidatesDeg(pose, local_side_offset_mm);
   for (const auto d_deg : candidates)
   {
-    if (d_deg < common::kJointLimits[0].min_value - kTurntableCandidateToleranceDeg ||
-        d_deg > common::kJointLimits[0].max_value + kTurntableCandidateToleranceDeg)
+    const auto &turntable_limit =
+        common::jointLimitForAxis(config::robotSettings().joint_limits, common::JointAxis::D);
+    if (d_deg < turntable_limit.min_value - kTurntableCandidateToleranceDeg ||
+        d_deg > turntable_limit.max_value + kTurntableCandidateToleranceDeg)
     {
       continue;
     }

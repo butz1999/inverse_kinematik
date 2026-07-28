@@ -9,9 +9,7 @@
 namespace hardware
 {
 
-constexpr uint8_t kPca9685DefaultI2cAddress = 0x40U;
 constexpr uint8_t kPca9685MaxChannel = 15U;
-constexpr uint16_t kDefaultServoPwmFrequencyHz = 50U;
 
 struct ServoChannelMap
 {
@@ -46,14 +44,7 @@ struct HardwareDriverResult
   const char *message;
 };
 
-inline Pca9685ServoDriverConfig defaultPca9685ServoDriverConfig()
-{
-  return Pca9685ServoDriverConfig{
-      kPca9685DefaultI2cAddress,
-      kDefaultServoPwmFrequencyHz,
-      ServoChannelMap{0U, 1U, 2U, 3U, 4U, 5U},
-  };
-}
+Pca9685ServoDriverConfig defaultPca9685ServoDriverConfig();
 
 inline bool isValidPca9685Channel(uint8_t channel)
 {

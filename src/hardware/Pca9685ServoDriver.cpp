@@ -6,6 +6,7 @@
 #include <Wire.h>
 
 #include "hardware/HardwareCalibration.h"
+#include "config/RobotSettings.h"
 
 namespace hardware
 {
@@ -111,7 +112,7 @@ HardwareDriverResult Pca9685ServoDriver::write(const common::JointPwmState &stat
     return notInitialized();
   }
 
-  if (!common::isWithinJointPwmLimits(state))
+  if (!common::isWithinJointPwmLimits(state, config::robotSettings().pwm_limits))
   {
     return invalidPwmValue();
   }
@@ -198,7 +199,8 @@ HardwareDriverResult Pca9685ServoDriver::writeChannel(uint8_t channel, uint16_t 
     return invalidChannel();
   }
 
-  if (pwm_value > common::kMaxPwm)
+  const auto &pwm_limits = config::robotSettings().pwm_limits;
+  if (pwm_value < pwm_limits.min_value || pwm_value > pwm_limits.max_value)
   {
     return invalidPwmValue();
   }

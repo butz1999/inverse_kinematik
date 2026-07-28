@@ -152,6 +152,7 @@ Die primären Komponenten der Softwaresicht sind:
 * `robotics` für Kinematik, Validierung, Robot Model, `RobotModelOffset` und robotiknahe Datenmodelle
 * `hardware` für Hardware Abstraction, `HardwareCalibration`, Treiberanbindung und hardwarebezogene Ausgabe
 * `common` für gemeinsam genutzte, modulübergreifende Datentypen und Hilfsstrukturen
+* `config` für die statischen, typisierten Einstellungen des installierten Roboters
 
 Für die Abhängigkeitsrichtung der Module gelten in der ersten Ausbaustufe folgende Grundregeln:
 
@@ -160,6 +161,7 @@ Für die Abhängigkeitsrichtung der Module gelten in der ersten Ausbaustufe folg
 * `robotics` kennt keine konkreten Hardwaretreiber und keine REST-/Serial-Protokollschicht
 * `hardware` kennt keine fachliche Ablaufsteuerung, sondern nur freigegebene hardwarenahe Eingangsdaten und technische Rückgabemodelle
 * `common` enthält nur solche Typen, die tatsächlich modulübergreifend gebraucht werden
+* `config` bündelt die fachlichen und hardwarebezogenen Standardwerte; andere Komponenten lesen daraus, ändern diese Werte zur Laufzeit jedoch nicht
 
 Die konkrete Umsetzung einer Komponente kann je nach Reifegrad unterschiedlich klein oder gross ausfallen. Für frühe Bring-up-Schritte darf ein Baustein zunächst auch nur aus wenigen Dateien oder sogar aus einer noch schlanken Verdrahtung in `src/main.cpp` bestehen, solange die fachliche Zielstruktur erkennbar bleibt. Das ist insbesondere für den ersten Software-Slice relevant, in dem zunächst serielle Debug-Ausgaben, eine kleine REST-Schnittstelle und der direkte PCA9685-Bring-up aufgebaut werden, bevor `Run Engine`, `Orchestrator`, Robotik und die vollständige Hardware-Abstraktion umgesetzt sind.
 
@@ -189,6 +191,7 @@ src/
   robotics/
   hardware/
   common/
+  config/
 
 test/
   native/
@@ -211,6 +214,7 @@ Für die Komponentenordner unter `src/` ist in der ersten Ausbaustufe grob folge
 * `src/robotics/` für Kinematik, Validierung, Robot Model, `RobotModelOffset` und robotiknahe Datenmodelle
 * `src/hardware/` für Hardware Abstraction, `HardwareCalibration`, Treiberanbindung und hardwarebezogene Ausgabe
 * `src/common/` für gemeinsame, modulübergreifend verwendete Datentypen und Hilfsstrukturen
+* `src/config/` für `RobotSettings` als zentrale Quelle statischer Robotereinstellungen
 
 Für den ersten lauffähigen Stand werden mindestens folgende Dateien oder gleichwertige Strukturen erwartet:
 
@@ -238,6 +242,19 @@ Für den Begriff Kalibration wird in diesem Dokument bewusst zwischen zwei Ebene
 * `HardwareCalibration` beschreibt die Abbildung von logischen Aktorzuständen auf konkrete hardwarebezogene Stellwerte. Dazu gehören insbesondere fachliche Minimal- und Maximalwerte sowie die zugeordneten PWM-Endpunkte, die erst bei der hardwarenahen Ausgabe relevant werden.
 
 Damit wird klar abgegrenzt, dass nicht jede Korrektur dieselbe Bedeutung hat: `RobotModelOffset` gehört zur Robotik- und Modellseite, `HardwareCalibration` zur Hardware Abstraction und zur Ansteuerung der realen Aktoren.
+
+### RobotSettings
+
+`RobotSettings` bündelt die statischen, typisierten Einstellungen des konkret installierten Roboters. Die Fabrik `config::robotSettings()` liefert eine unveränderliche Instanz und ist die alleinige Quelle für:
+
+* die fachlichen Gelenkgrenzen aller Achsen
+* die globale zulässige PWM-Spanne des PCA9685
+* die gerichteten PWM-Endpunkte der Servo-Kalibration
+* die angenommene Initialposition
+* `RobotModel` und `RobotModelOffset`
+* PCA9685-Adresse, PWM-Frequenz und Achsen-Kanalzuordnung
+
+`JointAxis` definiert die kanonischen Achsen `d`, `s`, `e`, `hp`, `hr` und `g` sowie deren Feldnamen für Joint- und PWM-JSON. `HardwareCalibration` leitet ihre fachlichen Bereiche und PWM-Endpunkte aus `RobotSettings` ab, statt diese Werte selbst zu duplizieren. Die gerichteten PWM-Endpunkte bleiben dabei Kalibrationsdaten; für Eingabefelder veröffentlicht die REST-Schnittstelle daraus jeweils den numerisch sortierten Bereich.
 
 Im Unterschied zur Projektbeschreibung werden in diesem Softwaredokument für Datenmodelle und spätere C++-Typen bewusst code-nahe Bezeichner ohne Leerzeichen verwendet. Der Architekturbaustein `Robot Model Offset` entspricht hier also dem Datentyp beziehungsweise Modell `RobotModelOffset`.
 
@@ -762,6 +779,7 @@ Damit gilt bewusst:
 Für den frühen Bring-up ist zusätzlich ein bewusst niedriger angesetzter REST-Pfad vorgesehen. Dieser Pfad dient dazu, den Roboter zunächst ohne inverse Kinematik und ohne vollständigen `Orchestrator` schrittweise bedienbar zu machen:
 
 * `GET /api/joint-state` liefert den aktuell angenommenen fachlichen `JointState`
+* `GET /api/settings/motion-limits` liefert die für Bedienoberflächen bestimmten Gelenk- und Servo-PWM-Grenzen aus `RobotSettings`
 * `POST /api/joint-motion` nimmt einen direkten Zielzustand im Joint Space entgegen
 * `GET /api/joint-pwm-state` liefert den aktuell angenommenen hardwarenahen `JointPwmState`
 * `POST /api/servo-driver/init` initialisiert den PCA9685-Servo-Treiber und schreibt den initialen PWM-Zustand

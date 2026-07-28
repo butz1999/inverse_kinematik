@@ -68,6 +68,7 @@ const baseUrlStorageKey = "dilbert.baseUrl.v1";
 const controllerPairingPollMs = 1000;
 const controllerConnectedPollMs = 200;
 const controllerFormUpdateIntervalMs = 500;
+const guiMotionFormSyncQuietPeriodMs = 1000;
 const controllerStickAxisMax = 2048;
 const controllerButtonBits = {
   b: 1 << 0,
@@ -177,6 +178,9 @@ let sequenceStatusTimer = 0;
 let controllerStatusTimer = 0;
 let controllerStatusPollDelayMs = 0;
 let lastControllerFormUpdateMs = 0;
+let suppressControllerMotionFormUpdatesUntilMs = 0;
+let controllerMotionFormSyncGeneration = 0;
+let lastControllerState = null;
 
 function loadBaseUrl() {
   try {
@@ -199,6 +203,58 @@ baseUrlInput.value = loadBaseUrl();
 function apiUrl(path) {
   const baseUrl = baseUrlInput.value.replace(/\/+$/, "");
   return `${baseUrl}${path}`;
+}
+
+function applyNumberInputLimits(form, limits) {
+  for (const input of form.querySelectorAll('input[type="number"]')) {
+    const limit = limits?.[input.name];
+    if (!Number.isFinite(limit?.min) || !Number.isFinite(limit?.max) || limit.min > limit.max) {
+      continue;
+    }
+
+    input.min = String(limit.min);
+    input.max = String(limit.max);
+    const currentValue = Number(input.value);
+    if (Number.isFinite(currentValue)) {
+      input.value = String(Math.min(limit.max, Math.max(limit.min, currentValue)));
+    }
+  }
+}
+
+function setMotionControlsEnabled(enabled) {
+  for (const form of [jointForm, pwmForm]) {
+    for (const input of form.querySelectorAll('input[type="number"]')) {
+      input.disabled = !enabled;
+    }
+  }
+  sendJointButton.disabled = !enabled;
+  sendButton.disabled = !enabled;
+}
+
+async function loadMotionLimits() {
+  const body = await getJson("/api/settings/motion-limits");
+  if (body.schemaVersion !== 1 || !body.jointLimits || !body.servoPwmLimits) {
+    throw new Error("Motion limits response has an unsupported schema.");
+  }
+
+  applyNumberInputLimits(jointForm, body.jointLimits);
+  applyNumberInputLimits(pwmForm, body.servoPwmLimits);
+}
+
+async function loadMotionStates() {
+  const [jointStateBody, jointPwmStateBody] = await Promise.all([
+    getJson("/api/joint-state"),
+    getJson("/api/joint-pwm-state"),
+  ]);
+  updateJointForm(jointStateBody.jointState);
+  updatePwmForm(jointPwmStateBody.jointPwmState);
+}
+
+async function refreshMotionLimits() {
+  setMotionControlsEnabled(false);
+  await loadMotionLimits();
+  await loadMotionStates();
+  setMotionControlsEnabled(true);
 }
 
 function setStatus(message, payload) {
@@ -909,12 +965,18 @@ function updateControllerPanel(controller) {
   updateControllerVisualizer(controller.input);
 }
 
-function updateControllerMotionForms(body, force = false) {
+function updateControllerMotionForms(body, force = false, syncGeneration = controllerMotionFormSyncGeneration) {
   if (!body?.jointState || !body?.targetPose) {
     return;
   }
 
   const nowMs = Date.now();
+  if (!force && syncGeneration !== controllerMotionFormSyncGeneration) {
+    return;
+  }
+  if (!force && nowMs < suppressControllerMotionFormUpdatesUntilMs) {
+    return;
+  }
   if (!force && nowMs - lastControllerFormUpdateMs < controllerFormUpdateIntervalMs) {
     return;
   }
@@ -923,6 +985,15 @@ function updateControllerMotionForms(body, force = false) {
   updatePoseForm(body.targetPose);
   refreshCommittedFormStates();
   lastControllerFormUpdateMs = nowMs;
+}
+
+function suppressControllerMotionFormUpdates() {
+  // Invalidate an already running controller status request as well.
+  controllerMotionFormSyncGeneration += 1;
+  suppressControllerMotionFormUpdatesUntilMs = Date.now() + guiMotionFormSyncQuietPeriodMs;
+  if (lastControllerState) {
+    syncControllerPolling(lastControllerState);
+  }
 }
 
 function shouldPollController(controller) {
@@ -938,12 +1009,15 @@ function stopControllerPolling() {
 }
 
 function syncControllerPolling(controller) {
+  lastControllerState = controller;
   if (!shouldPollController(controller)) {
     stopControllerPolling();
     return;
   }
 
-  const nextDelayMs = controller?.status === "connected" ? controllerConnectedPollMs : controllerPairingPollMs;
+  const baseDelayMs = controller?.status === "connected" ? controllerConnectedPollMs : controllerPairingPollMs;
+  const suppressionRemainingMs = Math.max(0, suppressControllerMotionFormUpdatesUntilMs - Date.now());
+  const nextDelayMs = Math.max(baseDelayMs, suppressionRemainingMs);
   if (controllerStatusTimer && controllerStatusPollDelayMs === nextDelayMs) {
     return;
   }
@@ -952,10 +1026,15 @@ function syncControllerPolling(controller) {
   controllerStatusPollDelayMs = nextDelayMs;
   controllerStatusTimer = window.setTimeout(async () => {
     controllerStatusTimer = 0;
+    if (Date.now() < suppressControllerMotionFormUpdatesUntilMs) {
+      syncControllerPolling(lastControllerState);
+      return;
+    }
     try {
+      const syncGeneration = controllerMotionFormSyncGeneration;
       const body = await getJson("/api/controller/status");
       updateControllerPanel(body.controller);
-      updateControllerMotionForms(body);
+      updateControllerMotionForms(body, false, syncGeneration);
       syncControllerPolling(body.controller);
     } catch {
       stopControllerPolling();
@@ -1170,6 +1249,7 @@ async function sendPoseState(source) {
   };
   sendPoseButton.disabled = true;
   try {
+    suppressControllerMotionFormUpdates();
     setStatus(`${source} pose...`, state);
     const body = await postJson("/api/motion", state);
     updateFormsFromResponse(body);
@@ -1183,6 +1263,7 @@ async function sendJointState(source) {
   const state = readJointState();
   sendJointButton.disabled = true;
   try {
+    suppressControllerMotionFormUpdates();
     setStatus(`${source} position...`, state);
     const body = await postJson("/api/joint-motion", state);
     updateFormsFromResponse(body);
@@ -1339,6 +1420,9 @@ function addCommittedNumberSend(form, sendState) {
     let tabLeavePending = false;
 
     input.addEventListener("pointerdown", (event) => {
+      if (form === jointForm) {
+        suppressControllerMotionFormUpdates();
+      }
       spinnerPointerActive = isSpinnerPointerEvent(event);
     });
 
@@ -1351,11 +1435,17 @@ function addCommittedNumberSend(form, sendState) {
     });
 
     input.addEventListener("keydown", (event) => {
+      if (form === jointForm) {
+        suppressControllerMotionFormUpdates();
+      }
       keyboardStepPending = ["ArrowUp", "ArrowDown", "PageUp", "PageDown"].includes(event.key);
       tabLeavePending = event.key === "Tab";
     });
 
     input.addEventListener("input", () => {
+      if (form === jointForm) {
+        suppressControllerMotionFormUpdates();
+      }
       if (spinnerPointerActive || keyboardStepPending) {
         void sendLatestState();
       }
@@ -1383,7 +1473,12 @@ initButton.addEventListener("click", async () => {
   }
 });
 
-baseUrlInput.addEventListener("change", saveBaseUrl);
+baseUrlInput.addEventListener("change", () => {
+  saveBaseUrl();
+  void refreshMotionLimits().catch((error) => {
+    setStatus(`Motion limits unavailable: ${error.message}`);
+  });
+});
 
 controllerConnectButton.addEventListener("click", async () => {
   try {
@@ -1610,3 +1705,6 @@ renderPoseHistory();
 renderSequence();
 updateControllerVisualizer(null);
 initializeControllerPolling();
+void refreshMotionLimits().catch((error) => {
+  setStatus(`Motion limits unavailable: ${error.message}`);
+});

@@ -37,6 +37,7 @@ class RestApiServer
  private:
   void handleHealth();
   void handleStatus();
+  void handleMotionLimits();
   void handleJointState();
   void handleJointMotionRequest();
   void handleJointPwmState();

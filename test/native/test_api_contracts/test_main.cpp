@@ -14,6 +14,7 @@ void test_api_contracts_expose_stable_endpoint_paths()
 {
   TEST_ASSERT_EQUAL_STRING("/api/health", application::kHealthPath);
   TEST_ASSERT_EQUAL_STRING("/api/status", application::kStatusPath);
+  TEST_ASSERT_EQUAL_STRING("/api/settings/motion-limits", application::kMotionLimitsPath);
   TEST_ASSERT_EQUAL_STRING("/api/joint-state", application::kJointStatePath);
   TEST_ASSERT_EQUAL_STRING("/api/joint-motion", application::kJointMotionPath);
   TEST_ASSERT_EQUAL_STRING("/api/joint-pwm-state", application::kJointPwmStatePath);

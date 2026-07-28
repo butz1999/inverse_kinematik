@@ -32,6 +32,7 @@ constexpr const char *kApiName =               "inverse_kinematic";
 constexpr const char *kApiVersion =            "v1";
 constexpr const char *kHealthPath =            "/api/health";
 constexpr const char *kStatusPath =            "/api/status";
+constexpr const char *kMotionLimitsPath =      "/api/settings/motion-limits";
 constexpr const char *kJointStatePath =        "/api/joint-state";
 constexpr const char *kJointMotionPath =       "/api/joint-motion";
 constexpr const char *kJointPwmStatePath =     "/api/joint-pwm-state";

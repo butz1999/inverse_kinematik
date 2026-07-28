@@ -8,6 +8,7 @@
 #include <ArduinoJson.h>
 
 #include "application/ApiJson.h"
+#include "config/RobotSettings.h"
 #include "orchestration/MotionOrchestrator.h"
 #include "robotics/Kinematics.h"
 #include "robotics/Validation.h"
@@ -54,12 +55,38 @@ float roundReportedValue(float value)
 
 void setJointStateJson(JsonObject object, const common::JointState &state)
 {
-  object["d_deg"] = roundReportedValue(state.d_deg);
-  object["s_deg"] = roundReportedValue(state.s_deg);
-  object["e_deg"] = roundReportedValue(state.e_deg);
-  object["hp_deg"] = roundReportedValue(state.hp_deg);
-  object["hr_deg"] = roundReportedValue(state.hr_deg);
-  object["g_pct"] = roundReportedValue(state.g_pct);
+  for (const auto axis : common::kJointAxes)
+  {
+    object[common::jointAxisFieldName(axis)] = roundReportedValue(common::jointAxisValue(state, axis));
+  }
+}
+
+void setMotionLimitsJson(JsonObject object)
+{
+  const auto &settings = config::robotSettings();
+  object["schemaVersion"] = 1U;
+
+  auto joint_limits_json = object.createNestedObject("jointLimits");
+  auto servo_pwm_limits_json = object.createNestedObject("servoPwmLimits");
+  for (const auto axis : common::kJointAxes)
+  {
+    const auto &joint_limit = common::jointLimitForAxis(settings.joint_limits, axis);
+    auto joint_limit_json = joint_limits_json.createNestedObject(common::jointAxisFieldName(axis));
+    joint_limit_json["min"] = joint_limit.min_value;
+    joint_limit_json["max"] = joint_limit.max_value;
+    joint_limit_json["unit"] = axis == common::JointAxis::G ? "pct" : "deg";
+
+    const auto &pwm_endpoints = config::servoPwmEndpointsFor(settings.servo_pwm_calibration, axis);
+    auto servo_pwm_limit_json = servo_pwm_limits_json.createNestedObject(common::jointAxisPwmFieldName(axis));
+    servo_pwm_limit_json["min"] = std::min(pwm_endpoints.min_pwm, pwm_endpoints.max_pwm);
+    servo_pwm_limit_json["max"] = std::max(pwm_endpoints.min_pwm, pwm_endpoints.max_pwm);
+    servo_pwm_limit_json["unit"] = "pwm";
+  }
+
+  auto pwm_limits_json = object.createNestedObject("pwmLimits");
+  pwm_limits_json["min"] = settings.pwm_limits.min_value;
+  pwm_limits_json["max"] = settings.pwm_limits.max_value;
+  pwm_limits_json["unit"] = "pwm";
 }
 
 void setTargetPoseJson(JsonObject object, const common::TargetPose &pose)
@@ -255,6 +282,11 @@ void RestApiServer::init()
              [this]()
              {
                handleStatus();
+             });
+  server_.on(kMotionLimitsPath, HTTP_GET,
+             [this]()
+             {
+               handleMotionLimits();
              });
   server_.on(kJointStatePath, HTTP_GET,
              [this]()
@@ -720,12 +752,25 @@ void RestApiServer::handleStatus()
   doc["motionEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["sequenceEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["controllerEndpoint"] = toString(ApiCapabilityStatus::Available);
+  doc["motionLimitsEndpoint"] = toString(ApiCapabilityStatus::Available);
   doc["motionPlanActive"] = hasActiveMotionPlan();
   doc["motionPlanSampleIndex"] = active_motion_sample_index_;
   doc["motionPlanSampleCount"] = active_motion_plan_.sample_count;
   setSequenceStateJson(doc.createNestedObject("sequence"), run_engine_.state(), millis());
   setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
   doc["uptimeMs"] = millis();
+
+  sendJson(200, jsonBody(doc));
+}
+
+void RestApiServer::handleMotionLimits()
+{
+  logRequest("GET", kMotionLimitsPath);
+
+  RestJsonDocument doc;
+  doc["status"] = toString(ApiResultCode::Ok);
+  doc["code"] = toString(ApiResultCode::Ok);
+  setMotionLimitsJson(doc.as<JsonObject>());
 
   sendJson(200, jsonBody(doc));
 }

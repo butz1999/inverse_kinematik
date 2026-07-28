@@ -8,6 +8,7 @@
 
 #include "application/ControllerInput.h"
 #include "common/JointState.h"
+#include "config/RobotSettings.h"
 
 namespace application
 {
@@ -44,15 +45,7 @@ enum class ControllerJogSource
   ButtonCamera,
 };
 
-enum class ControllerJogAxis : std::size_t
-{
-  D = 0U,
-  S = 1U,
-  E = 2U,
-  Hp = 3U,
-  Hr = 4U,
-  G = 5U,
-};
+using ControllerJogAxis = common::JointAxis;
 
 struct ControllerJogMapping
 {
@@ -142,30 +135,9 @@ inline bool isControllerJogSourceActive(const ControllerInput &input, Controller
   return false;
 }
 
-inline float &jointAxisValue(common::JointState &state, ControllerJogAxis axis)
-{
-  switch (axis)
-  {
-    case ControllerJogAxis::D:
-      return state.d_deg;
-    case ControllerJogAxis::S:
-      return state.s_deg;
-    case ControllerJogAxis::E:
-      return state.e_deg;
-    case ControllerJogAxis::Hp:
-      return state.hp_deg;
-    case ControllerJogAxis::Hr:
-      return state.hr_deg;
-    case ControllerJogAxis::G:
-      return state.g_pct;
-  }
-
-  return state.g_pct;
-}
-
 inline const common::JointLimit &jointLimitForAxis(ControllerJogAxis axis)
 {
-  return common::kJointLimits[static_cast<std::size_t>(axis)];
+  return common::jointLimitForAxis(config::robotSettings().joint_limits, axis);
 }
 
 inline ControllerJogResult applyControllerJog(const ControllerInput &input, const common::JointState &current_state,
@@ -184,7 +156,7 @@ inline ControllerJogResult applyControllerJog(const ControllerInput &input, cons
     }
 
     active = true;
-    auto &value = jointAxisValue(next_state, mapping.axis);
+    auto &value = common::jointAxisValue(next_state, mapping.axis);
     const auto &limit = jointLimitForAxis(mapping.axis);
     const auto delta = mapping.direction * mapping.velocity_per_second * (static_cast<float>(elapsed_ms) / 1000.0F);
     value = std::max(limit.min_value, std::min(limit.max_value, value + delta));

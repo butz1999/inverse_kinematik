@@ -280,6 +280,8 @@ Aus dieser schrittweisen Kalibration ergeben sich pro Achse insbesondere:
 
 Die Kalibration ist damit ein praktischer Bestandteil der Inbetriebnahme und bildet die Grundlage dafür, dass die in der Software verwendeten Gelenkwinkel konsistent auf reale Servo-Stellwerte abgebildet werden können.
 
+Die ermittelten Werte werden für den aktuellen Aufbau als statische, typisierte `RobotSettings` im Firmware-Code gepflegt. Diese zentrale Quelle enthält sowohl die fachlichen Gelenkgrenzen als auch die gerichteten PWM-Endpunkte. Die Hardware-Kalibration leitet daraus die lineare Abbildung auf PCA9685-Ticks ab; Änderungen an Fahrweg oder Servo-Endpunkten erfolgen deshalb nur dort.
+
 ## Sicherheits- und Risikobetrachtung
 
 Für die erste Ausbaustufe wird die Sicherheitsbetrachtung bewusst auf die mechanisch relevanten Bewegungsgrenzen des Arms fokussiert.
@@ -288,7 +290,7 @@ Unkontrollierte Bewegungen beim Start werden dabei nicht separat betrachtet. Sta
 
 Mechanische Anschläge werden durch die festgelegten maximalen Achsbereiche in `[°]` begrenzt. Falls erforderlich, werden diese Grenzen zusätzlich durch minimale und maximale PWM-Werte abgesichert, die im Rahmen der Kalibration bestimmt werden.
 
-Die softwareseitige Durchsetzung dieser Grenzen ist später Aufgabe des Software HAL. Dadurch soll sichergestellt werden, dass nur zulässige Stellwerte an die Hardwareausgabe weitergegeben werden.
+Die Firmware erzwingt die fachlichen Gelenkgrenzen bereits bei Motion- und Joint-Requests sowie die globale PWM-Spanne bei direkten PWM-Requests und beim Treiberzugriff. Dadurch werden nur zulässige Stellwerte an die Hardwareausgabe weitergegeben.
 
 ## Offene Punkte und Annahmen
 
@@ -298,7 +300,7 @@ Dieses Kapitel sammelt die zum aktuellen Zeitpunkt noch nicht abschliessend gekl
 * Stromaufnahme unter Last: Die reale Last durch mehrere gleichzeitig bewegte Servos ist noch nicht gemessen und muss bei der Inbetriebnahme beobachtet werden.
 * tatsächlich nutzbarer Stellbereich der Servos: Die fachlich definierten Winkelbereiche sind festgelegt, die real sauber nutzbaren Bereiche ergeben sich jedoch erst aus der Kalibration.
 * Pinbelegung des `ESP32`: `SDA` ist auf `GPIO4`, `SCL` auf `GPIO5` und `OE` des PCA9685 auf `GPIO6` festgelegt; die serielle Diagnose ist noch festzulegen.
-* Servo-Kanalzuordnung auf dem `PCA9685`: Die feste Zuordnung der Achsen `d`, `s`, `e`, `hp`, `hr`, `g` auf konkrete PWM-Kanäle ist noch offen.
+* Servo-Kanalzuordnung auf dem `PCA9685`: Für den aktuellen Aufbau sind `d`, `s`, `e`, `hp`, `hr`, `g` fest den Kanälen `0`, `1`, `2`, `3`, `4`, `5` zugeordnet. Die PCA9685-Adresse ist `0x40`, die PWM-Frequenz `50 Hz`.
 * Umgang mit `OE`: Der `OE`-Pin des `PCA9685` liegt auf `GPIO6` des ESP32-S3. Das Signal ist active-low; `LOW` gibt die PWM-Ausgänge frei. Der Servo-Treiber sendet beim Begin einen PCA9685 Software Reset Call über die I2C-General-Call-Adresse, setzt `MODE2` einmalig auf `0x06` (`OUTDRV=1`, `INVRT=0`, `OUTNE[1:0]=10`), setzt die PWM-Frequenz, schreibt den initialen `JointPwmState` und legt `OE` anschließend auf aktiv. Die Firmware bietet bewusst keinen Laufzeit-Enable-/Disable-Pfad mehr an.
 * Beobachtetes `OE`-Verhalten im Bring-up: Das `OE`-Signal selbst verhält sich elektrisch wie erwartet (`HIGH` nach Reset, `LOW` nach Init). Trotzdem wurde an den PCA9685-Ausgängen bei `OE = HIGH` weiterhin eine Spannung von ungefähr `1.2V` gemessen, die zu zuvor gesetzten PWM-Werten passte. Die Ursache ist aktuell nicht geklärt. Bis zur Klärung darf `OE` daher nicht als vollständige Leistungs-, Spannungs- oder Hochohmig-Schaltung der Servo-Ausgänge verstanden werden.
 * Versorgung des `ESP32`: Es ist noch festzulegen, ob das Board dauerhaft über den externen `3.3V`-Wandler oder über seine eigene Board-Versorgung betrieben werden soll.

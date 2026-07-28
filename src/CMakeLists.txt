@@ -5,6 +5,7 @@ set(srcs
     "application/ApiJson.cpp"
     "application/RestApiServer.cpp"
     "application/RunEngine.cpp"
+    "config/RobotSettings.cpp"
     "hardware/HardwareCalibration.cpp"
     "hardware/Pca9685ServoDriver.cpp"
     "hardware/Pca9685ServoDriverConfig.cpp"

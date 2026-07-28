@@ -1,6 +1,7 @@
 // ArduinoJson-backed request parsing for the REST API.
 
 #include "application/ApiJson.h"
+#include "config/RobotSettings.h"
 
 #include <ArduinoJson.h>
 
@@ -326,27 +327,30 @@ JointMotionParseResult parseJointMotionRequestJson(const char *body)
     return jointMotionError(ApiResultCode::InvalidJson, kEmptyField, "Request body must be a JSON object.");
   }
 
-  const char *fields[] = {"d_deg", "s_deg", "e_deg", "hp_deg", "hr_deg", "g_pct"};
-  for (std::size_t i = 0; i < common::kJointAxisCount; ++i)
+  for (const auto axis : common::kJointAxes)
   {
-    if (isMissingOrNonNumeric(root[fields[i]]))
+    const auto *field_name = common::jointAxisFieldName(axis);
+    if (isMissingOrNonNumeric(root[field_name]))
     {
-      return jointMotionError(ApiResultCode::MissingField, fields[i],
+      return jointMotionError(ApiResultCode::MissingField, field_name,
                               "Joint motion request is missing a numeric joint field.");
     }
   }
 
-  common::JointState state{root["d_deg"].as<float>(),  root["s_deg"].as<float>(),  root["e_deg"].as<float>(),
-                           root["hp_deg"].as<float>(), root["hr_deg"].as<float>(), root["g_pct"].as<float>()};
+  auto state = common::initialJointState();
+  for (const auto axis : common::kJointAxes)
+  {
+    common::jointAxisValue(state, axis) = root[common::jointAxisFieldName(axis)].as<float>();
+  }
 
   if (!common::isFinite(state))
   {
     return jointMotionError(ApiResultCode::InvalidJson, kEmptyField, "Joint values must be finite numbers.");
   }
 
-  if (const auto *violation = common::findFirstLimitViolation(state))
+  if (const auto violation = common::findFirstLimitViolation(state, config::robotSettings().joint_limits))
   {
-    return jointMotionError(ApiResultCode::JointLimitViolation, violation->field_name,
+    return jointMotionError(ApiResultCode::JointLimitViolation, common::jointAxisFieldName(*violation),
                             "Joint value is outside its configured low-level limit.");
   }
 
@@ -377,7 +381,8 @@ JointPwmMotionParseResult parseJointPwmMotionRequestJson(const char *body)
   const char *fields[] = {"d_pwm", "s_pwm", "e_pwm", "hp_pwm", "hr_pwm", "g_pwm"};
   uint16_t *values[] = {&state.d_pwm, &state.s_pwm, &state.e_pwm, &state.hp_pwm, &state.hr_pwm, &state.g_pwm};
 
-  for (std::size_t i = 0; i < common::kJointPwmAxisCount; ++i)
+  const auto &pwm_limits = config::robotSettings().pwm_limits;
+  for (std::size_t i = 0; i < common::kJointAxisCount; ++i)
   {
     const auto value = root[fields[i]];
     if (isMissingOrNonInteger(value))
@@ -387,10 +392,10 @@ JointPwmMotionParseResult parseJointPwmMotionRequestJson(const char *body)
     }
 
     const auto parsed_value = value.as<long>();
-    if (parsed_value < common::kMinPwm || parsed_value > common::kMaxPwm)
+    if (parsed_value < pwm_limits.min_value || parsed_value > pwm_limits.max_value)
     {
       return jointPwmMotionError(ApiResultCode::JointPwmLimitViolation, fields[i],
-                                 "PWM value is outside the PCA9685 12-bit range 0..4095.");
+                                 "PWM value is outside the configured PWM limits.");
     }
 
     *values[i] = static_cast<uint16_t>(parsed_value);

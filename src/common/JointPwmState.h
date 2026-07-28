@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "common/JointAxis.h"
+
 namespace common
 {
 
@@ -18,20 +20,46 @@ struct JointPwmState
   uint16_t g_pwm;
 };
 
-constexpr uint16_t kMinPwm = 0U;
-constexpr uint16_t kMaxPwm = 4095U;
-constexpr std::size_t kJointPwmAxisCount = 6U;
-
-inline bool isWithinJointPwmLimits(const JointPwmState &state)
+struct PwmLimits
 {
-  // clang-format off
-  return state.d_pwm  <= kMaxPwm &&
-         state.s_pwm  <= kMaxPwm &&
-         state.e_pwm  <= kMaxPwm &&
-         state.hp_pwm <= kMaxPwm &&
-         state.hr_pwm <= kMaxPwm &&
-         state.g_pwm  <= kMaxPwm;
-  // clang-format on
+  uint16_t min_value;
+  uint16_t max_value;
+};
+
+inline uint16_t jointAxisPwmValue(const JointPwmState &state, JointAxis axis)
+{
+  switch (axis)
+  {
+    case JointAxis::D:
+      return state.d_pwm;
+    case JointAxis::S:
+      return state.s_pwm;
+    case JointAxis::E:
+      return state.e_pwm;
+    case JointAxis::Hp:
+      return state.hp_pwm;
+    case JointAxis::Hr:
+      return state.hr_pwm;
+    case JointAxis::G:
+    case JointAxis::Count:
+      return state.g_pwm;
+  }
+
+  return state.g_pwm;
+}
+
+inline bool isWithinJointPwmLimits(const JointPwmState &state, const PwmLimits &limits)
+{
+  for (const auto axis : kJointAxes)
+  {
+    const auto value = jointAxisPwmValue(state, axis);
+    if (value < limits.min_value || value > limits.max_value)
+    {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 }  // namespace common

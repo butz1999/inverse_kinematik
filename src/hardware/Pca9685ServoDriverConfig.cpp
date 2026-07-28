@@ -2,8 +2,15 @@
 
 #include "hardware/Pca9685ServoDriverConfig.h"
 
+#include "config/RobotSettings.h"
+
 namespace hardware
 {
+
+Pca9685ServoDriverConfig defaultPca9685ServoDriverConfig()
+{
+  return config::robotSettings().pca9685_driver;
+}
 
 const char *toString(HardwareDriverStatus status)
 {

@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "config/RobotSettings.h"
+
 namespace robotics
 {
 
@@ -79,10 +81,10 @@ JointStateResult validateJointState(const common::JointState &state)
     return error(ValidationStatus::JointLimitViolation, kEmptyField, "Joint values must be finite numbers.");
   }
 
-  const auto *violation = common::findFirstLimitViolation(state);
-  if (violation != nullptr)
+  const auto violation = common::findFirstLimitViolation(state, config::robotSettings().joint_limits);
+  if (violation.has_value())
   {
-    return error(ValidationStatus::JointLimitViolation, violation->field_name,
+    return error(ValidationStatus::JointLimitViolation, common::jointAxisFieldName(*violation),
                  "Joint value is outside the configured joint limits.");
   }
 

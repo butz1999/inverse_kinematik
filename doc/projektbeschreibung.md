@@ -61,7 +61,7 @@ Abschließend wird der Gelenkraum definiert. Die Rotationsachsen werden in [°] 
 * Drehteller d (-90°..90°), 0° zeigt in Richtung der y-Achse des Welt-Koordinatensystems.
 * Schulter s (-90°..90°), -90° ist horizontal in Richtung der y-Achse, 0° zeigt vertikal nach oben (Richtung der z-Achse) und 90° kippt die Schulter in Richtung der negativen z-Achse.
 * Ellenbogen e (-90°..90°). Hier ist die 0°-Position, wenn Oberarm und Unterarm in dieselbe Richtung zeigen. -90° kippt nach unten, +90° kippt nach oben.
-* Handgelenk-Pitch hp (-90°..0°) analog zur Ellenbogenachse.
+* Handgelenk-Pitch hp (-135°..0°) analog zur Ellenbogenachse.
 * Handgelenk-Roll hr (-90°..90°): Bei -90° dreht das Handgelenk nach links, bei 90° dreht das Handgelenk nach rechts. Blickrichtung: vom Drehteller nach vorne.
 * Greifer g (0%..100%): 0% entspricht vollständig geschlossen, 100% vollständig geöffnet.
 

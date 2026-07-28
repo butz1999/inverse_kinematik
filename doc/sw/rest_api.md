@@ -22,6 +22,7 @@ Der Server ist nach erfolgreicher WLAN-Initialisierung über die IP-Adresse des 
 | --- | --- | --- | --- |
 | `GET` | `/api/health` | Minimaler Health-Check | `200` |
 | `GET` | `/api/status` | Verfügbare API- und Hardware-Fähigkeiten | `200` |
+| `GET` | `/api/settings/motion-limits` | Bedienoberflächen-Grenzen aus den RobotSettings | `200` |
 | `GET` | `/api/joint-state` | Aktueller angenommener Gelenkzustand in Grad/Prozent | `200` |
 | `POST` | `/api/joint-motion` | Direkten Gelenkzustand setzen | `202` |
 | `GET` | `/api/joint-pwm-state` | Aktueller angenommener PWM-Zustand | `200` |
@@ -45,6 +46,7 @@ flowchart TD
   Client[HTTP Client] --> Server[RestApiServer]
   Server --> Health["GET /api/health"]
   Server --> Status["GET /api/status"]
+  Server --> MotionLimits["GET /api/settings/motion-limits"]
   Server --> JointState["GET /api/joint-state"]
   Server --> JointMotion["POST /api/joint-motion"]
   Server --> PwmState["GET /api/joint-pwm-state"]
@@ -77,7 +79,7 @@ flowchart TD
 | `invalid_json` | Request-Body fehlt, ist kein JSON oder kein JSON-Objekt |
 | `missing_field` | Pflichtfeld fehlt oder hat den falschen Typ |
 | `joint_limit_violation` | Gelenkwert liegt außerhalb der konfigurierten Grenzen |
-| `joint_pwm_limit_violation` | PWM-Wert liegt außerhalb `0..4095` |
+| `joint_pwm_limit_violation` | PWM-Wert liegt außerhalb der konfigurierten globalen PWM-Grenzen |
 | `hardware_driver_failure` | PCA9685-Treiber konnte nicht initialisiert werden, ist noch nicht initialisiert oder konnte nicht beschrieben werden |
 | `sequence_busy` | Es läuft bereits eine Sequenz oder ein Motion-Plan |
 | `orchestrator_unavailable` | Orchestrator-Endpunkt ist reserviert, aber noch nicht implementiert |
@@ -91,10 +93,43 @@ flowchart TD
 | `driver_begin_failed` | Initialisierung des PCA9685-Treibers fehlgeschlagen |
 | `driver_configuration_failed` | PCA9685-Treiberkonfiguration fehlgeschlagen |
 | `invalid_channel` | PCA9685-Kanal liegt außerhalb `0..15` |
-| `invalid_pwm_value` | PWM-Wert liegt außerhalb `0..4095` |
+| `invalid_pwm_value` | PWM-Wert liegt außerhalb der konfigurierten globalen PWM-Grenzen |
 | `not_initialized` | Treiber wurde vor dem Schreiben nicht initialisiert |
 
 ## Datenmodelle
+
+### Motion Limits
+
+`GET /api/settings/motion-limits` liefert die für die Bedienoberfläche vorgesehenen fachlichen Gelenkgrenzen sowie die numerisch sicheren PWM-Bereiche pro Servo. Die Antwort enthält außerdem die globale PCA9685-PWM-Grenze des Diagnosepfads. Dilbert lädt diese Werte beim Start und verwendet sie für seine Eingabefelder; das Backend prüft Bewegungsrequests weiterhin selbst.
+
+Die Grenzen stammen aus `RobotSettings`. `servoPwmLimits` enthält pro Achse den numerisch sortierten Bereich; die interne Kalibration behält ihre gerichteten Endpunkte, damit die Servo-Drehrichtung erhalten bleibt.
+
+Beispielantwort:
+
+```json
+{
+  "status": "ok",
+  "code": "ok",
+  "schemaVersion": 1,
+  "jointLimits": {
+    "d_deg": {"min": -90, "max": 90, "unit": "deg"},
+    "s_deg": {"min": -90, "max": 90, "unit": "deg"},
+    "e_deg": {"min": -90, "max": 90, "unit": "deg"},
+    "hp_deg": {"min": -135, "max": 0, "unit": "deg"},
+    "hr_deg": {"min": -90, "max": 90, "unit": "deg"},
+    "g_pct": {"min": 0, "max": 100, "unit": "pct"}
+  },
+  "servoPwmLimits": {
+    "d_pwm": {"min": 100, "max": 530, "unit": "pwm"},
+    "s_pwm": {"min": 80, "max": 490, "unit": "pwm"},
+    "e_pwm": {"min": 90, "max": 500, "unit": "pwm"},
+    "hp_pwm": {"min": 200, "max": 520, "unit": "pwm"},
+    "hr_pwm": {"min": 100, "max": 500, "unit": "pwm"},
+    "g_pwm": {"min": 130, "max": 375, "unit": "pwm"}
+  },
+  "pwmLimits": {"min": 0, "max": 4095, "unit": "pwm"}
+}
+```
 
 ### JointState
 
@@ -261,6 +296,7 @@ Response `200`:
 {
   "restApi": "available",
   "orchestrator": "not_available",
+  "motionLimitsEndpoint": "available",
   "jointStateEndpoint": "available",
   "jointMotionEndpoint": "available",
   "jointPwmStateEndpoint": "available",
@@ -953,5 +989,5 @@ flowchart TD
 - Alle Pflichtfelder müssen vorhanden sein.
 - Joint-Werte müssen numerisch und endlich sein.
 - PWM-Werte müssen ganzzahlig sein.
-- PWM-Werte müssen im Bereich `0..4095` liegen.
+- PWM-Werte müssen innerhalb der konfigurierten globalen PWM-Grenzen liegen.
 - Bei Fehlern enthält die Response nach Möglichkeit das Feld `field` mit dem ersten betroffenen Feldnamen.

@@ -3,8 +3,12 @@
 
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <cstddef>
+#include <optional>
+
+#include "common/JointAxis.h"
 
 namespace common
 {
@@ -21,23 +25,11 @@ struct JointState
 
 struct JointLimit
 {
-  const char *field_name;
   float min_value;
   float max_value;
 };
 
-// clang-format off
-constexpr JointLimit kJointLimits[] = {
-    {"d_deg",   -90.0F,  90.0F},
-    {"s_deg",   -90.0F,  90.0F},
-    {"e_deg",   -90.0F,  90.0F},
-    {"hp_deg", -135.0F,   0.0F},
-    {"hr_deg",  -90.0F,  90.0F}, 
-    {"g_pct",     0.0F, 100.0F},
-};
-// clang-format on
-
-constexpr std::size_t kJointAxisCount = sizeof(kJointLimits) / sizeof(kJointLimits[0]);
+using JointLimits = std::array<JointLimit, kJointAxisCount>;
 
 inline JointState initialJointState()
 {
@@ -50,48 +42,79 @@ inline bool isFinite(const JointState &state)
          std::isfinite(state.hp_deg) && std::isfinite(state.hr_deg) && std::isfinite(state.g_pct);
 }
 
-inline float valueForLimit(const JointState &state, std::size_t index)
+inline float &jointAxisValue(JointState &state, JointAxis axis)
 {
-  switch (index)
+  switch (axis)
   {
-    case 0:
+    case JointAxis::D:
       return state.d_deg;
-    case 1:
+    case JointAxis::S:
       return state.s_deg;
-    case 2:
+    case JointAxis::E:
       return state.e_deg;
-    case 3:
+    case JointAxis::Hp:
       return state.hp_deg;
-    case 4:
+    case JointAxis::Hr:
       return state.hr_deg;
-    default:
+    case JointAxis::G:
+      return state.g_pct;
+    case JointAxis::Count:
       return state.g_pct;
   }
+
+  return state.g_pct;
 }
 
-inline const JointLimit *findFirstLimitViolation(const JointState &state)
+inline float jointAxisValue(const JointState &state, JointAxis axis)
+{
+  switch (axis)
+  {
+    case JointAxis::D:
+      return state.d_deg;
+    case JointAxis::S:
+      return state.s_deg;
+    case JointAxis::E:
+      return state.e_deg;
+    case JointAxis::Hp:
+      return state.hp_deg;
+    case JointAxis::Hr:
+      return state.hr_deg;
+    case JointAxis::G:
+    case JointAxis::Count:
+      return state.g_pct;
+  }
+
+  return state.g_pct;
+}
+
+inline const JointLimit &jointLimitForAxis(const JointLimits &limits, JointAxis axis)
+{
+  return limits[jointAxisIndex(axis)];
+}
+
+inline std::optional<JointAxis> findFirstLimitViolation(const JointState &state, const JointLimits &limits)
 {
   if (!isFinite(state))
   {
-    return nullptr;
+    return std::nullopt;
   }
 
-  for (std::size_t i = 0; i < kJointAxisCount; ++i)
+  for (const auto axis : kJointAxes)
   {
-    const auto value = valueForLimit(state, i);
-    const auto &limit = kJointLimits[i];
+    const auto value = jointAxisValue(state, axis);
+    const auto &limit = jointLimitForAxis(limits, axis);
     if (value < limit.min_value || value > limit.max_value)
     {
-      return &limit;
+      return axis;
     }
   }
 
-  return nullptr;
+  return std::nullopt;
 }
 
-inline bool isWithinJointLimits(const JointState &state)
+inline bool isWithinJointLimits(const JointState &state, const JointLimits &limits)
 {
-  return isFinite(state) && findFirstLimitViolation(state) == nullptr;
+  return isFinite(state) && !findFirstLimitViolation(state, limits).has_value();
 }
 
 }  // namespace common
