@@ -31,7 +31,7 @@ constexpr JointLimit kJointLimits[] = {
     {"d_deg",   -90.0F,  90.0F},
     {"s_deg",   -90.0F,  90.0F},
     {"e_deg",   -90.0F,  90.0F},
-    {"hp_deg",  -90.0F,   0.0F},  
+    {"hp_deg", -135.0F,   0.0F},
     {"hr_deg",  -90.0F,  90.0F}, 
     {"g_pct",     0.0F, 100.0F},
 };

@@ -48,7 +48,10 @@ inline float limitControllerJointAxis(float current, float target, float &veloci
                                       const ControllerJointSlewLimiterConfig &config)
 {
   const auto remaining = target - current;
-  const auto target_velocity = remaining == 0.0F ? 0.0F : std::copysign(config.maximum_velocity_deg_s, remaining);
+  const auto maximum_braking_velocity =
+      std::sqrt(2.0F * config.maximum_acceleration_deg_s2 * std::fabs(remaining));
+  const auto target_velocity =
+      remaining == 0.0F ? 0.0F : std::copysign(std::min(config.maximum_velocity_deg_s, maximum_braking_velocity), remaining);
   const auto maximum_velocity_delta = config.maximum_acceleration_deg_s2 * elapsed_seconds;
   if (velocity_deg_s < target_velocity)
   {

@@ -105,7 +105,7 @@ Gelenkwerte werden als JSON-Zahlen übertragen. Responses geben Werte mit drei N
 | `d_deg` | Grad | `-90.0` | `90.0` |
 | `s_deg` | Grad | `-90.0` | `90.0` |
 | `e_deg` | Grad | `-90.0` | `90.0` |
-| `hp_deg` | Grad | `-90.0` | `0.0` |
+| `hp_deg` | Grad | `-135.0` | `0.0` |
 | `hr_deg` | Grad | `-90.0` | `90.0` |
 | `g_pct` | Prozent | `0.0` | `100.0` |
 

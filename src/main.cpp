@@ -201,7 +201,7 @@ void setup()
     else
     {
       logger.println("[BOOT] mDNS not started");
-      color = hardware::StatusLed::Color::Orange;
+      color = hardware::StatusLed::Color::Yellow;
     }
   }
   else

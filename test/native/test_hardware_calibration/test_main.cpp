@@ -26,7 +26,7 @@ void test_default_calibration_maps_values_linearly_between_axis_limits()
   TEST_ASSERT_EQUAL_UINT16(315U, result.joint_pwm_state.d_pwm);
   TEST_ASSERT_EQUAL_UINT16(285U, result.joint_pwm_state.s_pwm);
   TEST_ASSERT_EQUAL_UINT16(295U, result.joint_pwm_state.e_pwm);
-  TEST_ASSERT_EQUAL_UINT16(320U, result.joint_pwm_state.hp_pwm);
+  TEST_ASSERT_EQUAL_UINT16(520U, result.joint_pwm_state.hp_pwm);
   TEST_ASSERT_EQUAL_UINT16(300U, result.joint_pwm_state.hr_pwm);
 }
 
@@ -39,7 +39,7 @@ void test_default_calibration_maps_axis_limits_to_pwm_limits()
   TEST_ASSERT_EQUAL_UINT16(530U, result.joint_pwm_state.d_pwm);
   TEST_ASSERT_EQUAL_UINT16(490U, result.joint_pwm_state.s_pwm);
   TEST_ASSERT_EQUAL_UINT16(500U, result.joint_pwm_state.e_pwm);
-  TEST_ASSERT_EQUAL_UINT16(320U, result.joint_pwm_state.hp_pwm);
+  TEST_ASSERT_EQUAL_UINT16(520U, result.joint_pwm_state.hp_pwm);
   TEST_ASSERT_EQUAL_UINT16(500U, result.joint_pwm_state.hr_pwm);
   TEST_ASSERT_EQUAL_UINT16(375U, result.joint_pwm_state.g_pwm);
 }
@@ -53,7 +53,7 @@ void test_default_calibration_clamps_values_before_mapping()
   TEST_ASSERT_EQUAL_UINT16(530U, result.joint_pwm_state.d_pwm);
   TEST_ASSERT_EQUAL_UINT16(80U, result.joint_pwm_state.s_pwm);
   TEST_ASSERT_EQUAL_UINT16(295U, result.joint_pwm_state.e_pwm);
-  TEST_ASSERT_EQUAL_UINT16(320U, result.joint_pwm_state.hp_pwm);
+  TEST_ASSERT_EQUAL_UINT16(520U, result.joint_pwm_state.hp_pwm);
   TEST_ASSERT_EQUAL_UINT16(300U, result.joint_pwm_state.hr_pwm);
   TEST_ASSERT_EQUAL_UINT16(130U, result.joint_pwm_state.g_pwm);
 }

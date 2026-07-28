@@ -25,6 +25,8 @@ struct ControllerCartesianJogState
   float velocity_x_mm_s;
   float velocity_y_mm_s;
   float velocity_z_mm_s;
+  bool target_pose_initialized;
+  common::TargetPose target_pose;
 };
 
 struct ControllerCartesianJogResult
@@ -38,17 +40,38 @@ inline constexpr ControllerCartesianJogConfig kDefaultControllerCartesianJogConf
     250,     // Dead-zone Analog Stick
     2047,    // Maximum input Analog Stick
     120.0F,   // Move-Speed
-    180.0F,  // Move-Velocity
+    240.0F,  // Move-Velocity
 };
 
 inline ControllerCartesianJogState emptyControllerCartesianJogState()
 {
-  return ControllerCartesianJogState{0.0F, 0.0F, 0.0F};
+  return ControllerCartesianJogState{0.0F, 0.0F, 0.0F, false, common::initialTargetPose()};
 }
 
 inline void resetControllerCartesianJog(ControllerCartesianJogState &state)
 {
   state = emptyControllerCartesianJogState();
+}
+
+inline void stopControllerCartesianJog(ControllerCartesianJogState &state)
+{
+  state.velocity_x_mm_s = 0.0F;
+  state.velocity_y_mm_s = 0.0F;
+  state.velocity_z_mm_s = 0.0F;
+}
+
+inline bool hasControllerCartesianJogTarget(const ControllerCartesianJogState &state)
+{
+  return state.target_pose_initialized;
+}
+
+inline float controllerCartesianSingularitySpeedScale(float elbow_deg)
+{
+  constexpr float kSlowdownElbowAngleDeg = 20.0F;
+  constexpr float kMinimumSpeedScale = 0.15F;
+  const auto normalized = std::fabs(std::sin((elbow_deg * 3.14159265358979323846F) / 180.0F)) /
+                          std::sin((kSlowdownElbowAngleDeg * 3.14159265358979323846F) / 180.0F);
+  return kMinimumSpeedScale + ((1.0F - kMinimumSpeedScale) * std::min(1.0F, normalized));
 }
 
 inline float normalizedControllerStickAxis(int16_t value, const ControllerCartesianJogConfig &config)
@@ -78,16 +101,27 @@ inline ControllerCartesianJogResult applyControllerCartesianJog(const Controller
                                                                  uint32_t elapsed_ms,
                                                                  ControllerCartesianJogState &state,
                                                                  const ControllerCartesianJogConfig &config =
-                                                                     kDefaultControllerCartesianJogConfig)
+                                                                     kDefaultControllerCartesianJogConfig,
+                                                                 float speed_scale = 1.0F)
 {
   if (!input.valid || elapsed_ms == 0U)
   {
     return ControllerCartesianJogResult{false, false, current_pose};
   }
 
-  const auto target_velocity_x = normalizedControllerStickAxis(input.left_x, config) * config.maximum_velocity_mm_s;
-  const auto target_velocity_y = normalizedControllerStickAxis(input.left_y, config) * config.maximum_velocity_mm_s;
-  const auto target_velocity_z = normalizedControllerStickAxis(input.right_y, config) * config.maximum_velocity_mm_s;
+  if (!state.target_pose_initialized)
+  {
+    state.target_pose = current_pose;
+    state.target_pose_initialized = true;
+  }
+
+  const auto limited_speed_scale = std::clamp(speed_scale, 0.0F, 1.0F);
+  const auto target_velocity_x =
+      normalizedControllerStickAxis(input.left_x, config) * config.maximum_velocity_mm_s * limited_speed_scale;
+  const auto target_velocity_y =
+      normalizedControllerStickAxis(input.left_y, config) * config.maximum_velocity_mm_s * limited_speed_scale;
+  const auto target_velocity_z =
+      normalizedControllerStickAxis(input.right_y, config) * config.maximum_velocity_mm_s * limited_speed_scale;
   const auto elapsed_seconds = static_cast<float>(elapsed_ms) / 1000.0F;
   const auto maximum_velocity_delta = config.maximum_acceleration_mm_s2 * elapsed_seconds;
 
@@ -95,10 +129,11 @@ inline ControllerCartesianJogResult applyControllerCartesianJog(const Controller
   state.velocity_y_mm_s = approachControllerVelocity(state.velocity_y_mm_s, target_velocity_y, maximum_velocity_delta);
   state.velocity_z_mm_s = approachControllerVelocity(state.velocity_z_mm_s, target_velocity_z, maximum_velocity_delta);
 
-  auto target_pose = current_pose;
+  auto target_pose = state.target_pose;
   target_pose.x_mm += state.velocity_x_mm_s * elapsed_seconds;
   target_pose.y_mm += state.velocity_y_mm_s * elapsed_seconds;
   target_pose.z_mm += state.velocity_z_mm_s * elapsed_seconds;
+  state.target_pose = target_pose;
 
   const auto active = target_velocity_x != 0.0F || target_velocity_y != 0.0F || target_velocity_z != 0.0F ||
                       state.velocity_x_mm_s != 0.0F || state.velocity_y_mm_s != 0.0F || state.velocity_z_mm_s != 0.0F;

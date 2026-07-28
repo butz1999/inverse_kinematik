@@ -136,6 +136,35 @@ void test_switch2_pro_ble_parser_keeps_battery_status_byte_raw()
   TEST_ASSERT_EQUAL_UINT8(32U, low_result.battery_raw);
 }
 
+void test_switch2_pro_ble_battery_decodes_status_bits_and_preserves_raw_value()
+{
+  const auto full = application::decodeSwitch2ProBleBattery(0x80U);
+  const auto half = application::decodeSwitch2ProBleBattery(0x40U);
+  const auto invalid = application::decodeSwitch2ProBleBattery(0xE0U);
+
+  TEST_ASSERT_TRUE(full.available);
+  TEST_ASSERT_EQUAL_UINT8(0x80U, full.raw);
+  TEST_ASSERT_EQUAL_UINT8(100U, full.percent);
+  TEST_ASSERT_TRUE(half.available);
+  TEST_ASSERT_EQUAL_UINT8(50U, half.percent);
+  TEST_ASSERT_FALSE(invalid.available);
+  TEST_ASSERT_EQUAL_UINT8(0xE0U, invalid.raw);
+}
+
+void test_bluepad32_battery_decodes_normalized_range()
+{
+  const auto unavailable = application::decodeBluepad32Battery(0U);
+  const auto empty = application::decodeBluepad32Battery(1U);
+  const auto half = application::decodeBluepad32Battery(128U);
+  const auto full = application::decodeBluepad32Battery(255U);
+
+  TEST_ASSERT_FALSE(unavailable.available);
+  TEST_ASSERT_TRUE(empty.available);
+  TEST_ASSERT_EQUAL_UINT8(0U, empty.percent);
+  TEST_ASSERT_EQUAL_UINT8(50U, half.percent);
+  TEST_ASSERT_EQUAL_UINT8(100U, full.percent);
+}
+
 void test_controller_debug_driver_ingests_switch2_pro_report()
 {
   uint8_t report[63] = {};
@@ -154,6 +183,9 @@ void test_controller_debug_driver_ingests_switch2_pro_report()
   TEST_ASSERT_TRUE(state.input.valid);
   TEST_ASSERT_BITS_HIGH(application::kControllerButtonB, state.input.buttons);
   TEST_ASSERT_EQUAL_UINT8(96U, state.battery_raw);
+  TEST_ASSERT_TRUE(state.battery_available);
+  TEST_ASSERT_EQUAL_UINT8(75U, state.battery_percent);
+  TEST_ASSERT_EQUAL_STRING("switch2_status_bits_7_to_5", state.battery_encoding);
 }
 
 void test_controller_status_string_includes_reconnecting()
@@ -186,9 +218,9 @@ void test_controller_jog_maps_default_sources_to_joint_axes()
 
   TEST_ASSERT_TRUE(result.active);
   TEST_ASSERT_TRUE(result.changed);
-  TEST_ASSERT_FLOAT_WITHIN(0.001F, 20.0F, result.joint_state.d_deg);
-  TEST_ASSERT_FLOAT_WITHIN(0.001F, 20.0F, result.joint_state.s_deg);
-  TEST_ASSERT_FLOAT_WITHIN(0.001F, 20.0F, result.joint_state.e_deg);
+  TEST_ASSERT_FLOAT_WITHIN(0.001F, 15.625F, result.joint_state.d_deg);
+  TEST_ASSERT_FLOAT_WITHIN(0.001F, 15.625F, result.joint_state.s_deg);
+  TEST_ASSERT_FLOAT_WITHIN(0.001F, 15.625F, result.joint_state.e_deg);
 }
 
 void test_controller_jog_clamps_to_joint_limits()
@@ -250,6 +282,8 @@ int main(int argc, char **argv)
   RUN_TEST(test_switch2_pro_ble_parser_decodes_stick_axes_with_positive_y_up);
   RUN_TEST(test_switch2_pro_ble_parser_decodes_buttons_and_dpad);
   RUN_TEST(test_switch2_pro_ble_parser_keeps_battery_status_byte_raw);
+  RUN_TEST(test_switch2_pro_ble_battery_decodes_status_bits_and_preserves_raw_value);
+  RUN_TEST(test_bluepad32_battery_decodes_normalized_range);
   RUN_TEST(test_controller_debug_driver_ingests_switch2_pro_report);
   RUN_TEST(test_controller_status_string_includes_reconnecting);
   RUN_TEST(test_controller_debug_driver_sets_reconnect_deadline_after_switch2_pro_report);

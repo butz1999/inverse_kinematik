@@ -103,7 +103,7 @@ HardwareCalibration defaultHardwareCalibration()
       ServoAxisCalibration{ -90.0F,  90.0F, 530U, 100U}, // d
       ServoAxisCalibration{ -90.0F,  90.0F, 490U,  80U}, // s
       ServoAxisCalibration{ -90.0F,  90.0F,  90U, 500U}, // e
-      ServoAxisCalibration{ -90.0F,   0.0F, 110U, 320U}, // hp
+      ServoAxisCalibration{-135.0F,   0.0F, 200U, 520U}, // hp
       ServoAxisCalibration{ -90.0F,  90.0F, 100U, 500U}, // hr
       GripperCalibration{     0.0F, 100.0F, 130U, 375U}, // g
       // The manually established reference pose used by both the PCA9685

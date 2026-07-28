@@ -169,41 +169,23 @@ HardwareDriverResult Pca9685ServoDriver::writeChannels(const common::JointPwmSta
 {
   const auto &channels = config_.channels;
 
-  auto result = writeChannel(channels.d, state.d_pwm);
-  if (result.status != HardwareDriverStatus::Ok)
+  auto write_if_changed = [this](uint8_t channel, uint16_t current_value, uint16_t target_value)
   {
-    return result;
-  }
+    return current_value == target_value ? hwDriverOk() : writeChannel(channel, target_value);
+  };
 
-  result = writeChannel(channels.s, state.s_pwm);
-  if (result.status != HardwareDriverStatus::Ok)
-  {
-    return result;
-  }
-
-  result = writeChannel(channels.e, state.e_pwm);
-  if (result.status != HardwareDriverStatus::Ok)
-  {
-    return result;
-  }
-
-  result = writeChannel(channels.hp, state.hp_pwm);
-  if (result.status != HardwareDriverStatus::Ok)
-  {
-    return result;
-  }
-
-  result = writeChannel(channels.hr, state.hr_pwm);
-  if (result.status != HardwareDriverStatus::Ok)
-  {
-    return result;
-  }
-
-  result = writeChannel(channels.g, state.g_pwm);
-  if (result.status != HardwareDriverStatus::Ok)
-  {
-    return result;
-  }
+  const auto d_result = write_if_changed(channels.d, current_pwm_state_.d_pwm, state.d_pwm);
+  if (d_result.status != HardwareDriverStatus::Ok) return d_result;
+  const auto s_result = write_if_changed(channels.s, current_pwm_state_.s_pwm, state.s_pwm);
+  if (s_result.status != HardwareDriverStatus::Ok) return s_result;
+  const auto e_result = write_if_changed(channels.e, current_pwm_state_.e_pwm, state.e_pwm);
+  if (e_result.status != HardwareDriverStatus::Ok) return e_result;
+  const auto hp_result = write_if_changed(channels.hp, current_pwm_state_.hp_pwm, state.hp_pwm);
+  if (hp_result.status != HardwareDriverStatus::Ok) return hp_result;
+  const auto hr_result = write_if_changed(channels.hr, current_pwm_state_.hr_pwm, state.hr_pwm);
+  if (hr_result.status != HardwareDriverStatus::Ok) return hr_result;
+  const auto g_result = write_if_changed(channels.g, current_pwm_state_.g_pwm, state.g_pwm);
+  if (g_result.status != HardwareDriverStatus::Ok) return g_result;
 
   current_pwm_state_ = state;
   return hwDriverOk();

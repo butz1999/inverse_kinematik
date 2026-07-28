@@ -885,15 +885,13 @@ function updateControllerVisualizer(input) {
   controllerUpdatedValue.textContent = `${input.updatedAtMs ?? 0} ms`;
 }
 
-function formatControllerBattery(level) {
-  const numericLevel = Number(level) || 0;
-  if (numericLevel <= 0) {
-    return "unknown";
+function formatControllerBattery(controller) {
+  const raw = Number(controller?.batteryRaw) || 0;
+  const rawText = `0x${raw.toString(16).padStart(2, "0")}`;
+  if (!controller?.batteryAvailable) {
+    return `unknown (raw ${rawText})`;
   }
-  if (numericLevel <= 100) {
-    return `${numericLevel}%`;
-  }
-  return `${Math.round((numericLevel / 255) * 100)}%`;
+  return `${controller.batteryLevel}% (raw ${rawText})`;
 }
 
 function updateControllerPanel(controller) {
@@ -906,7 +904,7 @@ function updateControllerPanel(controller) {
   controllerNameValue.textContent = controller.controllerName || "not connected";
   controllerInputValue.textContent = formatControllerInput(controller.input);
   controllerScanValue.textContent = controller.bluepadScanning ? "active" : "inactive";
-  controllerBatteryValue.textContent = formatControllerBattery(controller.batteryLevel);
+  controllerBatteryValue.textContent = formatControllerBattery(controller);
   controllerMessageValue.textContent = controller.message || "none";
   updateControllerVisualizer(controller.input);
 }

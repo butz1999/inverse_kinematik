@@ -71,18 +71,18 @@ struct ControllerJogResult
 
 // clang-format off
 inline constexpr ControllerJogMapping kDefaultControllerJogMappings[] = {
-    {ControllerJogSource::ButtonGripL, ControllerJogAxis::D,  -5.0F, 15.0F},
-    {ControllerJogSource::ButtonGripR, ControllerJogAxis::D,   5.0F, 15.0F},
-    {ControllerJogSource::DpadUp,      ControllerJogAxis::S,   5.0F, 15.0F},
-    {ControllerJogSource::DpadDown,    ControllerJogAxis::S,  -5.0F, 15.0F},
-    {ControllerJogSource::DpadLeft,    ControllerJogAxis::E,  -5.0F, 15.0F},
-    {ControllerJogSource::DpadRight,   ControllerJogAxis::E,   5.0F, 15.0F},
-    {ControllerJogSource::ButtonB,     ControllerJogAxis::Hp, -5.0F, 15.0F},
-    {ControllerJogSource::ButtonX,     ControllerJogAxis::Hp,  5.0F, 15.0F},
-    {ControllerJogSource::ButtonY,     ControllerJogAxis::Hr, -5.0F, 15.0F},
-    {ControllerJogSource::ButtonA,     ControllerJogAxis::Hr,  5.0F, 15.0F},
-    {ControllerJogSource::ButtonL,     ControllerJogAxis::G,  -5.0F, 15.0F},
-    {ControllerJogSource::ButtonR,     ControllerJogAxis::G,   5.0F, 15.0F},
+    {ControllerJogSource::ButtonGripL, ControllerJogAxis::D,  -2.5F, 12.5F},
+    {ControllerJogSource::ButtonGripR, ControllerJogAxis::D,   2.5F, 12.5F},
+    {ControllerJogSource::DpadUp,      ControllerJogAxis::S,   2.5F, 12.5F},
+    {ControllerJogSource::DpadDown,    ControllerJogAxis::S,  -2.5F, 12.5F},
+    {ControllerJogSource::DpadLeft,    ControllerJogAxis::E,  -2.5F, 12.5F},
+    {ControllerJogSource::DpadRight,   ControllerJogAxis::E,   2.5F, 12.5F},
+    {ControllerJogSource::ButtonB,     ControllerJogAxis::Hp, -2.5F, 12.5F},
+    {ControllerJogSource::ButtonX,     ControllerJogAxis::Hp,  2.5F, 12.5F},
+    {ControllerJogSource::ButtonY,     ControllerJogAxis::Hr, -2.5F, 12.5F},
+    {ControllerJogSource::ButtonA,     ControllerJogAxis::Hr,  2.5F, 12.5F},
+    {ControllerJogSource::ButtonL,     ControllerJogAxis::G,  -2.5F, 12.5F},
+    {ControllerJogSource::ButtonR,     ControllerJogAxis::G,   2.5F, 12.5F},
 };
 // clang-format on
 
