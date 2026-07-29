@@ -824,7 +824,7 @@ Der Weltroll-Lock wird mit dem rechten Stick-Klick (RS) bei einer Werkzeugneigun
 
 ### Switch-2-Pro-BLE und Bluepad32-Patch
 
-Bluepad32 ist als Git-Submodule unter `third_party/bluepad32/` auf den Upstream-Commit des Tags `4.2.0` gepinnt. Der ESP-IDF-Build referenziert die darin enthaltene Komponente über den relativen Symlink `components/bluepad32`. `scripts/bootstrap.sh` initialisiert das Submodule und wendet die Patch-Serie aus `patches/bluepad32/` idempotent an. Damit bleibt der Fremdcode ausserhalb des Projektquellcodes und der getestete Integrationsstand reproduzierbar.
+Bluepad32 ist als Git-Submodule unter `third_party/bluepad32/` auf den Upstream-Commit des Tags `4.2.0` gepinnt. Die oberste `CMakeLists.txt` referenziert die darin enthaltene Komponente direkt über `EXTRA_COMPONENT_DIRS`. `scripts/bootstrap.sh` initialisiert das Submodule und wendet die Patch-Serie aus `patches/bluepad32/` idempotent an. Damit bleibt der Fremdcode ausserhalb des Projektquellcodes und der getestete Integrationsstand reproduzierbar.
 
 Der Patch `0001-switch2-pro-ble-support.patch` ist auf die bekannte Switch-2-Pro-Controller-Firmware beschränkt. Er enthält nur die für die Verbindung erforderlichen Erweiterungen:
 

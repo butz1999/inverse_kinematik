@@ -124,22 +124,22 @@ Wichtige Dateien und Ordner:
 | `src/idf_component.yml` | ESP-IDF-Komponentenbeschreibung |
 | `third_party/bluepad32/` | Gepinntes Bluepad32-Upstream-Submodule |
 | `patches/bluepad32/` | Versionierte Switch-2-Pro-Patches gegen den gepinnten Upstream-Commit |
-| `components/bluepad32` | Relativer Build-Symlink auf die gepatchte Komponente im Submodule |
+| `CMakeLists.txt` | Registriert die gepatchte Bluepad32-Komponente aus dem Submodule über `EXTRA_COMPONENT_DIRS` |
 | `components/btstack/` | Lokal eingebundener BTstack-Code |
 
-Die Bluepad32-Anbindung verwendet ein gepinntes Upstream-Submodule und eine versionierte Patch-Serie. `scripts/bootstrap.sh` initialisiert das Submodule und wendet die Patches an; der bestehende ESP-IDF-Build nutzt anschließend weiterhin `components/bluepad32` über den relativen Symlink.
+Die Bluepad32-Anbindung verwendet ein gepinntes Upstream-Submodule und eine versionierte Patch-Serie. `scripts/bootstrap.sh` initialisiert das Submodule und wendet die Patches an; die oberste `CMakeLists.txt` bindet anschließend die Komponente direkt aus dem Submodule über `EXTRA_COMPONENT_DIRS` ein.
 
-Die aktuelle Cleanup-Bewertung ist in [third-party-cleanup.md](third-party-cleanup.md) festgehalten. Für den nächsten Schritt bleibt der Fremdcode bewusst lokal versioniert, damit der hardwaregetestete BLE-Stand reproduzierbar bleibt. Vor grösseren funktionalen Erweiterungen soll daraus aber eine klarere Patch- oder Fork-Strategie entstehen.
+Für den nächsten Schritt bleibt der Fremdcode bewusst lokal versioniert, damit der hardwaregetestete BLE-Stand reproduzierbar bleibt. Vor grösseren funktionalen Erweiterungen soll daraus aber eine klarere Patch- oder Fork-Strategie entstehen.
 
 ## Switch-2-Pro-Anpassungen im Fremdcode
 
-Die projektspezifischen Anpassungen liegen in `components/bluepad32/bt/uni_bt_le.c`. `components/btstack/` wird als darunterliegende Bluetooth-Basis unverändert verwendet.
+Die projektspezifischen Anpassungen liegen in `third_party/bluepad32/src/components/bluepad32/bt/uni_bt_le.c`. `components/btstack/` wird als darunterliegende Bluetooth-Basis unverändert verwendet.
 
 Aktuell relevante Anpassungspunkte:
 
 | Bereich | Code-Stelle | Bedeutung |
 | --- | --- | --- |
-| C/C++-Bridge | `extern void ik_switch2_pro_ble_input_report(...)` in `components/bluepad32/bt/uni_bt_le.c` und Implementierung in `src/main.cpp` | leitet rohe BLE-Notifications in die Anwendungsschicht |
+| C/C++-Bridge | `extern void ik_switch2_pro_ble_input_report(...)` in `third_party/bluepad32/src/components/bluepad32/bt/uni_bt_le.c` und Implementierung in `src/main.cpp` | leitet rohe BLE-Notifications in die Anwendungsschicht |
 | Notification-Erkennung | Value-Handle `0x002e`, Mindestlänge `63`, Statusbyte `0x20` | filtert den proprietären Switch-2-Pro-Datenstrom |
 | Notification-Aktivierung | CCCD-Write auf `value_handle + 1`, praktisch `0x002f = 0100` | aktiviert Notifications ohne vollständige generische Descriptor-Abstraktion |
 | Input-Subscription | Value-Handle `0x002e` und CCCD-Handle `0x002f` | abonniert den für die getestete Controller-Firmware bestätigten Eingabestrom |

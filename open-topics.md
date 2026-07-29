@@ -4,8 +4,8 @@ Der PoC ist abgeschlossen. Diese Liste sammelt bewusst die nächsten Aufräum- u
 
 ## Nächster Cleanup-Schnitt
 
-* ~~Fremdcode-Strategie für `components/bluepad32/` und `components/btstack/` entscheiden: vendored Code, Fork, Submodule oder Patch-Serie.~~ Vorläufige Strategie in [doc/sw/third-party-cleanup.md](doc/sw/third-party-cleanup.md) dokumentiert.
-* ~~PoC-Anpassungen in `components/bluepad32/` identifizieren und dokumentieren.~~ Patch-Inventar in [doc/sw/ble-design.md](doc/sw/ble-design.md) ergänzt.
+* ~~Fremdcode-Strategie für Bluepad32 und `components/btstack/` entscheiden: vendored Code, Fork, Submodule oder Patch-Serie.~~ Vorläufige Strategie in [doc/sw/ble-design.md](doc/sw/ble-design.md) dokumentiert.
+* ~~PoC-Anpassungen in Bluepad32 identifizieren und dokumentieren.~~ Patch-Inventar in [doc/sw/ble-design.md](doc/sw/ble-design.md) ergänzt.
 * ~~Prüfen, ob `managed_components/` vollständig generiert bleibt und nicht versioniert werden muss.~~ Ist in `.gitignore` ausgeschlossen und bleibt generiert.
 * ~~Doku in [doc/sw/ble-design.md](doc/sw/ble-design.md) gegen den aktuellen Code gegenlesen.~~ Aktuelle Bestandsaufnahme ergänzt.
 * ~~Kapitel "Offene Punkte" in [doc/sw/ble-design.md](doc/sw/ble-design.md) nach dem Cleanup aktualisieren.~~ Offene Punkte nachgeschärft.
