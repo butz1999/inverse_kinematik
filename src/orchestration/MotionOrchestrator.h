@@ -55,6 +55,20 @@ struct MotionResult
   MotionProfileGeneratorStatus motion_profile_status{MotionProfileGeneratorStatus::Ok};
 };
 
+struct MotionTargetResult
+{
+  bool ok{false};
+  MotionStatus status{MotionStatus::KinematicsFailure};
+  const char *field_name{""};
+  const char *message{""};
+  common::TargetPose target_pose{common::initialTargetPose()};
+  common::JointState joint_state{common::initialJointState()};
+  robotics::OffsetTargetPose offset_target_pose{0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
+  robotics::ValidationStatus target_validation_status{robotics::ValidationStatus::Ok};
+  robotics::KinematicsStatus kinematics_status{robotics::KinematicsStatus::Ok};
+  robotics::ValidationStatus joint_validation_status{robotics::ValidationStatus::Ok};
+};
+
 class MotionOrchestrator
 {
  public:
@@ -63,6 +77,8 @@ class MotionOrchestrator
   void processMotionRequestInto(const MotionRequest &request, const common::JointState &current_joint_state,
                                 MotionResult &result) const;
   MotionResult processMotionRequest(const MotionRequest &request, const common::JointState &current_joint_state) const;
+  MotionTargetResult resolveTargetPose(const common::TargetPose &target_pose,
+                                       const common::JointState &current_joint_state) const;
 
  private:
   robotics::RobotModel robot_model_;

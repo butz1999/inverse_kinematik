@@ -2,7 +2,7 @@
 
 Dieses Dokument beschreibt die aktuelle HTTP/JSON-Schnittstelle der ESP32-S3-Firmware.
 
-Die API wird vom `RestApiServer` bereitgestellt. Sie enthält weiterhin Bring-up-Schnittstellen für direkte Gelenk- und PWM-Kommandos; der reguläre Task-Space-Endpunkt `/api/motion` nutzt inzwischen den Orchestrator für Validierung, IK und Motion-Plan-Erzeugung.
+Die API wird vom `RestApiServer` bereitgestellt. Er ist Transport- und Hardwareausgabe-Adapter: Er verarbeitet HTTP/JSON, hält den angenommenen Gelenkzustand, taktet Controller-Eingaben und übergibt freigegebene Gelenk-Sollwerte nach Kalibration an den PCA9685. IK, Validierung, kartesisches Jogging, Slew-Limit und Weltroll-Lock liegen dagegen in `MotionOrchestrator` beziehungsweise `ControllerHandler`.
 
 ## Basisverhalten
 
@@ -32,10 +32,10 @@ Der Server ist nach erfolgreicher WLAN-Initialisierung über die IP-Adresse des 
 | `POST` | `/api/sequence/start` | Sequenz aus mehreren Task-Space-Schritten starten | `202` |
 | `POST` | `/api/sequence/stop` | Laufende Sequenz und aktiven Motion-Plan abbrechen | `202` |
 | `GET` | `/api/sequence/status` | Sequenzfortschritt und aktive Planposition abfragen | `200` |
-| `POST` | `/api/controller/connect` | Controller-Verbindungspfad für den Debug-PoC aktivieren | `202` |
+| `POST` | `/api/controller/connect` | Controller-Verbindungspfad aktivieren | `202` |
 | `POST` | `/api/controller/disconnect` | Controller-Verbindungspfad zurücksetzen | `202` |
 | `GET` | `/api/controller/status` | Controller-Status abfragen | `200` |
-| `GET` | `/api/controller/debug` | Controller-Status und letzte Eingabewerte abfragen | `200` |
+| `GET` | `/api/controller/debug` | Controller-Status, letzte Eingabewerte und BLE-Diagnose abfragen | `200` |
 | `GET` | `/favicon.ico` | Browser-Favicon unterdrücken | `204` |
 | alle | sonstige Pfade | Unbekannter Pfad | `404` |
 
@@ -185,7 +185,7 @@ Beispiel:
 
 ### ControllerStatus
 
-Der Controller-Pfad ist zunächst ein read-only Debug-PoC. Die Endpunkte lösen keine Servobewegung aus. Die konkrete Bluetooth-Anbindung wird hinter einem projektinternen `ControllerDriver` gekapselt; als Zielkomponente ist `Bluepad32` vorgesehen.
+Der Controller-Pfad steuert den Roboter bei gültiger Verbindung, initialisiertem Servo-Treiber sowie ohne aktive Sequenz oder MotionPlan kontinuierlich. Die konkrete Bluetooth-Anbindung bleibt hinter `ControllerDebugDriver` gekapselt. `ControllerCommandMapper` bildet die Eingabe auf `JogCommand` ab; der `ControllerHandler` erzeugt daraus unmittelbare `JointState`-Sollwerte.
 
 | Feld | Bedeutung |
 | --- | --- |
@@ -195,11 +195,15 @@ Der Controller-Pfad ist zunächst ein read-only Debug-PoC. Die Endpunkte lösen 
 | `pairingRequested` | Gibt an, ob der Verbindungspfad aktiviert wurde |
 | `acceptsNewConnections` | Gibt an, ob neue Controller-Verbindungen angenommen werden sollen |
 | `batteryRaw` | Roher Batteriestatuswert aus dem aktuellen Controller-Pfad |
-| `batteryLevel` | Kompatibilitätsalias für `batteryRaw`, aktuell keine Prozentangabe |
+| `batteryLevel` | Batteriestand in Prozent, sofern die Kodierung bekannt ist |
+| `batteryAvailable` | Gibt an, ob ein Batteriestand verfügbar ist |
+| `batteryEncoding` | Kennung der für den Wert verwendeten Dekodierung |
 | `lastUpdateMs` | Zeitpunkt der letzten Aktualisierung in Millisekunden seit Boot |
 | `input` | Letzte bekannte normalisierte Controller-Eingabe |
+| `worldRollLock.enabled` | Weltroll-Lock ist aktiv |
+| `worldRollLock.lockedWorldRollDeg` | Beim Aktivieren gespeicherte Weltroll in Grad |
 
-Die Batterie wird im Controller-PoC absichtlich nicht in Prozent umgerechnet. Für den Switch-2-Pro-GATT-Pfad ist die Semantik des beobachteten Batteriewerts noch nicht belastbar bestätigt; Clients sollen `batteryRaw` anzeigen.
+Beim Switch-2-Pro-BLE-Pfad werden die Statusbits 5 bis 4 als Batteriestufe verwendet; `0x30` entspricht 100 %. Der Rohwert bleibt zusätzlich als `batteryRaw` sichtbar.
 
 Das `input`-Objekt enthält zunächst normalisierte Rohwerte:
 
@@ -208,7 +212,6 @@ Das `input`-Objekt enthält zunächst normalisierte Rohwerte:
 | `valid` | Gibt an, ob eine gültige Eingabe vorliegt |
 | `leftX`, `leftY` | Linker Analogstick |
 | `rightX`, `rightY` | Rechter Analogstick |
-| `leftTrigger`, `rightTrigger` | Triggerwerte |
 | `buttons` | Button-Bitmaske |
 | `dpad` | D-Pad-Bitmaske |
 | `updatedAtMs` | Zeitpunkt der letzten Eingabeaktualisierung |
@@ -365,7 +368,7 @@ Response `200`:
 
 `POST /api/joint-motion`
 
-Setzt einen direkten Gelenkzustand. Der Request wird validiert, aber noch nicht an Hardware ausgegeben.
+Setzt einen direkten Gelenkzustand. Der Request wird validiert, auf PWM kalibriert und an einen initialisierten PCA9685 geschrieben. Der Zustand bleibt ein angenommener Sollzustand, kein Sensor-Feedback. Ändert sich `hr_deg`, synchronisiert der Server den `ControllerHandler`; ein aktiver Weltroll-Lock wird dadurch beendet.
 
 Request:
 
@@ -412,8 +415,8 @@ Response `202`:
 {
   "status": "accepted",
   "code": "ok",
-  "mode": "joint_space_direct",
-  "hardware": "not_available",
+  "mode": "joint_space_calibrated",
+  "hardware": "available",
   "jointState": {
     "d_deg": 0.000,
     "s_deg": 15.000,
@@ -422,7 +425,10 @@ Response `202`:
     "hr_deg": 0.000,
     "g_pct": 50.000
   },
-  "message": "Joint state accepted as assumed low-level target; hardware output is not connected yet."
+  "driver": {
+    "status": "ok",
+    "message": "ok"
+  }
 }
 ```
 

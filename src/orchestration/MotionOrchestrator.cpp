@@ -57,51 +57,42 @@ MotionResult MotionOrchestrator::processMotionRequest(const MotionRequest &reque
   return result;
 }
 
-void MotionOrchestrator::processMotionRequestInto(const MotionRequest &request,
-                                                  const common::JointState &current_joint_state,
-                                                  MotionResult &result) const
+MotionTargetResult MotionOrchestrator::resolveTargetPose(const common::TargetPose &target_pose,
+                                                         const common::JointState &current_joint_state) const
 {
-  resetResult(request, result);
-
-  const auto target_validation = robotics::validateTargetPose(request.target_pose, robot_model_);
+  MotionTargetResult result;
+  result.target_pose = target_pose;
+  const auto target_validation = robotics::validateTargetPose(target_pose, robot_model_);
   if (!target_validation.ok)
   {
-    rejectInto(request, result, MotionStatus::InvalidTargetPose, target_validation.field_name,
-               target_validation.message);
+    result.status = MotionStatus::InvalidTargetPose;
+    result.field_name = target_validation.field_name;
+    result.message = target_validation.message;
     result.target_validation_status = target_validation.status;
-    return;
+    return result;
   }
 
-  const auto offset_pose = robotics::applyRobotModelOffset(request.target_pose, robot_offset_);
+  const auto offset_pose = robotics::applyRobotModelOffset(target_pose, robot_offset_);
   const auto ik_result = robotics::inverseKinematics(offset_pose, robot_model_, robot_offset_, current_joint_state);
   if (!ik_result.ok)
   {
-    rejectInto(request, result, MotionStatus::KinematicsFailure, "", ik_result.message);
+    result.status = MotionStatus::KinematicsFailure;
+    result.message = ik_result.message;
     result.offset_target_pose = offset_pose;
     result.kinematics_status = ik_result.status;
-    return;
+    return result;
   }
 
   const auto joint_validation = robotics::validateJointState(ik_result.joint_state);
   if (!joint_validation.ok)
   {
-    rejectInto(request, result, MotionStatus::JointLimitViolation, joint_validation.field_name,
-               joint_validation.message);
+    result.status = MotionStatus::JointLimitViolation;
+    result.field_name = joint_validation.field_name;
+    result.message = joint_validation.message;
     result.offset_target_pose = offset_pose;
     result.joint_state = ik_result.joint_state;
     result.joint_validation_status = joint_validation.status;
-    return;
-  }
-
-  const auto motion_plan_status =
-      generateMotionPlanInto(current_joint_state, ik_result.joint_state, request.profile, result.motion_plan);
-  if (!motion_plan_status.ok)
-  {
-    rejectInto(request, result, MotionStatus::MotionPlanFailure, "", motion_plan_status.message);
-    result.offset_target_pose = offset_pose;
-    result.joint_state = ik_result.joint_state;
-    result.motion_profile_status = motion_plan_status.status;
-    return;
+    return result;
   }
 
   result.ok = true;
@@ -109,6 +100,43 @@ void MotionOrchestrator::processMotionRequestInto(const MotionRequest &request,
   result.message = "ok";
   result.offset_target_pose = offset_pose;
   result.joint_state = ik_result.joint_state;
+  return result;
+}
+
+void MotionOrchestrator::processMotionRequestInto(const MotionRequest &request,
+                                                  const common::JointState &current_joint_state,
+                                                  MotionResult &result) const
+{
+  resetResult(request, result);
+
+  const auto target_result = resolveTargetPose(request.target_pose, current_joint_state);
+  if (!target_result.ok)
+  {
+    rejectInto(request, result, target_result.status, target_result.field_name, target_result.message);
+    result.offset_target_pose = target_result.offset_target_pose;
+    result.joint_state = target_result.joint_state;
+    result.target_validation_status = target_result.target_validation_status;
+    result.kinematics_status = target_result.kinematics_status;
+    result.joint_validation_status = target_result.joint_validation_status;
+    return;
+  }
+
+  const auto motion_plan_status =
+      generateMotionPlanInto(current_joint_state, target_result.joint_state, request.profile, result.motion_plan);
+  if (!motion_plan_status.ok)
+  {
+    rejectInto(request, result, MotionStatus::MotionPlanFailure, "", motion_plan_status.message);
+    result.offset_target_pose = target_result.offset_target_pose;
+    result.joint_state = target_result.joint_state;
+    result.motion_profile_status = motion_plan_status.status;
+    return;
+  }
+
+  result.ok = true;
+  result.status = MotionStatus::Accepted;
+  result.message = "ok";
+  result.offset_target_pose = target_result.offset_target_pose;
+  result.joint_state = target_result.joint_state;
 }
 
 const char *toString(MotionStatus status)

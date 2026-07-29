@@ -73,6 +73,18 @@ void test_motion_orchestrator_rejects_unreachable_ik_target()
   TEST_ASSERT_EQUAL(robotics::KinematicsStatus::UnreachableTarget, result.kinematics_status);
 }
 
+void test_motion_orchestrator_resolves_target_without_creating_motion_plan()
+{
+  const orchestration::MotionOrchestrator orchestrator(robotics::defaultRobotModel(),
+                                                       robotics::defaultRobotModelOffset());
+  const auto result = orchestrator.resolveTargetPose(
+      common::TargetPose{-20.0F, 50.0F, 30.0F, -90.0F, 0.0F, 50.0F}, common::initialJointState());
+
+  TEST_ASSERT_TRUE(result.ok);
+  TEST_ASSERT_EQUAL(orchestration::MotionStatus::Accepted, result.status);
+  assertJointStateNear(common::JointState{-2.765F, -22.122F, -74.927F, -82.952F, 0.0F, 50.0F}, result.joint_state);
+}
+
 void test_motion_orchestrator_rejects_invalid_motion_profile()
 {
   const orchestration::MotionOrchestrator orchestrator(robotics::defaultRobotModel(),
@@ -94,6 +106,7 @@ int main(int argc, char **argv)
   RUN_TEST(test_motion_orchestrator_accepts_reachable_target_and_builds_motion_plan);
   RUN_TEST(test_motion_orchestrator_rejects_invalid_target_pose);
   RUN_TEST(test_motion_orchestrator_rejects_unreachable_ik_target);
+  RUN_TEST(test_motion_orchestrator_resolves_target_without_creating_motion_plan);
   RUN_TEST(test_motion_orchestrator_rejects_invalid_motion_profile);
   return UNITY_END();
 }

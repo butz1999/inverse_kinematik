@@ -6,11 +6,8 @@
 #include <WebServer.h>
 
 #include "application/ApiContracts.h"
-#include "application/ControllerCartesianJog.h"
+#include "application/ControllerCommandMapper.h"
 #include "application/ControllerInput.h"
-#include "application/ControllerJointSlewLimiter.h"
-#include "application/ControllerJog.h"
-#include "application/ControllerWorldRollLock.h"
 #include "application/RunEngine.h"
 #include "common/JointPwmState.h"
 #include "common/JointState.h"
@@ -20,6 +17,7 @@
 #include "hardware/Pca9685ServoDriver.h"
 #include "hardware/StatusLed.h"
 #include "orchestration/MotionOrchestrator.h"
+#include "orchestration/ControllerHandler.h"
 
 namespace application
 {
@@ -74,6 +72,7 @@ class RestApiServer
   const hardware::Logger &logger_;
   hardware::HardwareCalibration hardware_calibration_;
   orchestration::MotionOrchestrator orchestrator_;
+  orchestration::ControllerHandler controller_handler_;
   RunEngine run_engine_;
   ControllerDebugDriver controller_driver_;
   common::JointState current_joint_state_;
@@ -88,9 +87,6 @@ class RestApiServer
   bool has_pending_led_step_;
   uint32_t last_controller_jog_ms_;
   bool controller_jog_active_;
-  ControllerCartesianJogState controller_cartesian_jog_state_;
-  ControllerJointSlewLimiterState controller_joint_slew_limiter_state_;
-  ControllerWorldRollLockState controller_world_roll_lock_state_;
 };
 
 }  // namespace application

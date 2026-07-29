@@ -147,8 +147,8 @@ Für die erste Ausbaustufe wird die Implementierung vollständig unter `src/` au
 
 Die primären Komponenten der Softwaresicht sind:
 
-* `application` für anwendungsnahe Einstiegspunkte wie `Run Engine`, Statusmodelle und die externe REST-Schnittstelle
-* `orchestration` für den `Orchestrator` sowie die Koordination fachlicher Verarbeitungsschritte
+* `application` für anwendungsnahe Einstiegspunkte wie `Run Engine`, Statusmodelle, Controller-Treiberanbindung und die externe REST-Schnittstelle
+* `orchestration` für `MotionOrchestrator`, `ControllerHandler` sowie die Koordination fachlicher Verarbeitungsschritte
 * `robotics` für Kinematik, Validierung, Robot Model, `RobotModelOffset` und robotiknahe Datenmodelle
 * `hardware` für Hardware Abstraction, `HardwareCalibration`, Treiberanbindung und hardwarebezogene Ausgabe
 * `common` für gemeinsam genutzte, modulübergreifende Datentypen und Hilfsstrukturen
@@ -156,8 +156,8 @@ Die primären Komponenten der Softwaresicht sind:
 
 Für die Abhängigkeitsrichtung der Module gelten in der ersten Ausbaustufe folgende Grundregeln:
 
-* `application` darf `orchestration` sowie gemeinsame Datentypen verwenden, greift aber nicht direkt auf Treiber oder hardwarenahe Abbildung zu
-* `orchestration` darf `robotics`, `hardware` und gegebenenfalls `common` verwenden, bleibt aber frei von HTTP-, JSON- oder UI-Protokolldetails
+* `application` darf `orchestration`, gemeinsame Datentypen sowie die für REST-Ausgabe nötige Hardware-Abbildung verwenden; der `RestApiServer` bleibt dabei Adapter und enthält keine IK-, Validierungs- oder Jog-Fachlogik
+* `orchestration` darf `robotics`, `config` und gegebenenfalls `common` verwenden, bleibt aber frei von HTTP-, JSON-, Controller-Treiber- oder UI-Protokolldetails
 * `robotics` kennt keine konkreten Hardwaretreiber und keine REST-/Serial-Protokollschicht
 * `hardware` kennt keine fachliche Ablaufsteuerung, sondern nur freigegebene hardwarenahe Eingangsdaten und technische Rückgabemodelle
 * `common` enthält nur solche Typen, die tatsächlich modulübergreifend gebraucht werden
@@ -752,9 +752,9 @@ Die Anwendung kennt dabei nicht:
 
 Neben der `Run Engine` gehört auch eine externe REST-Schnittstelle zur vorgesehenen Anwendungsschicht. Diese Schnittstelle ist im aktuellen Dokument noch kein detailliert ausgearbeitetes API-Design, wird aber für die frühe Implementationsphase bereits als kleiner erster Software-Slice ausdrücklich vorgesehen.
 
-Die konkrete HTTP/JSON-Schnittstelle des aktuellen Bring-up-Standes ist im separaten Dokument [rest_api.md](./rest_api.md) beschrieben.
+Die konkrete HTTP/JSON-Schnittstelle des aktuellen Stands ist im separaten Dokument [rest_api.md](./rest_api.md) beschrieben.
 
-Die REST-Schnittstelle hätte dabei insbesondere folgende Aufgaben:
+Die REST-Schnittstelle hat dabei insbesondere folgende Aufgaben:
 
 * Entgegennahme externer Bedien- und Steueranfragen über HTTP
 * Abbildung von HTTP- und JSON-Nutzdaten auf interne Modelle wie `MotionRequest`
@@ -765,8 +765,8 @@ Die REST-Schnittstelle hätte dabei insbesondere folgende Aufgaben:
 Eingaben und Ausgaben:
 
 * Eingabe externer REST-Aufrufe
-* Übergabe eines `MotionRequest` an den `Orchestrator`
-* Entgegennahme eines `MotionResult` oder anderer Zustandsinformationen vom `Orchestrator`
+* Übergabe eines `MotionRequest` an den `MotionOrchestrator`
+* Entgegennahme eines `MotionResult` oder anderer Zustandsinformationen aus Orchestrierung und Controller-Handler
 * Rückgabe von HTTP-Antworten mit fachlichen Ergebnissen und Statusdaten
 
 Damit gilt bewusst:
@@ -774,7 +774,8 @@ Damit gilt bewusst:
 * die REST-Schnittstelle gehört zur Anwendungs- beziehungsweise Interfaceschicht
 * sie ersetzt nicht den `Orchestrator`, sondern nutzt ihn als fachlichen Einstiegspunkt
 * sie kapselt Protokollthemen wie HTTP, JSON und gegebenenfalls statische HMI-Seiten vom restlichen System ab
-* sie greift nicht direkt auf `Kinematics`, `Hardware Abstraction` oder `Hardware Driver` zu
+* sie ruft weder `Kinematics` noch `Validation` direkt auf; Task-Space-Ziele gehen an den `MotionOrchestrator`
+* sie übernimmt als Adapter die Kalibration und die Ausgabe eines bereits freigegebenen `JointState` an den Hardwaretreiber
 
 Für den frühen Bring-up ist zusätzlich ein bewusst niedriger angesetzter REST-Pfad vorgesehen. Dieser Pfad dient dazu, den Roboter zunächst ohne inverse Kinematik und ohne vollständigen `Orchestrator` schrittweise bedienbar zu machen:
 
@@ -800,47 +801,40 @@ Die Architektur soll dabei so offen bleiben, dass der ESP32 zunächst ein kleine
 
 ### Manuelle Controller-Bedienung
 
-Für die manuelle Bedienung wird als primäre Controller-Komponente `Bluepad32` vorgesehen. Die Bibliothek wird gewählt, weil sie bereits als Gamepad-Host für ESP32-Plattformen ausgelegt ist und Controller-Eingaben auf einer höheren fachlichen Ebene bereitstellt als eine direkte BLE-HID-Implementierung. Dadurch muss die Firmware nicht sofort rohe HID-Reports, Pairing-Details und controller-spezifische Reportformate selbst auswerten.
-
-Die Einbindung von `Bluepad32` soll dennoch nicht direkt in Anwendung, Orchestrator oder Bewegungslogik hineinreichen. Stattdessen wird eine projektinterne Wrapper-Grenze vorgesehen:
+Die Controller-Anbindung ist produktiv und trennt gerätespezifische Eingaben von der Bewegungslogik:
 
 ```text
-Bluepad32
-  -> ControllerDriver
-  -> ControllerInput / ControllerStatus
-  -> ControllerMapper
-  -> MotionRequest / RobotAction / Stop
+Bluepad32 / Switch-2-Pro-BLE
+  -> ControllerDebugDriver
+  -> ControllerInput
+  -> ControllerCommandMapper
+  -> JogCommand
+  -> ControllerHandler
+  -> unmittelbarer JointState-Sollwert
+  -> RestApiServer: Kalibration und PCA9685-Ausgabe
 ```
 
-Der produktive Anwendungscode arbeitet damit zunächst nur gegen projektinterne Modelle wie `ControllerInput` und `ControllerStatus`. Ob diese Daten später von `Bluepad32`, einer direkten `NimBLE`-Implementierung oder einem anderen Treiber stammen, bleibt lokal auf den `ControllerDriver` begrenzt.
+`ControllerInput` bleibt das projektinterne Rohmodell. `ControllerCommandMapper` in `application/` übersetzt Tasten und Sticks in den geräteunabhängigen `JogCommand`. Der `ControllerHandler` in `orchestration/` kennt weder Bluepad32 noch REST oder PWM.
 
-Für den ersten Proof-of-concept wird die Controller-Integration bewusst als read-only Debug-Pfad umgesetzt. Ziel dieses Schritts ist nicht die direkte Bewegung des Roboterarms, sondern der Nachweis, dass Controller-Verbindung, Eingabedaten, REST API und Dilbert-HMI zusammenspielen. Controller-Eingaben dürfen in diesem Zustand keine Servobewegung auslösen.
+Der `RestApiServer` taktet die Controller-Verarbeitung mit 5 ms, jedoch nur bei gültiger Verbindung und Eingabe, initialisiertem Servo-Treiber sowie ohne aktiven MotionPlan oder Sequenz. Damit haben geplanter Ablauf und MotionPlan Vorrang vor dem manuellen Jogging.
 
-Für den Proof-of-concept sind insbesondere folgende REST-Endpunkte vorgesehen:
+Der `ControllerHandler` hält die kartesische Zielpose, kartesische Geschwindigkeiten, den Gelenk-Slew-Zustand und den Weltroll-Lock. Kartesische Sollwerte werden mit Singularitätsverlangsamung integriert, über die gemeinsame planfreie Zielauflösung des `MotionOrchestrator` validiert und per IK gelöst. Die resultierenden Drehachsen sind auf 180 °/s begrenzt. Direkte Joint-Jogs erhalten Vorrang vor kartesischem Jogging.
 
-* `POST /api/controller/connect` aktiviert den Controller-Verbindungspfad beziehungsweise Pairing/Discovery.
-* `POST /api/controller/disconnect` trennt den aktuell bekannten Controller-Zustand.
-* `GET /api/controller/status` liefert Verbindungsstatus, Treiberstatus und Basisinformationen.
-* `GET /api/controller/debug` liefert zusätzlich die zuletzt bekannten Stick-, Trigger-, Button- und D-Pad-Werte.
-
-Erst nach erfolgreichem Debug-PoC wird der nächste Schritt umgesetzt: ein `ControllerMapper`, der Controller-Eingaben abhängig vom Bedienmodus in fachliche Kommandos übersetzt. Dazu gehören beispielsweise `manual_joint`, `manual_cartesian`, `hold`, `stop`, `home` oder Greiferaktionen. Diese Übersetzung muss Deadzones, Skalierung, Rate Limiting, Priorität gegenüber laufenden Sequenzen und sichere Fehlerpfade berücksichtigen.
-
-Für kartesisches Jogging hält der rechte Stick-Klick optional die Welt-Roll-Orientierung des Greifers. Der Lock lässt sich nur bei einer Werkzeugneigung von `p = -90° ±20°` einschalten. Beim Einschalten wird die aktuelle Summe aus Drehteller- und Handgelenk-Roll gespeichert; bei einer anschließenden Drehtellerbewegung wird `hr` gegenläufig angepasst. Außerhalb dieses Neigungsbereichs wird der Lock automatisch deaktiviert, weil die Handgelenk-Rollachse die Welt-Yaw dann nicht mehr sinnvoll kompensieren kann.
+Der Weltroll-Lock wird mit dem rechten Stick-Klick (RS) bei einer Werkzeugneigung von `p = -90° ±20°` aktiviert. Er hält die Summe aus Drehteller und Handgelenk-Roll im Weltbezug konstant und kompensiert deshalb `hr` gegenläufig zu `d`. RS deaktiviert den Lock und übernimmt die aktuelle Haltung als neue Referenz; der angefahrene Hr-Wert bleibt dadurch erhalten. Ein manueller Hr-Jog über Y/A oder eine erfolgreiche Hr-Änderung über `POST /api/joint-motion` deaktiviert den Lock. Der REST-Adapter ruft dafür `ControllerHandler::synchronizeJointState()` auf, damit der Handler die extern bestätigte Gelenkstellung als neue Referenz übernimmt.
 
 Die Abhängigkeit auf `Bluepad32` soll nach Möglichkeit referenziert und nicht dupliziert werden. Für die produktive Einbindung wird daher ein fester Git-Tag oder Commit in der Build-Konfiguration bevorzugt. Vor einer dauerhaften Einbindung in den Haupt-Build ist zu verifizieren, ob der gewählte Controller, insbesondere ein Switch 2 Pro Controller, mit dem aktuellen ESP32-S3-Board und dem verwendeten PlatformIO/Arduino-Buildweg zuverlässig verbunden und ausgelesen werden kann.
 
-### Orchestrator
+### MotionOrchestrator und ControllerHandler
 
-Der `Orchestrator` ist die zentrale Koordinationsinstanz zwischen Anwendung, Robotik und Hardware.
+Der `MotionOrchestrator` verarbeitet einzelne vollständige `MotionRequest` und erzeugt daraus einen `MotionPlan`. Seine planfreie Methode `resolveTargetPose()` führt TargetPose-Validierung, RobotModelOffset, IK und JointState-Validierung aus und wird auch vom `ControllerHandler` verwendet. Dadurch gelten für diskrete und kontinuierliche Bewegungen dieselben Robotikregeln.
 
 Eingaben und Ausgaben:
 
-* Eingabe eines `MotionRequest`
+* Eingabe eines `MotionRequest` für die diskrete Bewegungsplanung
 * Übergabe eines `TargetPose` an `Validation`
 * Übergabe eines `TargetPose` an die Komponente `Robot Model Offset`
 * Übergabe eines `JointState` an `Validation`
 * Übergabe von Startzustand, Zielzustand und `MotionProfile` an einen Profilgenerator
-* Übergabe einzelner `TimedJointState` an `Hardware Abstraction`
 * Rückgabe eines `MotionResult` an die Anwendung
 
 Der `Orchestrator` kennt dabei:
@@ -848,7 +842,7 @@ Der `Orchestrator` kennt dabei:
 * die Reihenfolge der Verarbeitungsschritte
 * fachliche und technische Rückgabepfade
 * die zentralen Übergabemodelle
-* den aktuell angenommenen Startzustand für die zeitliche Bewegungsplanung
+* den aktuellen Startzustand für die zeitliche Bewegungsplanung
 
 Der `Orchestrator` kennt dabei nicht:
 
@@ -1415,9 +1409,11 @@ Diese letzte Regel ist besonders wichtig, weil viele spätere Inkonsistenzen nic
 | Begriff / Abkürzung | Beschreibung |
 | --- | --- |
 | HardwareResult | Technisches Rückgabemodell der Hardwareseite an den `Orchestrator`. Es beschreibt, ob eine hardwarenahe Ausgabe technisch erfolgreich verarbeitet wurde oder ein Fehler vorliegt. |
+| ControllerHandler | Zustandsbehaftete Orchestrierungskomponente für kontinuierliche, geräteunabhängige Jog-Befehle. Sie erzeugt unmittelbare Gelenk-Sollwerte, jedoch keinen MotionPlan. |
 | IkSolverMode | Explizite Auswahl des IK-Lösungsverfahrens für einen `MotionRequest`. Vorgesehen sind `analytical`, `ccd` und `fabrik`; ein automatischer Auswahlmodus ist vorerst bewusst nicht Teil des Modells. |
 | JointPwmState | PWM-bezogenes Ausgabemodell mit den vorbereiteten Stellwerten pro Aktor zwischen `Hardware Abstraction` und `Hardware Driver`. |
 | JointStateResult | Fachliches Prüfergebnis zur Bewertung eines berechneten `JointState`. |
+| JogCommand | Geräteunabhängiger kontinuierlicher Bewegungsbefehl mit kartesischen Eingaben, Joint-Geschwindigkeiten und Weltroll-Lock-Toggle. |
 | MotionPlan | Zeitlich geordnete Folge von Zwischenzuständen im Gelenkraum für die Ausführung eines Bewegungsübergangs einschließlich der berechneten Gesamtdauer. |
 | MotionProfile | Fachliches Profilmodell zur Beschreibung von Profiltyp, Zielgeschwindigkeit und fester Sampling-Zeit eines Bewegungsübergangs. |
 | MotionProfileType | Auswahl des Profilschemas, nämlich `constant_velocity`, `constant_acceleration` oder `smooth_start_stop`. |

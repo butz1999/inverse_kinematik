@@ -64,6 +64,7 @@ const controllerLowerButtons = document.querySelector("#controller-lower-buttons
 const controllerButtonsRaw = document.querySelector("#controller-buttons-raw");
 const controllerDpadRaw = document.querySelector("#controller-dpad-raw");
 const controllerUpdatedValue = document.querySelector("#controller-updated-value");
+const worldRollLockValue = document.querySelector("#world-roll-lock-value");
 const poseFields = ["x_mm", "y_mm", "z_mm", "p_deg", "r_deg", "g_pct"];
 const maxPoseHistoryEntries = 10;
 const maxSequenceSteps = 16;
@@ -985,6 +986,8 @@ function updateControllerPanel(controller) {
   controllerScanValue.textContent = controller.bluepadScanning ? "active" : "inactive";
   controllerBatteryValue.textContent = formatControllerBattery(controller);
   controllerMessageValue.textContent = controller.message || "none";
+  const worldRollLock = controller.worldRollLock;
+  worldRollLockValue.textContent = worldRollLock?.enabled === true ? "active" : "inactive";
   updateControllerVisualizer(controller.input);
 }
 

@@ -11,6 +11,7 @@ set(srcs
     "hardware/Pca9685ServoDriverConfig.cpp"
     "hardware/SerialLogger.cpp"
     "hardware/StatusLed.cpp"
+    "orchestration/ControllerHandler.cpp"
     "orchestration/MotionOrchestrator.cpp"
     "orchestration/MotionProfileGenerator.cpp"
     "robotics/Kinematics.cpp"

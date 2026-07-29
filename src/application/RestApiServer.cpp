@@ -203,7 +203,8 @@ void setControllerInputJson(JsonObject object, const ControllerInput &input)
   object["updatedAtMs"] = input.updated_at_ms;
 }
 
-void setControllerStateJson(JsonObject object, const ControllerDebugState &state, uint32_t now_ms)
+void setControllerStateJson(JsonObject object, const ControllerDebugState &state,
+                            const orchestration::ControllerHandlerState &handler_state, uint32_t now_ms)
 {
   object["status"] = toString(state.connection_status);
   object["driver"] = state.driver_name;
@@ -231,6 +232,9 @@ void setControllerStateJson(JsonObject object, const ControllerDebugState &state
           ? state.reconnect_deadline_ms - now_ms
           : 0U;
   object["ageMs"] = state.last_update_ms > 0U ? now_ms - state.last_update_ms : 0U;
+  auto world_roll_lock = object.createNestedObject("worldRollLock");
+  world_roll_lock["enabled"] = handler_state.world_roll_lock_enabled;
+  world_roll_lock["lockedWorldRollDeg"] = roundReportedValue(handler_state.locked_world_roll_deg);
   setControllerInputJson(object.createNestedObject("input"), state.input);
 }
 
@@ -268,6 +272,7 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
       logger_(logger),
       hardware_calibration_(hardware::defaultHardwareCalibration()),
       orchestrator_(robotics::defaultRobotModel(), robotics::defaultRobotModelOffset()),
+      controller_handler_(orchestrator_),
       run_engine_(orchestrator_),
       controller_driver_(),
       current_joint_state_(hardware_calibration_.initial_joint_state),
@@ -282,10 +287,7 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
       pending_led_step_(steps::emptyLedStep()),
       has_pending_led_step_(false),
       last_controller_jog_ms_(0U),
-      controller_jog_active_(false),
-      controller_cartesian_jog_state_(emptyControllerCartesianJogState()),
-      controller_joint_slew_limiter_state_(emptyControllerJointSlewLimiterState()),
-      controller_world_roll_lock_state_(emptyControllerWorldRollLockState())
+      controller_jog_active_(false)
 {
 }
 
@@ -546,9 +548,7 @@ void RestApiServer::serviceControllerJog(uint32_t now_ms)
       !servo_driver_.isInitialized() || hasActiveMotionPlan() || run_engine_.isActive())
   {
     controller_jog_active_ = false;
-    resetControllerCartesianJog(controller_cartesian_jog_state_);
-    resetControllerJointSlewLimiter(controller_joint_slew_limiter_state_);
-    resetControllerWorldRollLock(controller_world_roll_lock_state_);
+    controller_handler_.reset();
     last_controller_jog_ms_ = now_ms;
     return;
   }
@@ -568,145 +568,35 @@ void RestApiServer::serviceControllerJog(uint32_t now_ms)
 
   last_controller_jog_ms_ = now_ms;
   constexpr uint32_t elapsed_ms = kControllerJogPeriodMs;
-  const auto robot_model = robotics::defaultRobotModel();
-  const auto robot_offset = robotics::defaultRobotModelOffset();
-  const auto current_fk = robotics::forwardKinematics(current_joint_state_, robot_model, robot_offset);
-  const auto roll_lock_update =
-      updateControllerWorldRollLock((state.input.buttons & kControllerButtonRightStick) != 0U, current_fk.p_deg,
-                                    current_joint_state_.d_deg, current_joint_state_.hr_deg, controller_world_roll_lock_state_);
-  if (roll_lock_update == ControllerWorldRollLockUpdate::Enabled)
+  const auto handler_result = controller_handler_.update(mapControllerInputToJogCommand(state.input), current_joint_state_, elapsed_ms);
+  if (!handler_result.changed)
   {
-    logResult("[REST] Controller world-roll lock enabled");
-  }
-  else if (roll_lock_update == ControllerWorldRollLockUpdate::Disabled)
-  {
-    logResult("[REST] Controller world-roll lock disabled");
-  }
-  else if (roll_lock_update == ControllerWorldRollLockUpdate::Rejected)
-  {
-    logResult("[REST] Controller world-roll lock requires pitch near -90 degrees");
+    return;
   }
 
-  const auto joint_jog_result = applyDefaultControllerJog(state.input, current_joint_state_, elapsed_ms);
-  if (joint_jog_result.active)
+  const auto calibration_result = hardware::mapJointStateToPwm(handler_result.joint_state, hardware_calibration_);
+  if (!calibration_result.ok)
   {
-    resetControllerCartesianJog(controller_cartesian_jog_state_);
-    resetControllerJointSlewLimiter(controller_joint_slew_limiter_state_);
-    if (!joint_jog_result.changed)
-    {
-      return;
-    }
+    logResult("[REST] Controller handler stopped by calibration failure");
+    controller_jog_active_ = false;
+    controller_handler_.reset();
+    return;
+  }
 
-    const auto calibration_result = hardware::mapJointStateToPwm(joint_jog_result.joint_state, hardware_calibration_);
-    if (!calibration_result.ok)
-    {
-      logResult("[REST] Controller jog stopped by calibration failure");
-      controller_jog_active_ = false;
-      return;
-    }
-
+  if (!isSameJointPwmState(calibration_result.joint_pwm_state, current_joint_pwm_state_))
+  {
     const auto write_result = servo_driver_.write(calibration_result.joint_pwm_state);
     if (write_result.status != hardware::HardwareDriverStatus::Ok)
     {
-      logResult("[REST] Controller jog stopped by hardware failure");
+      logResult("[REST] Controller handler stopped by hardware failure");
       controller_jog_active_ = false;
+      controller_handler_.reset();
       return;
     }
-
-    current_joint_state_ = joint_jog_result.joint_state;
-    current_joint_pwm_state_ = servo_driver_.jointPwmState();
-    return;
   }
 
-  const auto current_pose = targetPoseFromForwardKinematics(current_fk, robot_offset);
-  auto candidate_cartesian_jog_state = controller_cartesian_jog_state_;
-  const auto candidate_cartesian_jog_result = applyControllerCartesianJog(
-      state.input, current_pose, elapsed_ms, candidate_cartesian_jog_state, kDefaultControllerCartesianJogConfig,
-      controllerCartesianSingularitySpeedScale(current_joint_state_.e_deg));
-
-  auto solve_cartesian_target = [&](const common::TargetPose &target_pose, common::JointState &target_joint_state)
-  {
-    const auto target_validation = robotics::validateTargetPose(target_pose, robot_model);
-    if (!target_validation.ok)
-    {
-      return false;
-    }
-
-    const auto ik_result = robotics::inverseKinematics(robotics::applyRobotModelOffset(target_pose, robot_offset), robot_model,
-                                                        robot_offset, current_joint_state_);
-    if (!ik_result.ok || !robotics::validateJointState(ik_result.joint_state).ok)
-    {
-      return false;
-    }
-
-    target_joint_state = ik_result.joint_state;
-    if (controller_world_roll_lock_state_.enabled)
-    {
-      target_joint_state.hr_deg = handRollForControllerWorldRollLock(controller_world_roll_lock_state_, target_joint_state.d_deg);
-    }
-    return robotics::validateJointState(target_joint_state).ok;
-  };
-
-  common::JointState target_joint_state{};
-  const auto candidate_is_valid = hasControllerCartesianJogTarget(candidate_cartesian_jog_state) &&
-                                  solve_cartesian_target(candidate_cartesian_jog_state.target_pose, target_joint_state);
-  const auto cartesian_jog_active = candidate_is_valid && candidate_cartesian_jog_result.active;
-  if (candidate_is_valid)
-  {
-    controller_cartesian_jog_state_ = candidate_cartesian_jog_state;
-  }
-  else
-  {
-    stopControllerCartesianJog(controller_cartesian_jog_state_);
-  }
-
-  if (hasControllerCartesianJogTarget(controller_cartesian_jog_state_))
-  {
-    if (!candidate_is_valid &&
-        !solve_cartesian_target(controller_cartesian_jog_state_.target_pose, target_joint_state))
-    {
-      resetControllerCartesianJog(controller_cartesian_jog_state_);
-      resetControllerJointSlewLimiter(controller_joint_slew_limiter_state_);
-      return;
-    }
-
-    const auto limited_joint_result = applyControllerJointSlewLimiter(
-        current_joint_state_, target_joint_state, elapsed_ms, controller_joint_slew_limiter_state_);
-    if (!limited_joint_result.changed)
-    {
-      if (!cartesian_jog_active && !limited_joint_result.active)
-      {
-        resetControllerCartesianJog(controller_cartesian_jog_state_);
-        resetControllerJointSlewLimiter(controller_joint_slew_limiter_state_);
-      }
-      return;
-    }
-    target_joint_state = limited_joint_result.joint_state;
-
-    const auto calibration_result = hardware::mapJointStateToPwm(target_joint_state, hardware_calibration_);
-    if (!calibration_result.ok)
-    {
-      logResult("[REST] Controller Cartesian jog stopped by calibration failure");
-      resetControllerCartesianJog(controller_cartesian_jog_state_);
-      return;
-    }
-
-    if (!isSameJointPwmState(calibration_result.joint_pwm_state, current_joint_pwm_state_))
-    {
-      const auto write_result = servo_driver_.write(calibration_result.joint_pwm_state);
-      if (write_result.status != hardware::HardwareDriverStatus::Ok)
-      {
-        logResult("[REST] Controller Cartesian jog stopped by hardware failure");
-        resetControllerCartesianJog(controller_cartesian_jog_state_);
-        resetControllerJointSlewLimiter(controller_joint_slew_limiter_state_);
-        return;
-      }
-    }
-
-    current_joint_state_ = target_joint_state;
-    current_joint_pwm_state_ = servo_driver_.jointPwmState();
-    return;
-  }
+  current_joint_state_ = handler_result.joint_state;
+  current_joint_pwm_state_ = servo_driver_.jointPwmState();
 }
 
 void RestApiServer::queueLedStep(const steps::LedStep &step)
@@ -775,7 +665,8 @@ void RestApiServer::handleStatus()
   doc["motionPlanSampleIndex"] = active_motion_sample_index_;
   doc["motionPlanSampleCount"] = active_motion_plan_.sample_count;
   setSequenceStateJson(doc.createNestedObject("sequence"), run_engine_.state(), millis());
-  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
+  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), controller_handler_.state(),
+                         millis());
   doc["uptimeMs"] = millis();
 
   sendJson(200, jsonBody(doc));
@@ -859,6 +750,7 @@ void RestApiServer::handleJointMotionRequest()
     return;
   }
 
+  const auto manual_hand_roll_changed = parsed.joint_state.hr_deg != current_joint_state_.hr_deg;
   const auto write_result = servo_driver_.write(calibration_result.joint_pwm_state);
   if (write_result.status != hardware::HardwareDriverStatus::Ok)
   {
@@ -875,6 +767,10 @@ void RestApiServer::handleJointMotionRequest()
 
   current_joint_state_ = parsed.joint_state;
   current_joint_pwm_state_ = servo_driver_.jointPwmState();
+  if (manual_hand_roll_changed)
+  {
+    controller_handler_.synchronizeJointState(current_joint_state_);
+  }
   logResult("[REST] Joint motion request mapped and written to hardware");
 
   RestJsonDocument doc;
@@ -1358,7 +1254,8 @@ void RestApiServer::handleControllerConnectRequest()
   doc["code"] = toString(ApiResultCode::Ok);
   doc["mode"] = "controller_jog";
   doc["readOnly"] = false;
-  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
+  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), controller_handler_.state(),
+                         millis());
   sendJson(202, jsonBody(doc));
 }
 
@@ -1374,7 +1271,8 @@ void RestApiServer::handleControllerDisconnectRequest()
   doc["code"] = toString(ApiResultCode::Ok);
   doc["mode"] = "controller_jog";
   doc["readOnly"] = false;
-  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
+  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), controller_handler_.state(),
+                         millis());
   sendJson(202, jsonBody(doc));
 }
 
@@ -1385,7 +1283,8 @@ void RestApiServer::handleControllerStatus()
   doc["code"] = toString(ApiResultCode::Ok);
   doc["mode"] = "controller_jog";
   doc["readOnly"] = false;
-  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
+  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), controller_handler_.state(),
+                         millis());
   setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
   if (!setReportedTargetPoseJson(doc.createNestedObject("targetPose"), current_joint_state_))
   {
@@ -1404,7 +1303,8 @@ void RestApiServer::handleControllerDebug()
   doc["mode"] = "controller_jog";
   doc["readOnly"] = false;
   doc["motionOutput"] = "enabled_when_connected_and_idle";
-  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
+  setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), controller_handler_.state(),
+                         millis());
   setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
   if (!setReportedTargetPoseJson(doc.createNestedObject("targetPose"), current_joint_state_))
   {

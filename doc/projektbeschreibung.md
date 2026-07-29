@@ -523,23 +523,27 @@ flowchart LR
         B1[Orchestrator]
         B2[MotionRequest]
         B3[MotionResult]
-        B4[MotionRequestProcessing]
         B5[MotionProfile]
         B6[MotionProfileGenerator]
         B7[MotionPlan]
         B8[TimedJointState]
         B9[IkSolverMode]
+        B10[ControllerHandler]
+        B11[JogCommand]
+        B12[RestCommand]
 
-        B2 -->|is handled in| B4
-        B2 -->|contains| B5
-        B2 -->|contains| B9
-        B4 -->|is coordinated by| B1
+        B12 -->|triggers| B2
+        B2 -->|is handled by| B1
+        B2 -.->|contains| B5
+        B2 -.->|contains| B9
         B1 -->|uses| B5
         B1 -->|passes| B9
         B1 -->|requests plan from| B6
         B6 -->|produces| B7
         B7 -->|contains| B8
         B1 -->|returns| B3
+        B11 -->|is processed by| B10
+        B10 -->|uses shared target solving| B1
     end
 ```
 
@@ -698,7 +702,7 @@ Die statische Struktur beschreibt die wichtigsten Softwarebausteine und ihre Abh
 Eine zweckmäßige Struktur besteht aus den folgenden Bausteinen:
 
 * `Application`: enthält die Run Engine, die Ablaufdefinitionen sowie einfache anwendungsnahe Aktionen
-* `Orchestration`: enthält den Orchestrator, die Verarbeitung einzelner Bewegungsanforderungen und die Koordination zeitlicher Bewegungspläne
+* `Orchestration`: enthält den Orchestrator, die Verarbeitung einzelner Bewegungsanforderungen, die Koordination zeitlicher Bewegungspläne sowie perspektivisch die zustandsbehaftete Verarbeitung kontinuierlicher Jog-Befehle
 * `Kinematics`: enthält Vorwärts- und inverse Kinematik sowie mathematische Hilfsfunktionen
 * `Robot Model`: enthält Segmentlängen, Gelenkgrenzen und weitere idealisierte Modellparameter
 * `Robot Model Offset`: enthält modellbezogene Offsets und Korrekturwerte des realen Arms
@@ -709,6 +713,37 @@ Eine zweckmäßige Struktur besteht aus den folgenden Bausteinen:
 Zwischen diesen Bausteinen sollen gerichtete Abhängigkeiten gelten. Die Anwendung hängt von der Orchestrierung ab, die Orchestrierung von fachlichen Modellen und Berechnungskomponenten, und erst die hardwarenahen Bausteine kennen die konkrete Ausgabetechnik. Umgekehrte Abhängigkeiten sollen vermieden werden.
 
 Besonders wichtig ist dabei, dass Modelle wie Zielpose, Bewegungsanforderung, Gelenkzustand, Bewegungsplan, Joint PWM State und Bewegungsergebnis nicht implizit in mehreren Komponenten unterschiedlich interpretiert werden. Sie bilden die verbindenden Vertragsobjekte zwischen den Bausteinen.
+
+#### `ControllerHandler`
+
+Die Live-Steuerung über den Switch Pro Controller wird im `ControllerHandler` innerhalb von `orchestration/` verarbeitet. Der `RestApiServer` übernimmt die Controller-Anbindung, das Takten, die Priorisierung gegenüber Bewegungsplan und Sequenz sowie die Hardwareausgabe.
+
+Der bestehende `MotionOrchestrator` und der `ControllerHandler` haben unterschiedliche zeitliche Verantwortungen:
+
+| Baustein | Eingang | Zustandsmodell | Ergebnis |
+| --- | --- | --- | --- |
+| `MotionOrchestrator` | einzelne vollständige `MotionRequest` mit Zielpose und Bewegungsprofil | bis auf Robotermodell und -offset im Wesentlichen zustandslos | vollständiger `MotionPlan` mit zeitlich markierten `TimedJointState`-Samples |
+| `ControllerHandler` | geräteunabhängiger Jog-Befehl, aktueller `JointState` und Zeitdelta | hält fortlaufende Zielpose, kartesische Geschwindigkeit, Gelenk-Slew-Zustand und optionalen Weltroll-Lock | nächster unmittelbarer `JointState`-Sollwert oder ein klarer Ablehnungszustand |
+
+Der `ControllerHandler` integriert kartesische Geschwindigkeitswünsche, führt eine persistente Zielpose, wendet Singularitätsverlangsamung und Weltroll-Kompensation an und begrenzt die Gelenkgeschwindigkeit. Er erzeugt für jeden kurzen Steuerzyklus bewusst keinen vollständigen `MotionPlan`; dies wäre für eine kontinuierliche Bedienung unnötig und würde Speicher sowie Rechenzeit belasten.
+
+Beide Orchestratoren verwenden dieselben Robotikregeln. `robotics/Validation` verbleibt daher in der Robotikschicht: Sie beantwortet unabhängig vom Auslöser, ob Zielpose, Gelenkzustand und Robotermodell fachlich gültig sind. Ebenso werden Robot Model Offset und inverse Kinematik zentral genutzt. Die Orchestrierung entscheidet dagegen, welche Folge aus dem Ergebnis entsteht, beispielsweise Bewegungsplan erzeugen, Controller-Sollwert fortschreiben, letzte gültige Zielpose beibehalten oder eine laufende Sequenz priorisieren.
+
+Die Eingabegrenze bleibt dabei klar:
+
+```text
+Switch/Bluepad32 input → application-level JogCommand → ControllerHandler
+                                                        → JointState target → hardware output
+```
+
+Der `ControllerHandler` kennt somit weder Bluepad32, REST-Endpunkte noch PCA9685-Details. Die Anwendung übersetzt konkrete Tasten und Sticks in einen geräteunabhängigen `JogCommand`; die Hardwareabstraktion übernimmt weiterhin erst nach der fachlichen Freigabe die PWM-Abbildung und Ausgabe.
+
+Die umgesetzte Aufteilung besteht aus folgenden Schritten:
+
+1. Gemeinsamen planfreien Pfad für Zielpose-Validierung, Offset, IK und Joint-Validierung aus dem heutigen `MotionOrchestrator` herausarbeiten.
+2. `ControllerHandler` mit explizitem Controller-Zustand und Native-Tests einführen.
+3. `RestApiServer` auf das Weiterreichen von Eingabe, Ergebnis und Hardwareausgabe reduzieren.
+4. Erst danach eine mögliche weitere Trennung von Hardwareausführung und REST-Transport bewerten.
 
 ### Dynamisches Verhalten
 
@@ -912,6 +947,7 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 | CCD | Cyclic Coordinate Descent. Iteratives Verfahren zur Lösung inverser Kinematik, bei dem Gelenke nacheinander so angepasst werden, dass sich der Endeffektor schrittweise an ein Ziel annähert. |
 | <a id="common"></a>Common | Gemeinsamer Softwarebaustein für fachliche Datenmodelle, die von mehreren anderen Komponenten verwendet werden. |
 | <a id="controller-input"></a>Controller Input | Fachliches Eingabemodell für manuelle Bedienereignisse aus einem externen Controller, beispielsweise einem Switch Pro Controller. |
+| ControllerHandler | Orchestrierungskomponente für kontinuierliche, geräteunabhängige Jog-Befehle. Sie führt einen Controller-spezifischen Bewegungszustand und erzeugt unmittelbare Gelenk-Sollwerte, jedoch keinen vollständigen Motion Plan. |
 | <a id="calibration"></a>Hardware Calibration | Datenmodell zur Abbildung fachlicher Gelenk- und Greiferwerte auf hardwarenahe Stellwerte unter Berücksichtigung fachlicher Grenzen und gerichteter PWM-Endpunkte. |
 | <a id="calibration-data"></a>Robot Model Offset | Modellbezogene Offsets und Korrekturwerte, welche das reale Robotermodell gegenüber dem idealisierten Modell beschreiben. |
 | Endeffektor | Das funktionale Ende des Roboterarms. Im vorliegenden Projekt besteht der Endeffektor aus Handgelenk und Greifer. |
