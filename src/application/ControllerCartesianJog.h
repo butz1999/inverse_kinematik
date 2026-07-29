@@ -39,7 +39,7 @@ struct ControllerCartesianJogResult
 inline constexpr ControllerCartesianJogConfig kDefaultControllerCartesianJogConfig{
     250,     // Dead-zone Analog Stick
     2047,    // Maximum input Analog Stick
-    120.0F,   // Move-Speed
+    120.0F,  // Move-Speed
     240.0F,  // Move-Velocity
 };
 
@@ -96,13 +96,10 @@ inline float approachControllerVelocity(float current_velocity, float target_vel
   return std::max(target_velocity, current_velocity - maximum_delta);
 }
 
-inline ControllerCartesianJogResult applyControllerCartesianJog(const ControllerInput &input,
-                                                                 const common::TargetPose &current_pose,
-                                                                 uint32_t elapsed_ms,
-                                                                 ControllerCartesianJogState &state,
-                                                                 const ControllerCartesianJogConfig &config =
-                                                                     kDefaultControllerCartesianJogConfig,
-                                                                 float speed_scale = 1.0F)
+inline ControllerCartesianJogResult applyControllerCartesianJog(
+    const ControllerInput &input, const common::TargetPose &current_pose, uint32_t elapsed_ms,
+    ControllerCartesianJogState &state,
+    const ControllerCartesianJogConfig &config = kDefaultControllerCartesianJogConfig, float speed_scale = 1.0F)
 {
   if (!input.valid || elapsed_ms == 0U)
   {

@@ -77,8 +77,8 @@ void test_motion_orchestrator_resolves_target_without_creating_motion_plan()
 {
   const orchestration::MotionOrchestrator orchestrator(robotics::defaultRobotModel(),
                                                        robotics::defaultRobotModelOffset());
-  const auto result = orchestrator.resolveTargetPose(
-      common::TargetPose{-20.0F, 50.0F, 30.0F, -90.0F, 0.0F, 50.0F}, common::initialJointState());
+  const auto result = orchestrator.resolveTargetPose(common::TargetPose{-20.0F, 50.0F, 30.0F, -90.0F, 0.0F, 50.0F},
+                                                     common::initialJointState());
 
   TEST_ASSERT_TRUE(result.ok);
   TEST_ASSERT_EQUAL(orchestration::MotionStatus::Accepted, result.status);

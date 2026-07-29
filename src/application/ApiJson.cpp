@@ -1,11 +1,12 @@
 // ArduinoJson-backed request parsing for the REST API.
 
 #include "application/ApiJson.h"
-#include "config/RobotSettings.h"
 
 #include <ArduinoJson.h>
 
 #include <cstring>
+
+#include "config/RobotSettings.h"
 
 namespace application
 {

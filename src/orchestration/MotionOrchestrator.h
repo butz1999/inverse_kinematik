@@ -28,7 +28,7 @@ struct MotionRequest
 
 struct MotionResult
 {
-  bool ok{false};          // The actual result
+  bool ok{false};              // The actual result
   const char *field_name{""};  // Name of the field that caused the error.
   const char *message{""};     // Static message text.
   MotionStatus status{MotionStatus::KinematicsFailure};

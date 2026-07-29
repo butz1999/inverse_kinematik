@@ -16,8 +16,8 @@
 #include "hardware/Logger.h"
 #include "hardware/Pca9685ServoDriver.h"
 #include "hardware/StatusLed.h"
-#include "orchestration/MotionOrchestrator.h"
 #include "orchestration/ControllerHandler.h"
+#include "orchestration/MotionOrchestrator.h"
 
 namespace application
 {

@@ -36,8 +36,8 @@ float singularitySpeedScale(float elbow_deg)
   constexpr float kSlowdownElbowAngleDeg = 20.0F;
   constexpr float kMinimumSpeedScale = 0.15F;
   constexpr float kPi = 3.14159265358979323846F;
-  const auto normalized = std::fabs(std::sin((elbow_deg * kPi) / 180.0F)) /
-                          std::sin((kSlowdownElbowAngleDeg * kPi) / 180.0F);
+  const auto normalized =
+      std::fabs(std::sin((elbow_deg * kPi) / 180.0F)) / std::sin((kSlowdownElbowAngleDeg * kPi) / 180.0F);
   return kMinimumSpeedScale + ((1.0F - kMinimumSpeedScale) * std::min(1.0F, normalized));
 }
 
@@ -62,9 +62,9 @@ float limitJointAxis(float current, float target, float &velocity_deg_s, float e
 {
   const auto remaining = target - current;
   const auto maximum_braking_velocity = std::sqrt(2.0F * kJointMaximumAccelerationDegS2 * std::fabs(remaining));
-  const auto target_velocity = remaining == 0.0F
-                                   ? 0.0F
-                                   : std::copysign(std::min(kJointMaximumVelocityDegS, maximum_braking_velocity), remaining);
+  const auto target_velocity =
+      remaining == 0.0F ? 0.0F
+                        : std::copysign(std::min(kJointMaximumVelocityDegS, maximum_braking_velocity), remaining);
   velocity_deg_s = approach(velocity_deg_s, target_velocity, kJointMaximumAccelerationDegS2 * elapsed_seconds);
   const auto delta = velocity_deg_s * elapsed_seconds;
   if (std::fabs(delta) >= std::fabs(remaining))
@@ -106,7 +106,8 @@ ControllerHandlerStatus statusFromMotionStatus(MotionStatus status)
 
 }  // namespace
 
-ControllerHandler::ControllerHandler(const MotionOrchestrator &motion_orchestrator) : motion_orchestrator_(motion_orchestrator)
+ControllerHandler::ControllerHandler(const MotionOrchestrator &motion_orchestrator)
+    : motion_orchestrator_(motion_orchestrator)
 {
 }
 
@@ -141,8 +142,8 @@ void ControllerHandler::reset()
   locked_world_roll_deg_ = 0.0F;
 }
 
-ControllerHandlerResult ControllerHandler::update(const JogCommand &command, const common::JointState &current_joint_state,
-                                                   uint32_t elapsed_ms)
+ControllerHandlerResult ControllerHandler::update(const JogCommand &command,
+                                                  const common::JointState &current_joint_state, uint32_t elapsed_ms)
 {
   if (!command.valid || elapsed_ms == 0U)
   {
@@ -191,7 +192,8 @@ ControllerHandlerResult ControllerHandler::update(const JogCommand &command, con
       const auto &limit = common::jointLimitForAxis(config::robotSettings().joint_limits, axis);
       value = std::clamp(value + velocity * elapsed_seconds, limit.min_value, limit.max_value);
     }
-    return ControllerHandlerResult{true, jointStatesDiffer(next, current_joint_state), ControllerHandlerStatus::Updated, next};
+    return ControllerHandlerResult{true, jointStatesDiffer(next, current_joint_state), ControllerHandlerStatus::Updated,
+                                   next};
   }
 
   if (!target_pose_initialized_)
@@ -202,12 +204,15 @@ ControllerHandlerResult ControllerHandler::update(const JogCommand &command, con
 
   const auto elapsed_seconds = static_cast<float>(elapsed_ms) / 1000.0F;
   const auto scale = singularitySpeedScale(current_joint_state.e_deg);
-  cartesian_velocity_x_mm_s_ = approach(cartesian_velocity_x_mm_s_, command.x_input * kCartesianMaximumVelocityMmS * scale,
-                                         kCartesianMaximumAccelerationMmS2 * elapsed_seconds);
-  cartesian_velocity_y_mm_s_ = approach(cartesian_velocity_y_mm_s_, command.y_input * kCartesianMaximumVelocityMmS * scale,
-                                         kCartesianMaximumAccelerationMmS2 * elapsed_seconds);
-  cartesian_velocity_z_mm_s_ = approach(cartesian_velocity_z_mm_s_, command.z_input * kCartesianMaximumVelocityMmS * scale,
-                                         kCartesianMaximumAccelerationMmS2 * elapsed_seconds);
+  cartesian_velocity_x_mm_s_ =
+      approach(cartesian_velocity_x_mm_s_, command.x_input * kCartesianMaximumVelocityMmS * scale,
+               kCartesianMaximumAccelerationMmS2 * elapsed_seconds);
+  cartesian_velocity_y_mm_s_ =
+      approach(cartesian_velocity_y_mm_s_, command.y_input * kCartesianMaximumVelocityMmS * scale,
+               kCartesianMaximumAccelerationMmS2 * elapsed_seconds);
+  cartesian_velocity_z_mm_s_ =
+      approach(cartesian_velocity_z_mm_s_, command.z_input * kCartesianMaximumVelocityMmS * scale,
+               kCartesianMaximumAccelerationMmS2 * elapsed_seconds);
 
   auto candidate_pose = target_pose_;
   candidate_pose.x_mm += cartesian_velocity_x_mm_s_ * elapsed_seconds;
@@ -237,8 +242,8 @@ ControllerHandlerResult ControllerHandler::update(const JogCommand &command, con
   const auto active = command.x_input != 0.0F || command.y_input != 0.0F || command.z_input != 0.0F ||
                       cartesian_velocity_x_mm_s_ != 0.0F || cartesian_velocity_y_mm_s_ != 0.0F ||
                       cartesian_velocity_z_mm_s_ != 0.0F || jointStatesDiffer(limited, target_joint_state);
-  return ControllerHandlerResult{active, jointStatesDiffer(limited, current_joint_state), ControllerHandlerStatus::Updated,
-                                 limited};
+  return ControllerHandlerResult{active, jointStatesDiffer(limited, current_joint_state),
+                                 ControllerHandlerStatus::Updated, limited};
 }
 
 const char *toString(ControllerHandlerStatus status)

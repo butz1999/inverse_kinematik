@@ -65,8 +65,8 @@ void test_cartesian_jog_keeps_a_persistent_target_pose_while_joint_output_catche
   const auto initial_pose = common::initialTargetPose();
 
   const auto first = application::applyControllerCartesianJog(input, initial_pose, 100U, state);
-  const common::TargetPose delayed_joint_output_pose{initial_pose.x_mm, initial_pose.y_mm + 0.5F, initial_pose.z_mm,
-                                                     initial_pose.p_deg, initial_pose.r_deg, initial_pose.g_pct};
+  const common::TargetPose delayed_joint_output_pose{initial_pose.x_mm,  initial_pose.y_mm + 0.5F, initial_pose.z_mm,
+                                                     initial_pose.p_deg, initial_pose.r_deg,       initial_pose.g_pct};
   const auto second = application::applyControllerCartesianJog(input, delayed_joint_output_pose, 100U, state);
 
   TEST_ASSERT_TRUE(application::hasControllerCartesianJogTarget(state));

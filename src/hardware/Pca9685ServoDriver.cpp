@@ -5,8 +5,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#include "hardware/HardwareCalibration.h"
 #include "config/RobotSettings.h"
+#include "hardware/HardwareCalibration.h"
 
 namespace hardware
 {
@@ -176,17 +176,23 @@ HardwareDriverResult Pca9685ServoDriver::writeChannels(const common::JointPwmSta
   };
 
   const auto d_result = write_if_changed(channels.d, current_pwm_state_.d_pwm, state.d_pwm);
-  if (d_result.status != HardwareDriverStatus::Ok) return d_result;
+  if (d_result.status != HardwareDriverStatus::Ok)
+    return d_result;
   const auto s_result = write_if_changed(channels.s, current_pwm_state_.s_pwm, state.s_pwm);
-  if (s_result.status != HardwareDriverStatus::Ok) return s_result;
+  if (s_result.status != HardwareDriverStatus::Ok)
+    return s_result;
   const auto e_result = write_if_changed(channels.e, current_pwm_state_.e_pwm, state.e_pwm);
-  if (e_result.status != HardwareDriverStatus::Ok) return e_result;
+  if (e_result.status != HardwareDriverStatus::Ok)
+    return e_result;
   const auto hp_result = write_if_changed(channels.hp, current_pwm_state_.hp_pwm, state.hp_pwm);
-  if (hp_result.status != HardwareDriverStatus::Ok) return hp_result;
+  if (hp_result.status != HardwareDriverStatus::Ok)
+    return hp_result;
   const auto hr_result = write_if_changed(channels.hr, current_pwm_state_.hr_pwm, state.hr_pwm);
-  if (hr_result.status != HardwareDriverStatus::Ok) return hr_result;
+  if (hr_result.status != HardwareDriverStatus::Ok)
+    return hr_result;
   const auto g_result = write_if_changed(channels.g, current_pwm_state_.g_pwm, state.g_pwm);
-  if (g_result.status != HardwareDriverStatus::Ok) return g_result;
+  if (g_result.status != HardwareDriverStatus::Ok)
+    return g_result;
 
   current_pwm_state_ = state;
   return hwDriverOk();

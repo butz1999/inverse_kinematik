@@ -162,6 +162,7 @@ inline ControllerJogResult applyControllerJog(const ControllerInput &input, cons
     value = std::max(limit.min_value, std::min(limit.max_value, value + delta));
   }
 
+  // clang-format off
   return ControllerJogResult{active,
                              active && (next_state.d_deg != current_state.d_deg ||
                                         next_state.s_deg != current_state.s_deg ||
@@ -170,6 +171,7 @@ inline ControllerJogResult applyControllerJog(const ControllerInput &input, cons
                                         next_state.hr_deg != current_state.hr_deg ||
                                         next_state.g_pct != current_state.g_pct),
                              next_state};
+  // clang-format on
 }
 
 inline ControllerJogResult applyDefaultControllerJog(const ControllerInput &input,

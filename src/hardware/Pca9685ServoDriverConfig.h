@@ -53,8 +53,8 @@ inline bool isValidPca9685Channel(uint8_t channel)
 
 inline bool isValidChannelMap(const ServoChannelMap &channels)
 {
-  const std::array<uint8_t, 6U> mapped_channels = {channels.d, channels.s, channels.e,
-                                                     channels.hp, channels.hr, channels.g};
+  const std::array<uint8_t, 6U> mapped_channels = {channels.d,  channels.s,  channels.e,
+                                                   channels.hp, channels.hr, channels.g};
   for (std::size_t index = 0U; index < mapped_channels.size(); ++index)
   {
     if (!isValidPca9685Channel(mapped_channels[index]))

@@ -104,7 +104,8 @@ bool isBetterCandidate(const CandidateScore &candidate, const CandidateScore &be
     return true;
   }
 
-  return reference_joint_state != nullptr && std::fabs(candidate.pose_error - best.pose_error) <= kPoseErrorTieTolerance &&
+  return reference_joint_state != nullptr &&
+         std::fabs(candidate.pose_error - best.pose_error) <= kPoseErrorTieTolerance &&
          candidate.reference_distance < best.reference_distance;
 }
 
@@ -165,8 +166,8 @@ float localRadialForTurntableDeg(const OffsetTargetPose &pose, float d_deg)
 }  // namespace
 
 static InverseKinematicsResult inverseKinematicsImpl(const OffsetTargetPose &pose, const RobotModel &model,
-                                                      const RobotModelOffset &offset,
-                                                      const common::JointState *reference_joint_state);
+                                                     const RobotModelOffset &offset,
+                                                     const common::JointState *reference_joint_state);
 
 ForwardKinematicsResult forwardKinematics(const common::JointState &state, const RobotModel &model)
 {
@@ -188,6 +189,7 @@ ForwardKinematicsResult forwardKinematics(const common::JointState &state, const
   const auto hr_point = add(h_point, hpToHrVector(hp_angle_deg, state.d_deg, offset));
   const auto g_point = add(hr_point, segmentVector(model.segments.hr_g_length_mm, hp_angle_deg, state.d_deg));
 
+  // clang-format off
   return ForwardKinematicsResult{d_point,
                                  s_point,
                                  e_point,
@@ -197,6 +199,7 @@ ForwardKinematicsResult forwardKinematics(const common::JointState &state, const
                                  hp_angle_deg,
                                  state.hr_deg,
                                  state.g_pct};
+  // clang-format on
 }
 
 InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model)
@@ -218,8 +221,8 @@ InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const Ro
 }
 
 static InverseKinematicsResult inverseKinematicsImpl(const OffsetTargetPose &pose, const RobotModel &model,
-                                                      const RobotModelOffset &offset,
-                                                      const common::JointState *reference_joint_state)
+                                                     const RobotModelOffset &offset,
+                                                     const common::JointState *reference_joint_state)
 {
   if (!isValidRobotModel(model))
   {
@@ -246,8 +249,7 @@ static InverseKinematicsResult inverseKinematicsImpl(const OffsetTargetPose &pos
   const auto candidates = turntableCandidatesDeg(pose, local_side_offset_mm);
   for (const auto d_deg : candidates)
   {
-    const auto &turntable_limit =
-        common::jointLimitForAxis(config::robotSettings().joint_limits, common::JointAxis::D);
+    const auto &turntable_limit = common::jointLimitForAxis(config::robotSettings().joint_limits, common::JointAxis::D);
     if (d_deg < turntable_limit.min_value - kTurntableCandidateToleranceDeg ||
         d_deg > turntable_limit.max_value + kTurntableCandidateToleranceDeg)
     {

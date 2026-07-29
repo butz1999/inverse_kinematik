@@ -1,9 +1,9 @@
 // Native tests for the Switch 2 Pro BLE controller input PoC parser.
 
+#include <unity.h>
+
 #include <cstddef>
 #include <cstdint>
-
-#include <unity.h>
 
 #include "application/ControllerInput.h"
 #include "application/ControllerJog.h"
@@ -193,7 +193,8 @@ void test_controller_debug_driver_ingests_switch2_pro_report()
 
 void test_controller_status_string_includes_reconnecting()
 {
-  TEST_ASSERT_EQUAL_STRING("reconnecting", application::toString(application::ControllerConnectionStatus::Reconnecting));
+  TEST_ASSERT_EQUAL_STRING("reconnecting",
+                           application::toString(application::ControllerConnectionStatus::Reconnecting));
 }
 
 void test_controller_debug_driver_sets_reconnect_deadline_after_switch2_pro_report()
@@ -263,8 +264,8 @@ void test_controller_jog_source_detection_covers_buttons_and_dpad()
 {
   auto input = application::emptyControllerInput();
   input.valid = true;
-  input.buttons = application::kControllerButtonA | application::kControllerButtonHome |
-                  application::kControllerButtonCamera;
+  input.buttons =
+      application::kControllerButtonA | application::kControllerButtonHome | application::kControllerButtonCamera;
   input.dpad = application::kControllerDpadLeft;
 
   TEST_ASSERT_TRUE(application::isControllerJogSourceActive(input, application::ControllerJogSource::ButtonA));

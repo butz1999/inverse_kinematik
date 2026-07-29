@@ -20,8 +20,8 @@ inline float normalizeControllerAxis(int16_t value)
   {
     return 0.0F;
   }
-  const auto normalized = std::min(1.0F, static_cast<float>(magnitude - kDeadzone) /
-                                               static_cast<float>(kMaximumInput - kDeadzone));
+  const auto normalized =
+      std::min(1.0F, static_cast<float>(magnitude - kDeadzone) / static_cast<float>(kMaximumInput - kDeadzone));
   return value < 0 ? -normalized : normalized;
 }
 

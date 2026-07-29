@@ -3,6 +3,7 @@
 #pragma once
 
 #include <cstdint>
+
 #include "common/FixedString.h"
 #include "hardware/StatusLed.h"
 

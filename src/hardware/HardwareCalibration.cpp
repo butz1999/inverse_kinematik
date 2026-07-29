@@ -94,7 +94,8 @@ uint16_t mapAxisValueToPwm(float value, const ServoAxisCalibration &axis, const 
 uint16_t mapGripperValueToPwm(float value, const GripperCalibration &gripper, const common::PwmLimits &pwm_limits)
 {
   const auto clamped = clampFloat(value, gripper.min_pct, gripper.max_pct);
-  return roundedPwm(interpolate(clamped, gripper.min_pct, gripper.max_pct, gripper.min_pwm, gripper.max_pwm), pwm_limits);
+  return roundedPwm(interpolate(clamped, gripper.min_pct, gripper.max_pct, gripper.min_pwm, gripper.max_pwm),
+                    pwm_limits);
 }
 
 }  // namespace

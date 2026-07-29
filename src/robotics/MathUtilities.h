@@ -104,9 +104,17 @@ inline Orientation3 toolOrientationFromWorldAngles(float d_deg, float p_deg, flo
   const auto pitched_forward = add(scale(base_forward, std::cos(p_rad)), scale(base_up, std::sin(p_rad)));
   const auto pitched_up = add(scale(base_up, std::cos(p_rad)), scale(base_forward, -std::sin(p_rad)));
 
-  return Orientation3{add(scale(base_side, std::cos(r_rad)), scale(pitched_up, -std::sin(r_rad))),
+  // clang-format off
+  return Orientation3{add(scale(base_side, 
+                      std::cos(r_rad)),
+                      scale(pitched_up,
+                      -std::sin(r_rad))),
                       pitched_forward,
-                      add(scale(base_side, std::sin(r_rad)), scale(pitched_up, std::cos(r_rad)))};
+                      add(scale(base_side, 
+                      std::sin(r_rad)),
+                      scale(pitched_up,
+                      std::cos(r_rad)))};
+  // clang-format on
 }
 
 }  // namespace robotics

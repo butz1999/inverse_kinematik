@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "common/JointState.h"
 #include "common/JointPwmState.h"
+#include "common/JointState.h"
 #include "hardware/Pca9685ServoDriverConfig.h"
 #include "robotics/RobotModel.h"
 

@@ -22,8 +22,8 @@ void test_controller_command_mapper_maps_physical_layout_to_device_neutral_comma
   input.valid = true;
   input.left_x = 2047;
   input.right_y = -2047;
-  input.buttons = application::kControllerButtonGripR | application::kControllerButtonA |
-                  application::kControllerButtonRightStick;
+  input.buttons =
+      application::kControllerButtonGripR | application::kControllerButtonA | application::kControllerButtonRightStick;
   input.dpad = application::kControllerDpadLeft;
 
   const auto command = application::mapControllerInputToJogCommand(input);

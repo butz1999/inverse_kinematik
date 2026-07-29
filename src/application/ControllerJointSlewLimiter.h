@@ -30,7 +30,7 @@ struct ControllerJointSlewLimiterResult
 };
 
 inline constexpr ControllerJointSlewLimiterConfig kDefaultControllerJointSlewLimiterConfig{
-    .maximum_velocity_deg_s      = 180.0F,
+    .maximum_velocity_deg_s = 180.0F,
     .maximum_acceleration_deg_s2 = 360.0F,
 };
 
@@ -48,10 +48,10 @@ inline float limitControllerJointAxis(float current, float target, float &veloci
                                       const ControllerJointSlewLimiterConfig &config)
 {
   const auto remaining = target - current;
-  const auto maximum_braking_velocity =
-      std::sqrt(2.0F * config.maximum_acceleration_deg_s2 * std::fabs(remaining));
+  const auto maximum_braking_velocity = std::sqrt(2.0F * config.maximum_acceleration_deg_s2 * std::fabs(remaining));
   const auto target_velocity =
-      remaining == 0.0F ? 0.0F : std::copysign(std::min(config.maximum_velocity_deg_s, maximum_braking_velocity), remaining);
+      remaining == 0.0F ? 0.0F
+                        : std::copysign(std::min(config.maximum_velocity_deg_s, maximum_braking_velocity), remaining);
   const auto maximum_velocity_delta = config.maximum_acceleration_deg_s2 * elapsed_seconds;
   if (velocity_deg_s < target_velocity)
   {
@@ -84,12 +84,12 @@ inline ControllerJointSlewLimiterResult applyControllerJointSlewLimiter(
 
   const auto elapsed_seconds = static_cast<float>(elapsed_ms) / 1000.0F;
   auto limited = current_joint_state;
-  limited.d_deg = limitControllerJointAxis(current_joint_state.d_deg, target_joint_state.d_deg, state.velocity_deg_s.d_deg,
-                                           elapsed_seconds, config);
-  limited.s_deg = limitControllerJointAxis(current_joint_state.s_deg, target_joint_state.s_deg, state.velocity_deg_s.s_deg,
-                                           elapsed_seconds, config);
-  limited.e_deg = limitControllerJointAxis(current_joint_state.e_deg, target_joint_state.e_deg, state.velocity_deg_s.e_deg,
-                                           elapsed_seconds, config);
+  limited.d_deg = limitControllerJointAxis(current_joint_state.d_deg, target_joint_state.d_deg,
+                                           state.velocity_deg_s.d_deg, elapsed_seconds, config);
+  limited.s_deg = limitControllerJointAxis(current_joint_state.s_deg, target_joint_state.s_deg,
+                                           state.velocity_deg_s.s_deg, elapsed_seconds, config);
+  limited.e_deg = limitControllerJointAxis(current_joint_state.e_deg, target_joint_state.e_deg,
+                                           state.velocity_deg_s.e_deg, elapsed_seconds, config);
   limited.hp_deg = limitControllerJointAxis(current_joint_state.hp_deg, target_joint_state.hp_deg,
                                             state.velocity_deg_s.hp_deg, elapsed_seconds, config);
   limited.hr_deg = limitControllerJointAxis(current_joint_state.hr_deg, target_joint_state.hr_deg,

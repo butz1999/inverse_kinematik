@@ -17,11 +17,12 @@ robotics::RobotModel installedRobotModel()
   };
   return robotics::RobotModel{
       .segments = segments,
-      .workspace = robotics::CartesianWorkspace{
-          .min_z_mm = 0.0F,
-          .max_z_mm = 260.0F,
-          .max_reach_mm = robotics::maxReachFromSegments(segments),
-      },
+      .workspace =
+          robotics::CartesianWorkspace{
+              .min_z_mm = 0.0F,
+              .max_z_mm = 260.0F,
+              .max_reach_mm = robotics::maxReachFromSegments(segments),
+          },
   };
 }
 
@@ -29,10 +30,10 @@ robotics::RobotModel installedRobotModel()
 
 const RobotSettings &robotSettings()
 {
+  using common::initialJointState;
   using common::JointLimit;
   using common::JointLimits;
   using common::PwmLimits;
-  using common::initialJointState;
 
   // clang-format off
   static const RobotSettings settings{

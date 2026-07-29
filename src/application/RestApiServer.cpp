@@ -2,10 +2,10 @@
 
 #include "application/RestApiServer.h"
 
+#include <ArduinoJson.h>
+
 #include <algorithm>
 #include <cmath>
-
-#include <ArduinoJson.h>
 
 #include "application/ApiJson.h"
 #include "config/RobotSettings.h"
@@ -245,9 +245,9 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
       run_engine_(orchestrator_),
       controller_driver_(),
       current_joint_state_(hardware_calibration_.initial_joint_state),
-      current_joint_pwm_state_(hardware::mapJointStateToPwm(hardware_calibration_.initial_joint_state,
-                                                             hardware_calibration_)
-                                   .joint_pwm_state),
+      current_joint_pwm_state_(
+          hardware::mapJointStateToPwm(hardware_calibration_.initial_joint_state, hardware_calibration_)
+              .joint_pwm_state),
       active_motion_plan_{common::defaultMotionProfile(), 0U, 0U, 0U, {}},
       active_motion_target_joint_state_(common::initialJointState()),
       active_motion_sample_index_(0U),
@@ -537,7 +537,8 @@ void RestApiServer::serviceControllerJog(uint32_t now_ms)
 
   last_controller_jog_ms_ = now_ms;
   constexpr uint32_t elapsed_ms = kControllerJogPeriodMs;
-  const auto handler_result = controller_handler_.update(mapControllerInputToJogCommand(state.input), current_joint_state_, elapsed_ms);
+  const auto handler_result =
+      controller_handler_.update(mapControllerInputToJogCommand(state.input), current_joint_state_, elapsed_ms);
   if (!handler_result.changed)
   {
     return;

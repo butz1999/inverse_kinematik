@@ -215,17 +215,12 @@ inline Switch2ProBleParseResult parseSwitch2ProBleInputReport(const uint8_t *rep
   dpad |= (buttons_l & (1U << 2U)) != 0U ? kControllerDpadLeft : 0U;
   dpad |= (buttons_l & (1U << 3U)) != 0U ? kControllerDpadUp : 0U;
 
-  return Switch2ProBleParseResult{true,
-                                  "ok",
-                                  ControllerInput{normalizeSwitch2StickAxis(left_x, false),
-                                                  normalizeSwitch2StickAxis(left_y, false),
-                                                  normalizeSwitch2StickAxis(right_x, false),
-                                                  normalizeSwitch2StickAxis(right_y, false),
-                                                  buttons,
-                                                  dpad,
-                                                  true,
-                                                  now_ms},
-                                  decodeSwitch2ProBleBatteryRaw(report, report_size)};
+  return Switch2ProBleParseResult{
+      true, "ok",
+      ControllerInput{normalizeSwitch2StickAxis(left_x, false), normalizeSwitch2StickAxis(left_y, false),
+                      normalizeSwitch2StickAxis(right_x, false), normalizeSwitch2StickAxis(right_y, false), buttons,
+                      dpad, true, now_ms},
+      decodeSwitch2ProBleBatteryRaw(report, report_size)};
 }
 
 struct ControllerDebugState
@@ -418,8 +413,7 @@ class ControllerDebugDriver
     }
 
     BP32.setup(&ControllerDebugDriver::onBluepad32ControllerConnected,
-               &ControllerDebugDriver::onBluepad32ControllerDisconnected,
-               false);
+               &ControllerDebugDriver::onBluepad32ControllerDisconnected, false);
     BP32.enableVirtualDevice(false);
     BP32.enableBLEService(false);
     BP32.enableNewBluetoothConnections(false);

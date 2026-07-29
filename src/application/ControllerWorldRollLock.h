@@ -41,8 +41,8 @@ inline bool isControllerWorldRollLockEligible(float pitch_deg)
 }
 
 inline ControllerWorldRollLockUpdate updateControllerWorldRollLock(bool toggle_pressed, float pitch_deg,
-                                                                    float turntable_deg, float hand_roll_deg,
-                                                                    ControllerWorldRollLockState &state)
+                                                                   float turntable_deg, float hand_roll_deg,
+                                                                   ControllerWorldRollLockState &state)
 {
   const auto toggle_edge = toggle_pressed && !state.previous_toggle_pressed;
   state.previous_toggle_pressed = toggle_pressed;

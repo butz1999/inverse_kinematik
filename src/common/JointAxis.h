@@ -73,7 +73,7 @@ constexpr const char *jointAxisPwmFieldName(JointAxis axis)
   return "";
 }
 
-inline constexpr std::array<JointAxis, kJointAxisCount> kJointAxes{
-    JointAxis::D, JointAxis::S, JointAxis::E, JointAxis::Hp, JointAxis::Hr, JointAxis::G};
+inline constexpr std::array<JointAxis, kJointAxisCount> kJointAxes{JointAxis::D,  JointAxis::S,  JointAxis::E,
+                                                                   JointAxis::Hp, JointAxis::Hr, JointAxis::G};
 
 }  // namespace common

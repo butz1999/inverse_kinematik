@@ -20,8 +20,14 @@ struct JogCommand
 inline bool hasJointJog(const JogCommand &command)
 {
   const auto &velocity = command.joint_velocity_per_second;
-  return velocity.d_deg != 0.0F || velocity.s_deg != 0.0F || velocity.e_deg != 0.0F ||
-         velocity.hp_deg != 0.0F || velocity.hr_deg != 0.0F || velocity.g_pct != 0.0F;
+  // clang-format off
+  return velocity.d_deg != 0.0F ||
+         velocity.s_deg != 0.0F ||
+         velocity.e_deg != 0.0F ||
+         velocity.hp_deg != 0.0F ||
+         velocity.hr_deg != 0.0F ||
+         velocity.g_pct != 0.0F;
+  // clang-format on
 }
 
 }  // namespace orchestration
