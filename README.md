@@ -68,3 +68,30 @@ src/config/WifiCredentials.example.h
 ```
 
 Die echte Datei `src/config/WifiCredentials.h` bleibt lokal und wird von Git ignoriert.
+
+## Lokale Git-Ausnahmen bei einem Dirty-Worktree
+
+Für bereits versionierte Dateien, deren lokale Änderung vorübergehend nicht in
+`git status` erscheinen soll, wird das Git-Flag `skip-worktree` verwendet. Das
+ist ausschliesslich eine lokale Arbeitskopie-Einstellung: Es ändert weder
+`.gitignore` noch den Repository-Inhalt und darf nicht für fachliche Änderungen
+verwendet werden, die später eingecheckt werden sollen.
+
+```bash
+# Lokale Änderung einer versionierten Datei ausblenden.
+git update-index --skip-worktree -- pfad/zur/datei
+
+# Alle lokal ausgeblendeten versionierten Dateien anzeigen.
+git ls-files -v | rg '^S '
+
+# Die Datei wieder beachten; ihre lokale Änderung erscheint wieder in git status.
+git update-index --no-skip-worktree -- pfad/zur/datei
+git status --short
+```
+
+Vor einem Pull, Rebase oder einer Bearbeitung derselben Datei muss das Flag mit
+`--no-skip-worktree` entfernt werden. Andernfalls können Änderungen aus dem
+Repository für diese Datei übersehen werden. Das Verfahren gilt nur für bereits
+versionierte Dateien. Für ausschliesslich lokale, noch nicht versionierte
+Dateien kommt ein Eintrag in `.git/info/exclude` infrage; projektweit gültige
+Ausnahmen gehören dagegen nach `.gitignore`.
