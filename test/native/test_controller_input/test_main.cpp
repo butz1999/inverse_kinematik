@@ -136,19 +136,22 @@ void test_switch2_pro_ble_parser_keeps_battery_status_byte_raw()
   TEST_ASSERT_EQUAL_UINT8(32U, low_result.battery_raw);
 }
 
-void test_switch2_pro_ble_battery_decodes_status_bits_and_preserves_raw_value()
+void test_switch2_pro_ble_battery_decodes_bits_5_to_4_and_preserves_raw_value()
 {
-  const auto full = application::decodeSwitch2ProBleBattery(0x80U);
-  const auto half = application::decodeSwitch2ProBleBattery(0x40U);
-  const auto invalid = application::decodeSwitch2ProBleBattery(0xE0U);
+  const auto empty = application::decodeSwitch2ProBleBattery(0x00U);
+  const auto one_third = application::decodeSwitch2ProBleBattery(0x10U);
+  const auto two_thirds = application::decodeSwitch2ProBleBattery(0x20U);
+  const auto full = application::decodeSwitch2ProBleBattery(0x30U);
 
+  TEST_ASSERT_TRUE(empty.available);
+  TEST_ASSERT_EQUAL_UINT8(0U, empty.percent);
+  TEST_ASSERT_TRUE(one_third.available);
+  TEST_ASSERT_EQUAL_UINT8(33U, one_third.percent);
+  TEST_ASSERT_TRUE(two_thirds.available);
+  TEST_ASSERT_EQUAL_UINT8(66U, two_thirds.percent);
   TEST_ASSERT_TRUE(full.available);
-  TEST_ASSERT_EQUAL_UINT8(0x80U, full.raw);
+  TEST_ASSERT_EQUAL_UINT8(0x30U, full.raw);
   TEST_ASSERT_EQUAL_UINT8(100U, full.percent);
-  TEST_ASSERT_TRUE(half.available);
-  TEST_ASSERT_EQUAL_UINT8(50U, half.percent);
-  TEST_ASSERT_FALSE(invalid.available);
-  TEST_ASSERT_EQUAL_UINT8(0xE0U, invalid.raw);
 }
 
 void test_bluepad32_battery_decodes_normalized_range()
@@ -170,7 +173,7 @@ void test_controller_debug_driver_ingests_switch2_pro_report()
   uint8_t report[63] = {};
   prepareNeutralReport(report, sizeof(report));
   report[2] = 0b00000001U;
-  report[11] = static_cast<uint8_t>(3U << 5U);
+  report[11] = 0x30U;
 
   application::ControllerDebugDriver driver;
 
@@ -178,14 +181,14 @@ void test_controller_debug_driver_ingests_switch2_pro_report()
 
   const auto state = driver.state();
   TEST_ASSERT_EQUAL(application::ControllerConnectionStatus::Connected, state.connection_status);
-  TEST_ASSERT_EQUAL_STRING("switch2-pro-ble-poc", state.driver_name);
+  TEST_ASSERT_EQUAL_STRING("Switch 2 Pro BLE", state.driver_name);
   TEST_ASSERT_EQUAL_STRING("Nintendo Switch 2 Pro Controller", state.controller_name);
   TEST_ASSERT_TRUE(state.input.valid);
   TEST_ASSERT_BITS_HIGH(application::kControllerButtonB, state.input.buttons);
-  TEST_ASSERT_EQUAL_UINT8(96U, state.battery_raw);
+  TEST_ASSERT_EQUAL_UINT8(0x30U, state.battery_raw);
   TEST_ASSERT_TRUE(state.battery_available);
-  TEST_ASSERT_EQUAL_UINT8(75U, state.battery_percent);
-  TEST_ASSERT_EQUAL_STRING("switch2_status_bits_7_to_5", state.battery_encoding);
+  TEST_ASSERT_EQUAL_UINT8(100U, state.battery_percent);
+  TEST_ASSERT_EQUAL_STRING("switch2_status_bits_5_to_4", state.battery_encoding);
 }
 
 void test_controller_status_string_includes_reconnecting()
@@ -282,7 +285,7 @@ int main(int argc, char **argv)
   RUN_TEST(test_switch2_pro_ble_parser_decodes_stick_axes_with_positive_y_up);
   RUN_TEST(test_switch2_pro_ble_parser_decodes_buttons_and_dpad);
   RUN_TEST(test_switch2_pro_ble_parser_keeps_battery_status_byte_raw);
-  RUN_TEST(test_switch2_pro_ble_battery_decodes_status_bits_and_preserves_raw_value);
+  RUN_TEST(test_switch2_pro_ble_battery_decodes_bits_5_to_4_and_preserves_raw_value);
   RUN_TEST(test_bluepad32_battery_decodes_normalized_range);
   RUN_TEST(test_controller_debug_driver_ingests_switch2_pro_report);
   RUN_TEST(test_controller_status_string_includes_reconnecting);

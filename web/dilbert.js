@@ -1,3 +1,10 @@
+const {
+  isCurrentControllerPollingGeneration,
+  isReportableTargetPose,
+  poseAfterRejectedMotion,
+  shouldUpdateControllerMotionForms,
+} = globalThis.controllerReporting;
+
 const poseForm = document.querySelector("#pose-form");
 const jointForm = document.querySelector("#joint-form");
 const pwmForm = document.querySelector("#pwm-form");
@@ -180,7 +187,9 @@ let controllerStatusPollDelayMs = 0;
 let lastControllerFormUpdateMs = 0;
 let suppressControllerMotionFormUpdatesUntilMs = 0;
 let controllerMotionFormSyncGeneration = 0;
+let controllerPollingGeneration = 0;
 let lastControllerState = null;
+let lastConfirmedPose = null;
 
 function loadBaseUrl() {
   try {
@@ -811,12 +820,15 @@ function readPwmState() {
   return readNumericState(pwmForm, (value) => Number.parseInt(value, 10));
 }
 
-function updatePoseForm(targetPose) {
+function updatePoseForm(targetPose, confirmed = false) {
   if (!targetPose) {
-    return;
+    return false;
   }
 
   const entry = targetPose.pose ? targetPose : { pose: targetPose };
+  if (!isReportableTargetPose(entry.pose)) {
+    return false;
+  }
   const nameInput = poseForm.elements.namedItem("name");
   if (targetPose.pose && nameInput instanceof HTMLInputElement) {
     nameInput.value = entry.name ?? "";
@@ -827,6 +839,17 @@ function updatePoseForm(targetPose) {
     if (input instanceof HTMLInputElement) {
       input.value = formatReportedNumber(value);
     }
+  }
+  if (confirmed) {
+    lastConfirmedPose = { ...entry.pose };
+  }
+  return true;
+}
+
+function restoreLastConfirmedPose() {
+  const pose = poseAfterRejectedMotion(lastConfirmedPose);
+  if (pose) {
+    updatePoseForm(pose, true);
   }
 }
 
@@ -857,7 +880,7 @@ function updatePwmForm(jointPwmState) {
 }
 
 function updateFormsFromResponse(body) {
-  updatePoseForm(body.targetPose);
+  updatePoseForm(body.targetPose, true);
   updateJointForm(body.jointState);
   updatePwmForm(body.jointPwmState);
   updateControllerPanel(body.controller);
@@ -971,18 +994,20 @@ function updateControllerMotionForms(body, force = false, syncGeneration = contr
   }
 
   const nowMs = Date.now();
-  if (!force && syncGeneration !== controllerMotionFormSyncGeneration) {
-    return;
-  }
-  if (!force && nowMs < suppressControllerMotionFormUpdatesUntilMs) {
-    return;
-  }
-  if (!force && nowMs - lastControllerFormUpdateMs < controllerFormUpdateIntervalMs) {
+  if (!shouldUpdateControllerMotionForms({
+    nowMs,
+    force,
+    responseGeneration: syncGeneration,
+    currentGeneration: controllerMotionFormSyncGeneration,
+    suppressUntilMs: suppressControllerMotionFormUpdatesUntilMs,
+    lastUpdateMs: lastControllerFormUpdateMs,
+    minimumIntervalMs: controllerFormUpdateIntervalMs,
+  })) {
     return;
   }
 
   updateJointForm(body.jointState);
-  updatePoseForm(body.targetPose);
+  updatePoseForm(body.targetPose, true);
   refreshCommittedFormStates();
   lastControllerFormUpdateMs = nowMs;
 }
@@ -1000,12 +1025,17 @@ function shouldPollController(controller) {
   return ["pairing", "reconnecting", "connected"].includes(controller?.status);
 }
 
-function stopControllerPolling() {
+function clearControllerPollingTimer() {
   if (controllerStatusTimer) {
     window.clearTimeout(controllerStatusTimer);
     controllerStatusTimer = 0;
   }
   controllerStatusPollDelayMs = 0;
+}
+
+function stopControllerPolling() {
+  controllerPollingGeneration += 1;
+  clearControllerPollingTimer();
 }
 
 function syncControllerPolling(controller) {
@@ -1022,10 +1052,14 @@ function syncControllerPolling(controller) {
     return;
   }
 
-  stopControllerPolling();
+  clearControllerPollingTimer();
   controllerStatusPollDelayMs = nextDelayMs;
+  const pollingGeneration = controllerPollingGeneration;
   controllerStatusTimer = window.setTimeout(async () => {
     controllerStatusTimer = 0;
+    if (!isCurrentControllerPollingGeneration(pollingGeneration, controllerPollingGeneration)) {
+      return;
+    }
     if (Date.now() < suppressControllerMotionFormUpdatesUntilMs) {
       syncControllerPolling(lastControllerState);
       return;
@@ -1033,24 +1067,40 @@ function syncControllerPolling(controller) {
     try {
       const syncGeneration = controllerMotionFormSyncGeneration;
       const body = await getJson("/api/controller/status");
+      if (!isCurrentControllerPollingGeneration(pollingGeneration, controllerPollingGeneration)) {
+        return;
+      }
       updateControllerPanel(body.controller);
       updateControllerMotionForms(body, false, syncGeneration);
       syncControllerPolling(body.controller);
     } catch {
-      stopControllerPolling();
+      if (isCurrentControllerPollingGeneration(pollingGeneration, controllerPollingGeneration)) {
+        stopControllerPolling();
+      }
     }
   }, nextDelayMs);
 }
 
 async function initializeControllerPolling() {
+  const pollingGeneration = controllerPollingGeneration;
   try {
     const body = await getJson("/api/controller/status");
+    if (!isCurrentControllerPollingGeneration(pollingGeneration, controllerPollingGeneration)) {
+      return;
+    }
     updateControllerPanel(body.controller);
     updateControllerMotionForms(body, true);
     syncControllerPolling(body.controller);
   } catch {
-    stopControllerPolling();
+    if (isCurrentControllerPollingGeneration(pollingGeneration, controllerPollingGeneration)) {
+      stopControllerPolling();
+    }
   }
+}
+
+function restartControllerPolling() {
+  stopControllerPolling();
+  void initializeControllerPolling();
 }
 
 function refreshCommittedFormStates() {
@@ -1254,6 +1304,9 @@ async function sendPoseState(source) {
     const body = await postJson("/api/motion", state);
     updateFormsFromResponse(body);
     setStatus("Pose accepted.", body);
+  } catch (error) {
+    restoreLastConfirmedPose();
+    throw error;
   } finally {
     sendPoseButton.disabled = false;
   }
@@ -1268,7 +1321,7 @@ async function sendJointState(source) {
     const body = await postJson("/api/joint-motion", state);
     updateFormsFromResponse(body);
     const fkBody = await postJson("/api/forward-kinematics", body.jointState || state);
-    updatePoseForm(fkBody.targetPose);
+    updatePoseForm(fkBody.targetPose, true);
     setStatus("Position accepted.", {
       jointMotion: body,
       forwardKinematics: fkBody,
@@ -1475,6 +1528,7 @@ initButton.addEventListener("click", async () => {
 
 baseUrlInput.addEventListener("change", () => {
   saveBaseUrl();
+  restartControllerPolling();
   void refreshMotionLimits().catch((error) => {
     setStatus(`Motion limits unavailable: ${error.message}`);
   });
@@ -1704,6 +1758,9 @@ addCommittedNumberSend(pwmForm, sendPwmState);
 renderPoseHistory();
 renderSequence();
 updateControllerVisualizer(null);
+if (isReportableTargetPose(readPoseState())) {
+  lastConfirmedPose = { ...readPoseState() };
+}
 initializeControllerPolling();
 void refreshMotionLimits().catch((error) => {
   setStatus(`Motion limits unavailable: ${error.message}`);

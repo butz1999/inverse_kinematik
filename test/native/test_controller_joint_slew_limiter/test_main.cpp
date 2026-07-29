@@ -4,6 +4,12 @@
 
 #include "application/ControllerJointSlewLimiter.h"
 
+void test_joint_slew_limiter_uses_180_degrees_per_second_as_default_maximum_velocity()
+{
+  TEST_ASSERT_FLOAT_WITHIN(0.001F, 180.0F,
+                           application::kDefaultControllerJointSlewLimiterConfig.maximum_velocity_deg_s);
+}
+
 void test_joint_slew_limiter_limits_first_controller_step()
 {
   const common::JointState current{0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F};
@@ -36,6 +42,7 @@ void test_joint_slew_limiter_reaches_near_target_without_overshoot()
 int main(int argc, char **argv)
 {
   UNITY_BEGIN();
+  RUN_TEST(test_joint_slew_limiter_uses_180_degrees_per_second_as_default_maximum_velocity);
   RUN_TEST(test_joint_slew_limiter_limits_first_controller_step);
   RUN_TEST(test_joint_slew_limiter_reaches_near_target_without_overshoot);
   return UNITY_END();

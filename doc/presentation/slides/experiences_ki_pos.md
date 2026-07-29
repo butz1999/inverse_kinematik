@@ -7,5 +7,6 @@
 * Fehlersuche von Stack-overflows 🪳
   * BTW: KI verursacht...
   * Serial-Log Output → Copy/Paste → Bugfix
+* Nach 2.5 Wochen plötzlich Unit-Tests für's Frontend eingeführt.
 * Programmieren mit ’Best Buddy‘ der ~~alles~~ vieles weiss 🤓
 * ...

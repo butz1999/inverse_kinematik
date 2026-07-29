@@ -1,6 +1,5 @@
 # Praxis Transfer <span style="float: right">[⬅️](demo.md) [⬆️](../slides.md)</span>
 
-
 * REST und TCP/IP funktionieren gut auf einem ’leichten‘ ESP32  
   mit viel wiederverwendetem Code
 * HW Spezifikation
@@ -16,4 +15,9 @@
   (~CHF 3 bis 5.-)
   * ESP32-S3-WROOM-1-N8R8: Xtensa Dual-Core LX7 mit bis zu 240 MHz 
   (~CHF 10 bis 15.-)
-* ESP32-Konfiguration: It's a mess...
+* ESP32 Konfiguration / Typen / Dev-Boards: It's a mess...
+* BLE Controller als Eingabegerät
+  * Möglich? Möglich.
+  * Nintendo: Proprietäre HID Protokolle
+  * Others: z.B. Low-Energy Battery Service Protocol
+  * BLE (Funk) und GATT (Profile, Services, Characteristics) besser verstehen

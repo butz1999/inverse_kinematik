@@ -30,8 +30,8 @@ struct ControllerJointSlewLimiterResult
 };
 
 inline constexpr ControllerJointSlewLimiterConfig kDefaultControllerJointSlewLimiterConfig{
-    90.0F,
-    360.0F,
+    .maximum_velocity_deg_s      = 180.0F,
+    .maximum_acceleration_deg_s2 = 360.0F,
 };
 
 inline ControllerJointSlewLimiterState emptyControllerJointSlewLimiterState()

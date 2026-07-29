@@ -129,13 +129,13 @@ inline ControllerBatteryReading decodeBluepad32Battery(uint8_t raw)
 
 inline ControllerBatteryReading decodeSwitch2ProBleBattery(uint8_t raw)
 {
-  const auto level = static_cast<uint8_t>(raw >> 5U);
-  if (level > 4U)
-  {
-    return ControllerBatteryReading{raw, 0U, false};
-  }
+  constexpr uint8_t kBatteryLevelMask = 0x30U;
+  constexpr uint8_t kBatteryLevelShift = 4U;
+  constexpr uint8_t kBatteryLevelFull = 3U;
 
-  return ControllerBatteryReading{raw, static_cast<uint8_t>(level * 25U), true};
+  const auto level = static_cast<uint8_t>((raw & kBatteryLevelMask) >> kBatteryLevelShift);
+  const auto percent = static_cast<uint8_t>((static_cast<uint16_t>(level) * 100U) / kBatteryLevelFull);
+  return ControllerBatteryReading{raw, percent, true};
 }
 
 inline int16_t normalizeSwitch2StickAxis(uint16_t value, bool invert)
@@ -357,10 +357,10 @@ class ControllerDebugDriver
     battery_raw_ = battery.raw;
     battery_percent_ = battery.percent;
     battery_available_ = battery.available;
-    battery_encoding_ = "switch2_status_bits_7_to_5";
+    battery_encoding_ = "switch2_status_bits_5_to_4";
     last_update_ms_ = now_ms;
     controller_name_ = "Nintendo Switch 2 Pro Controller";
-    driver_name_ = "switch2-pro-ble-poc";
+    driver_name_ = "Switch 2 Pro BLE";
     message_ = "Switch 2 Pro BLE input report received.";
     return true;
   }

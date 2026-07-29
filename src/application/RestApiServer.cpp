@@ -128,6 +128,24 @@ common::TargetPose targetPoseFromJointState(const common::JointState &joint_stat
   return targetPoseFromForwardKinematics(fk, robot_offset);
 }
 
+bool setReportedTargetPoseJson(JsonObject object, const common::JointState &joint_state)
+{
+  if (!robotics::validateJointState(joint_state).ok)
+  {
+    return false;
+  }
+
+  const auto robot_model = robotics::defaultRobotModel();
+  const auto pose = targetPoseFromJointState(joint_state);
+  if (!robotics::validateTargetPose(pose, robot_model).ok)
+  {
+    return false;
+  }
+
+  setTargetPoseJson(object, pose);
+  return true;
+}
+
 bool isSameJointPwmState(const common::JointPwmState &left, const common::JointPwmState &right)
 {
   return left.d_pwm == right.d_pwm && left.s_pwm == right.s_pwm && left.e_pwm == right.e_pwm &&
@@ -542,7 +560,7 @@ void RestApiServer::serviceControllerJog(uint32_t now_ms)
     return;
   }
 
-  constexpr uint32_t kControllerJogPeriodMs = 20U;
+  constexpr uint32_t kControllerJogPeriodMs = 5U;
   if (static_cast<uint32_t>(now_ms - last_controller_jog_ms_) < kControllerJogPeriodMs)
   {
     return;
@@ -1369,7 +1387,10 @@ void RestApiServer::handleControllerStatus()
   doc["readOnly"] = false;
   setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
   setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
-  setTargetPoseJson(doc.createNestedObject("targetPose"), targetPoseFromJointState(current_joint_state_));
+  if (!setReportedTargetPoseJson(doc.createNestedObject("targetPose"), current_joint_state_))
+  {
+    doc.remove("targetPose");
+  }
   sendJson(200, jsonBody(doc));
 }
 
@@ -1385,7 +1406,10 @@ void RestApiServer::handleControllerDebug()
   doc["motionOutput"] = "enabled_when_connected_and_idle";
   setControllerStateJson(doc.createNestedObject("controller"), controller_driver_.state(), millis());
   setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
-  setTargetPoseJson(doc.createNestedObject("targetPose"), targetPoseFromJointState(current_joint_state_));
+  if (!setReportedTargetPoseJson(doc.createNestedObject("targetPose"), current_joint_state_))
+  {
+    doc.remove("targetPose");
+  }
   setBleAdvertisementDebugJson(doc.createNestedArray("bleAdvertisements"));
   sendJson(200, jsonBody(doc));
 }

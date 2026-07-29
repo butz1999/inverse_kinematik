@@ -2,77 +2,11 @@
   "version": 1,
   "poses": [
     {
-      "name": "Mitte",
-      "pose": {
-        "x_mm": 0,
-        "y_mm": 40,
-        "z_mm": 51,
-        "p_deg": -85,
-        "r_deg": 0,
-        "g_pct": 0
-      }
-    },
-    {
-      "name": "Links hinten",
-      "pose": {
-        "x_mm": -140,
-        "y_mm": -110,
-        "z_mm": 50,
-        "p_deg": -85,
-        "r_deg": 90,
-        "g_pct": 0
-      }
-    },
-    {
-      "name": "Links",
-      "pose": {
-        "x_mm": -100,
-        "y_mm": 40,
-        "z_mm": 50,
-        "p_deg": -85,
-        "r_deg": 35,
-        "g_pct": 0
-      }
-    },
-    {
-      "name": "Mitte",
-      "pose": {
-        "x_mm": 0,
-        "y_mm": 40,
-        "z_mm": 50,
-        "p_deg": -85,
-        "r_deg": 0,
-        "g_pct": 0
-      }
-    },
-    {
-      "name": "Rechts hinten",
-      "pose": {
-        "x_mm": 150,
-        "y_mm": -70,
-        "z_mm": 50,
-        "p_deg": -85,
-        "r_deg": -90,
-        "g_pct": 0
-      }
-    },
-    {
-      "name": "Rechts",
-      "pose": {
-        "x_mm": 100,
-        "y_mm": 40,
-        "z_mm": 50,
-        "p_deg": -85,
-        "r_deg": -40,
-        "g_pct": 0
-      }
-    },
-    {
       "name": "Home",
       "pose": {
-        "x_mm": -19.614,
+        "x_mm": -5,
         "y_mm": 40,
-        "z_mm": 50,
+        "z_mm": 85,
         "p_deg": -85,
         "r_deg": 0,
         "g_pct": 0
@@ -85,6 +19,61 @@
         "y_mm": -25,
         "z_mm": 285,
         "p_deg": 10,
+        "r_deg": 0,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Rechts",
+      "pose": {
+        "x_mm": 140,
+        "y_mm": 40,
+        "z_mm": 55,
+        "p_deg": -85,
+        "r_deg": -40,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Rechts hinten",
+      "pose": {
+        "x_mm": 160,
+        "y_mm": -66.4,
+        "z_mm": 59.1,
+        "p_deg": -75.1,
+        "r_deg": -90,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Links hinten",
+      "pose": {
+        "x_mm": -160.5,
+        "y_mm": -110,
+        "z_mm": 55,
+        "p_deg": -80,
+        "r_deg": 90,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Links",
+      "pose": {
+        "x_mm": -100,
+        "y_mm": 40,
+        "z_mm": 50,
+        "p_deg": -75,
+        "r_deg": 35,
+        "g_pct": 0
+      }
+    },
+    {
+      "name": "Mitte",
+      "pose": {
+        "x_mm": 0,
+        "y_mm": 40,
+        "z_mm": 51,
+        "p_deg": -85,
         "r_deg": 0,
         "g_pct": 0
       }
