@@ -35,7 +35,7 @@ Der Server ist nach erfolgreicher WLAN-Initialisierung über die IP-Adresse des 
 | `POST` | `/api/controller/connect` | Controller-Verbindungspfad aktivieren | `202` |
 | `POST` | `/api/controller/disconnect` | Controller-Verbindungspfad zurücksetzen | `202` |
 | `GET` | `/api/controller/status` | Controller-Status abfragen | `200` |
-| `GET` | `/api/controller/debug` | Controller-Status, letzte Eingabewerte und BLE-Diagnose abfragen | `200` |
+| `GET` | `/api/controller/debug` | Controller-Status, letzte Eingabewerte und Bewegungsdiagnose abfragen | `200` |
 | `GET` | `/favicon.ico` | Browser-Favicon unterdrücken | `204` |
 | alle | sonstige Pfade | Unbekannter Pfad | `404` |
 

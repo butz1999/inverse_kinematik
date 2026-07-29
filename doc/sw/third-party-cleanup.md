@@ -11,7 +11,9 @@ Im Repository liegen derzeit mehrere externe Komponenten unter `components/`:
 | `components/ArduinoJson/` | ESP-IDF-Komponente für JSON im Bluepad32-Build |
 | `components/AdafruitBusIO/` | Abhängigkeit der Adafruit-PWM-Servo-Driver-Komponente |
 | `components/AdafruitPwmServoDriver/` | PCA9685-Treiber im ESP-IDF/Bluepad32-Build |
-| `components/bluepad32/` | Bluepad32-Kern inklusive projektbezogener Switch-2-Pro-PoC-Anpassungen |
+| `third_party/bluepad32/` | Gepinntes Bluepad32-Submodule; enthält den unveränderten Upstream-Quellbaum |
+| `components/bluepad32` | Relativer Symlink auf die gepatchte Bluepad32-Komponente im Submodule |
+| `patches/bluepad32/` | Versionierte Switch-2-Pro-Patch-Serie gegen den gepinnten Upstream-Commit |
 | `components/bluepad32_arduino/` | Arduino-Wrapper für Bluepad32 |
 | `components/btstack/` | Bluetooth-Stack, von Bluepad32 genutzt |
 | `components/cmd_nvs/`, `components/cmd_system/` | ESP-IDF-Konsolen-/Hilfskomponenten |
@@ -24,7 +26,7 @@ Die doppelte Build-Konfiguration ist Teil der vorläufigen Fremdcode-Strategie u
 
 | Environment | Fremdcode-Bezug | Bewertung |
 | --- | --- | --- |
-| `esp32s3` | nutzt lokal vendorte ESP-IDF-Komponenten unter `components/` | aktueller Arbeitsstand für den Controller-PoC |
+| `esp32s3` | nutzt lokale ESP-IDF-Komponenten sowie Bluepad32 über Submodule und Patch-Serie | aktueller Arbeitsstand für den Controller-PoC |
 | `esp32s3_arduino_native` | nutzt PlatformIO-`lib_deps` und schliesst den Bluepad32-Einstieg aus | Referenz für den ursprünglichen Arduino-basierten Firmware-Pfad |
 
 Solange die Patch-Strategie für Bluepad32/BTstack noch nicht entschieden ist, reduziert der Erhalt beider Environments das Risiko beim Aufräumen:
@@ -36,32 +38,17 @@ Solange die Patch-Strategie für Bluepad32/BTstack noch nicht entschieden ist, r
 
 Wichtig ist dabei die Grenze: `esp32s3_arduino_native` ist kein zweiter gleichwertiger Produktpfad für Controller-Funktionen. Neue Controller-Arbeit soll gegen `esp32s3` verifiziert werden. `esp32s3_arduino_native` bleibt nur so lange wertvoll, wie er bei Bring-up, Vergleich oder Rückfallanalyse konkret hilft.
 
-## Bewertung
+## Submodule- und Patch-Strategie
 
-Für den aktuellen Stand bleibt die lokale Ablage unter `components/` bewusst erhalten. Sie hat zwei Vorteile:
+Bluepad32 wird als Submodule auf einen festen Upstream-Commit gepinnt. Das Hauptrepository enthält dadurch keinen vollständigen Bluepad32-Quellbaum mehr, sondern nur den Gitlink, das Submodule-Manifest und die projektbezogenen Patches.
 
-* Der hardwaregetestete BLE-PoC bleibt reproduzierbar.
-* Die projektbezogenen Bluepad32-Änderungen sind im Repository sichtbar und nicht nur als lokale Toolchain-Magie vorhanden.
+`components/bluepad32` bleibt als relativer Symlink erhalten, damit der ESP-IDF-Build seine bisherige Komponentenstruktur weiterverwenden kann. Der Symlink zeigt auf `third_party/bluepad32/src/components/bluepad32`.
 
-Der Nachteil ist, dass Upstream-Code und Projektpatches vermischt sind. Dadurch wird ein späteres Update von Bluepad32 oder BTstack schwierig, weil unklar ist, welche Zeilen Projektlogik und welche Zeilen Fremdcode sind.
+Der Bootstrap `scripts/bootstrap.sh` initialisiert das Submodule und wendet alle Patches unter `patches/bluepad32/` idempotent an. Er ist ein Vorbereitungsschritt für den ESP-IDF-/Bluepad32-Build, nicht für die native PlatformIO-Umgebung.
 
-## Vorläufige Strategie
+Für Bluepad32 gilt:
 
-Bis zur nächsten funktionalen Controller-Stufe gilt:
-
-* `components/` bleibt versioniert und wird nicht automatisch bereinigt.
+* Neue fachliche Controller-Logik gehört nach `src/application/` oder `src/orchestration/`.
+* Änderungen im Submodule erfolgen nicht als Commit im Fremdprojekt, sondern als nummerierter Patch im Hauptrepository.
+* Ein Upstream-Update beginnt mit einem neuen gepinnten Submodule-Commit; anschließend wird die Patch-Serie übertragen, angewendet und verifiziert.
 * `managed_components/` bleibt generiert und wird nicht versioniert.
-* Neue fachliche Controller-Logik gehört nach `src/application/`, nicht tiefer in Bluepad32.
-* Änderungen in `components/bluepad32/` sollen nur erfolgen, wenn sie für Verbindung, GATT-Discovery oder Notification-Empfang erforderlich sind.
-* Jede neue Anpassung in `components/bluepad32/` soll mit einer klaren `Switch 2 Pro`- oder `GATT-POC`-Markierung auffindbar bleiben.
-
-## Empfohlener nächster Schnitt
-
-Vor echter manueller Robotersteuerung sollte der Fremdcode-Schnitt weiter stabilisiert werden:
-
-1. Projektbezogene Stellen in `components/bluepad32/bt/uni_bt_le.c` als kleine Patch-Liste extrahieren.
-2. Entscheiden, ob diese Patches langfristig in einem Fork, als Submodule-plus-Patch-Serie oder weiter vendored gehalten werden.
-3. Die feste Controller-MAC in eine lokale Konfiguration oder eine robuste Erkennung überführen.
-4. Erst danach einen `ControllerMapper` bauen, der Eingaben in fachliche Kommandos übersetzt.
-
-Diese Punkte sind nicht Teil des unmittelbaren nächsten Schritts. Der aktuelle vendored Stand bleibt vorerst die Arbeitsgrundlage.

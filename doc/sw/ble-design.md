@@ -2,13 +2,13 @@
 
 ## Einleitung
 
-Dieses Dokument beschreibt den aktuellen Proof-of-Concept für die Anbindung eines Nintendo Switch 2 Pro Controllers an die ESP32-S3-Firmware von Dilbert. Es dokumentiert den Stand, der im praktischen Test mit dem realen Controller bestätigt wurde, und hält die aktuellen Designentscheidungen sowie offene Punkte fest.
+Dieses Dokument beschreibt die Switch-2-Pro-BLE-Anbindung der ESP32-S3-Firmware von Dilbert. Es dokumentiert den Stand, der im praktischen Test mit dem realen Controller bestätigt wurde, sowie die verbleibenden spezifischen Annahmen.
 
-Der Fokus liegt bewusst auf dem aktuellen Integrationsstand. Es handelt sich noch nicht um eine bereinigte, allgemeine Bluetooth-Controller-Abstraktion, sondern um einen funktionierenden, hardware-nahen PoC für genau diesen Controller und dieses Roboterarm-Projekt.
+Die Anbindung ist bewusst auf diesen Controller und dieses Roboterarm-Projekt zugeschnitten; sie ist keine allgemeine Bluetooth-Controller-Abstraktion.
 
 ## Ziel
 
-Ziel des PoC ist der Nachweis, dass der Nintendo Switch 2 Pro Controller per BLE vom ESP32-S3 erkannt, verbunden und als Eingabegerät für Dilbert genutzt werden kann.
+Ziel ist, dass der Nintendo Switch 2 Pro Controller per BLE vom ESP32-S3 erkannt, verbunden und als Eingabegerät für Dilbert genutzt werden kann.
 
 Konkret soll der aktuelle Stand zeigen:
 
@@ -17,7 +17,7 @@ Konkret soll der aktuelle Stand zeigen:
 * der proprietäre BLE-GATT-Datenstrom des Controllers kann abonniert werden
 * Eingabedaten werden in ein projektinternes Eingabemodell dekodiert
 * Sticks, D-Pad und Buttons werden im Dilbert-Web-UI visualisiert
-* der Controller-Pfad ist aktuell read-only und löst noch keine Roboterbewegung aus
+* die Eingaben werden über den `ControllerHandler` als Jog-Kommandos verarbeitet
 
 ## Bisherige Befunde
 
@@ -48,19 +48,18 @@ Der relevante Eingabedatenstrom wurde schliesslich als Notification auf Value-Ha
 
 ## Aktueller Integrationsansatz
 
-Der aktuelle PoC nutzt Bluepad32 und BTstack weiterhin als Bluetooth- und BLE-Grundlage. Die normale Bluepad32-HID-Gamepad-Verarbeitung wird für den Switch-2-Pro-Controller jedoch gezielt umgangen, weil der Controller im getesteten Zustand keinen passenden HID-Service für den Bluepad32-HIDS-Client bereitstellt.
+Die Anbindung nutzt Bluepad32 und BTstack weiterhin als Bluetooth- und BLE-Grundlage. Die normale Bluepad32-HID-Gamepad-Verarbeitung wird für den Switch-2-Pro-Controller jedoch gezielt umgangen, weil der Controller im getesteten Zustand keinen passenden HID-Service für den Bluepad32-HIDS-Client bereitstellt.
 
 Stattdessen wird für die bekannte Controller-Adresse ein proprietärer GATT-Pfad verwendet:
 
 1. Bluepad32/BTstack startet einen aktiven BLE-Scan.
 2. Der Controller wird auch ohne HID-Service im Advertisement akzeptiert.
 3. Bei Verbindung mit der bekannten Adresse `A4:C1:E8:50:BC:2B` wird der normale HIDS-Pfad übersprungen.
-4. Die Firmware führt eine GATT-Service- und Characteristic-Discovery aus.
-5. Die Characteristic mit Value-Handle `0x002e` und Notify-Property wird als Eingabekandidat verwendet.
-6. Notifications werden durch direkten CCCD-Write auf Handle `0x002f` mit Wert `0100` aktiviert.
-7. Eingehende Notifications werden an die Anwendungsschicht übergeben.
+4. Nach einer kurzen GATT-Initialisierungswartezeit wird die bekannte Input-Characteristic `0x002e` abonniert.
+5. Notifications werden durch direkten CCCD-Write auf Handle `0x002f` mit Wert `0100` aktiviert.
+6. Eingehende Notifications werden an die Anwendungsschicht übergeben.
 
-Die direkte Behandlung der bekannten MAC-Adresse ist eine bewusste PoC-Entscheidung. Sie reduziert die Unsicherheit während des Bring-ups, ist aber noch keine finale Geräteerkennung.
+Die direkte Behandlung der bekannten MAC-Adresse ist eine bewusste, aktuell noch gerätespezifische Entscheidung.
 
 ## Build- und Komponentenstruktur
 
@@ -90,7 +89,7 @@ Nach Abschluss des Controller-PoC bleiben bewusst beide ESP32-S3-Environments in
 
 Diese Entscheidung ist absichtlich konservativ. Der PoC hat gezeigt, dass der Bluepad32-Pfad funktioniert, aber auch, dass dafür mehrere Integrationsannahmen zusammenkommen:
 
-* lokaler Fremdcode unter `components/`,
+* lokale ESP-IDF-Komponenten unter `components/` sowie Bluepad32 als gepinntes Submodule mit Patch-Serie,
 * ESP-IDF-Build mit Arduino-Kompatibilität,
 * projektspezifische Anpassungen im Bluepad32-GATT-Pfad,
 * grössere Partition über `partitions_bluepad32.csv`,
@@ -123,16 +122,18 @@ Wichtige Dateien und Ordner:
 | `sdkconfig.defaults` | ESP-IDF/Arduino-Konfigurationsvorgaben |
 | `src/bluepad32_app_main.c` | Einstiegspunkt für Bluepad32/BTstack im ESP-IDF-Build |
 | `src/idf_component.yml` | ESP-IDF-Komponentenbeschreibung |
-| `components/bluepad32/` | Lokal eingebundener Bluepad32-Code inklusive PoC-Anpassungen |
+| `third_party/bluepad32/` | Gepinntes Bluepad32-Upstream-Submodule |
+| `patches/bluepad32/` | Versionierte Switch-2-Pro-Patches gegen den gepinnten Upstream-Commit |
+| `components/bluepad32` | Relativer Build-Symlink auf die gepatchte Komponente im Submodule |
 | `components/btstack/` | Lokal eingebundener BTstack-Code |
 
-Die lokale Ablage von Fremdcode unter `components/` ist derzeit eine PoC-Lösung. Sie macht den funktionierenden Stand reproduzierbar, sollte aber vor einem langfristigen Projektstand nochmals bewusst bewertet werden.
+Die Bluepad32-Anbindung verwendet ein gepinntes Upstream-Submodule und eine versionierte Patch-Serie. `scripts/bootstrap.sh` initialisiert das Submodule und wendet die Patches an; der bestehende ESP-IDF-Build nutzt anschließend weiterhin `components/bluepad32` über den relativen Symlink.
 
 Die aktuelle Cleanup-Bewertung ist in [third-party-cleanup.md](third-party-cleanup.md) festgehalten. Für den nächsten Schritt bleibt der Fremdcode bewusst lokal versioniert, damit der hardwaregetestete BLE-Stand reproduzierbar bleibt. Vor grösseren funktionalen Erweiterungen soll daraus aber eine klarere Patch- oder Fork-Strategie entstehen.
 
-## PoC-Anpassungen im Fremdcode
+## Switch-2-Pro-Anpassungen im Fremdcode
 
-Die projektspezifischen Anpassungen liegen nach aktueller Bestandsaufnahme hauptsächlich in `components/bluepad32/bt/uni_bt_le.c`. `components/btstack/` wird als darunterliegende Bluetooth-Basis verwendet, enthält aber in der aktuellen Suche keine direkt erkennbaren `GATT-POC`- oder `Switch 2 Pro`-Projektmarkierungen.
+Die projektspezifischen Anpassungen liegen in `components/bluepad32/bt/uni_bt_le.c`. `components/btstack/` wird als darunterliegende Bluetooth-Basis unverändert verwendet.
 
 Aktuell relevante Anpassungspunkte:
 
@@ -141,13 +142,13 @@ Aktuell relevante Anpassungspunkte:
 | C/C++-Bridge | `extern void ik_switch2_pro_ble_input_report(...)` in `components/bluepad32/bt/uni_bt_le.c` und Implementierung in `src/main.cpp` | leitet rohe BLE-Notifications in die Anwendungsschicht |
 | Notification-Erkennung | Value-Handle `0x002e`, Mindestlänge `63`, Statusbyte `0x20` | filtert den proprietären Switch-2-Pro-Datenstrom |
 | Notification-Aktivierung | CCCD-Write auf `value_handle + 1`, praktisch `0x002f = 0100` | aktiviert Notifications ohne vollständige generische Descriptor-Abstraktion |
-| Service-/Characteristic-Dump | `GATT-POC`-Service- und Characteristic-Discovery | Bring-up-Hilfe zur Identifikation der proprietären Handles |
-| Verbindungszustand | `uni_bt_le_switch2_pro_poc_disconnect()` und `uni_bt_le_switch2_pro_poc_is_connected()` | erlaubt der Anwendung, den PoC-GATT-Pfad kontrolliert zu trennen und Status abzufragen |
+| Input-Subscription | Value-Handle `0x002e` und CCCD-Handle `0x002f` | abonniert den für die getestete Controller-Firmware bestätigten Eingabestrom |
+| Verbindungszustand | `uni_bt_le_switch2_pro_disconnect()` und `uni_bt_le_switch2_pro_is_connected()` | erlaubt der Anwendung, den Switch-2-Pro-GATT-Pfad kontrolliert zu trennen und Status abzufragen |
 | Geräteerkennung | feste Adresse `A4:C1:E8:50:BC:2B` | akzeptiert den getesteten Controller auch ohne HID-Service im Advertisement |
 | HIDS-Bypass | Verbindung zur bekannten Adresse überspringt den normalen Bluepad32-HIDS-Pfad | verhindert, dass der fehlende HID-Service den getesteten Controller blockiert |
 | Scan-/Pairing-Verhalten | aktiver BLE-Scan, Secure-Connection-ohne-Bonding-Annahme | verbessert die Sichtbarkeit des Controllers im aktuellen Testaufbau |
 
-Diese Punkte bilden faktisch die Patch-Liste, die bei einer Bereinigung aus dem vendorten Bluepad32-Code herausgelöst werden muss. Bis dahin sollten neue Controller-Änderungen entweder in projektinternen Dateien unter `src/application/` erfolgen oder in `components/bluepad32/` deutlich als PoC-Erweiterung markiert bleiben.
+Diese Punkte bilden die versionierte Patch-Serie unter `patches/bluepad32/`. Neue Controller-Änderungen gehören grundsätzlich in projektinterne Dateien unter `src/application/` oder `src/orchestration/`; eine notwendige Bluepad32-Anpassung wird als zusätzlicher Patch ergänzt.
 
 ## BLE/GATT-Ablauf
 
@@ -165,11 +166,9 @@ sequenceDiagram
   REST->>Driver: requestPairing()
   Driver->>BP: forget keys, allow new BLE connections
   BP->>Pad: active BLE scan
-  BP->>BP: accept known PoC address
+  BP->>BP: accept known Switch-2-Pro address
   BP->>Pad: LE connection
   BP->>BP: skip normal HIDS path
-  BP->>Pad: discover GATT services
-  BP->>Pad: discover characteristics
   BP->>Pad: write CCCD 0x002f = 0100
   Pad-->>BP: notifications on value handle 0x002e
   BP->>REST: ik_switch2_pro_ble_input_report()
@@ -178,7 +177,7 @@ sequenceDiagram
   REST-->>UI: decoded controller state
 ```
 
-Der normale HIDS-Pfad bleibt für andere Bluepad32-fähige Controller prinzipiell im Code vorhanden. Für das aktuelle Projekt ist aber nur der Switch-2-Pro-PoC-Pfad relevant.
+Der normale HIDS-Pfad bleibt für andere Bluepad32-fähige Controller prinzipiell im Code vorhanden. Für das aktuelle Projekt ist aber nur der Switch-2-Pro-Pfad relevant.
 
 ## Brücke zwischen BTstack und Anwendung
 
@@ -259,16 +258,16 @@ Die D-Pad-Bitmaske enthält:
 
 ## REST- und UI-Verhalten
 
-Der Controller-Pfad ist aktuell ein read-only Debug-Pfad. Er zeigt Controller-Zustand und Eingaben an, steuert aber noch keine Servos.
+Der Controller-Pfad verarbeitet Eingaben als Jog-Kommandos. Der `ControllerHandler` berechnet die Sollwerte; die REST-API stellt lediglich Status und Diagnose bereit.
 
 Wichtige REST-Endpunkte:
 
 | Methode | Pfad | Bedeutung |
 | --- | --- | --- |
 | `POST` | `/api/controller/connect` | Aktiviert Pairing/Discovery für den Controller |
-| `POST` | `/api/controller/disconnect` | Trennt den PoC-GATT-Pfad und stoppt neue Verbindungen |
+| `POST` | `/api/controller/disconnect` | Trennt den Switch-2-Pro-GATT-Pfad und stoppt neue Verbindungen |
 | `GET` | `/api/controller/status` | Liefert den aktuellen Controller-Zustand ohne periodisches REST-Logging |
-| `GET` | `/api/controller/debug` | Liefert Controller-Zustand plus BLE-Advertisement-Debugdaten |
+| `GET` | `/api/controller/debug` | Liefert Controller-Zustand und Bewegungsdiagnose |
 
 Das `input`-Objekt in der Statusantwort enthält aktuell:
 
@@ -307,8 +306,8 @@ Aktueller Stand:
 
 * `GET /api/controller/status` wird nicht mehr pro Poll geloggt.
 * Notifications werden nicht mehr vollständig ausgegeben, sondern nur als Stichprobe: die ersten acht Samples und danach ungefähr einmal pro Sekunde.
-* GATT-Service- und Characteristic-Discovery loggt weiterhin detailliert, weil dieser Teil noch PoC-Charakter hat.
-* Disconnects werden mit `GATT-POC disconnect con_handle=...` sichtbar gemacht.
+* Die Bring-up-Dumps für Advertisements, Services, Characteristics und Notifications wurden entfernt.
+* Fehler beim Aktivieren der Input-Notification werden weiterhin über das Bluepad32-Logging gemeldet.
 
 Diese Logs bleiben vorerst in diesem Umfang bestehen.
 

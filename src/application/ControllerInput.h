@@ -316,7 +316,7 @@ class ControllerDebugDriver
       }
     }
     BP32.enableNewBluetoothConnections(false);
-    uni_bt_le_switch2_pro_poc_disconnect();
+    uni_bt_le_switch2_pro_disconnect();
 #endif
     pairing_requested_ = false;
     accepts_new_connections_ = false;
@@ -448,7 +448,7 @@ class ControllerDebugDriver
           message_ = "Switch 2 Pro BLE input report received.";
           return;
         }
-        if (uni_bt_le_switch2_pro_poc_is_connected())
+        if (uni_bt_le_switch2_pro_is_connected())
         {
           connection_status_ = ControllerConnectionStatus::Connected;
           message_ = "Switch 2 Pro BLE connected; waiting for input.";
@@ -535,7 +535,7 @@ class ControllerDebugDriver
   {
 #if IK_HAS_BLUEPAD32
     BP32.enableNewBluetoothConnections(false);
-    uni_bt_le_switch2_pro_poc_disconnect();
+    uni_bt_le_switch2_pro_disconnect();
 #endif
     pairing_requested_ = false;
     accepts_new_connections_ = false;

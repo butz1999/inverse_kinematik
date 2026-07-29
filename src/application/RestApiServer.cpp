@@ -13,13 +13,6 @@
 #include "robotics/Kinematics.h"
 #include "robotics/Validation.h"
 
-#if defined(ARDUINO) && __has_include(<bt/uni_bt_le.h>)
-#include <bt/uni_bt_le.h>
-#define IK_HAS_BLUEPAD32_BLE_DEBUG 1
-#else
-#define IK_HAS_BLUEPAD32_BLE_DEBUG 0
-#endif
-
 // ToDo: Das ist grosser Spaghetti-Code. Alternativen?
 
 namespace application
@@ -236,30 +229,6 @@ void setControllerStateJson(JsonObject object, const ControllerDebugState &state
   world_roll_lock["enabled"] = handler_state.world_roll_lock_enabled;
   world_roll_lock["lockedWorldRollDeg"] = roundReportedValue(handler_state.locked_world_roll_deg);
   setControllerInputJson(object.createNestedObject("input"), state.input);
-}
-
-void setBleAdvertisementDebugJson(JsonArray array)
-{
-#if IK_HAS_BLUEPAD32_BLE_DEBUG
-  uni_bt_le_advertisement_debug_t entries[12];
-  const auto count = uni_bt_le_get_advertisement_debug(entries, 12);
-  for (int i = 0; i < count; i++)
-  {
-    JsonObject entry = array.createNestedObject();
-    entry["address"] = entries[i].address;
-    entry["addressType"] = entries[i].address_type;
-    entry["eventType"] = entries[i].event_type;
-    entry["rssi"] = entries[i].rssi;
-    entry["dataLen"] = entries[i].data_len;
-    entry["appearance"] = entries[i].appearance;
-    entry["name"] = entries[i].name;
-    entry["hasHidService"] = entries[i].has_hid_service;
-    entry["hasGenericAccessService"] = entries[i].has_generic_access_service;
-    entry["matchedRelaxedFilter"] = entries[i].matched_relaxed_filter;
-  }
-#else
-  static_cast<void>(array);
-#endif
 }
 
 }  // namespace
@@ -1310,7 +1279,6 @@ void RestApiServer::handleControllerDebug()
   {
     doc.remove("targetPose");
   }
-  setBleAdvertisementDebugJson(doc.createNestedArray("bleAdvertisements"));
   sendJson(200, jsonBody(doc));
 }
 

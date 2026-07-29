@@ -822,7 +822,27 @@ Der `ControllerHandler` hält die kartesische Zielpose, kartesische Geschwindigk
 
 Der Weltroll-Lock wird mit dem rechten Stick-Klick (RS) bei einer Werkzeugneigung von `p = -90° ±20°` aktiviert. Er hält die Summe aus Drehteller und Handgelenk-Roll im Weltbezug konstant und kompensiert deshalb `hr` gegenläufig zu `d`. RS deaktiviert den Lock und übernimmt die aktuelle Haltung als neue Referenz; der angefahrene Hr-Wert bleibt dadurch erhalten. Ein manueller Hr-Jog über Y/A oder eine erfolgreiche Hr-Änderung über `POST /api/joint-motion` deaktiviert den Lock. Der REST-Adapter ruft dafür `ControllerHandler::synchronizeJointState()` auf, damit der Handler die extern bestätigte Gelenkstellung als neue Referenz übernimmt.
 
-Die Abhängigkeit auf `Bluepad32` soll nach Möglichkeit referenziert und nicht dupliziert werden. Für die produktive Einbindung wird daher ein fester Git-Tag oder Commit in der Build-Konfiguration bevorzugt. Vor einer dauerhaften Einbindung in den Haupt-Build ist zu verifizieren, ob der gewählte Controller, insbesondere ein Switch 2 Pro Controller, mit dem aktuellen ESP32-S3-Board und dem verwendeten PlatformIO/Arduino-Buildweg zuverlässig verbunden und ausgelesen werden kann.
+### Switch-2-Pro-BLE und Bluepad32-Patch
+
+Bluepad32 ist als Git-Submodule unter `third_party/bluepad32/` auf den Upstream-Commit des Tags `4.2.0` gepinnt. Der ESP-IDF-Build referenziert die darin enthaltene Komponente über den relativen Symlink `components/bluepad32`. `scripts/bootstrap.sh` initialisiert das Submodule und wendet die Patch-Serie aus `patches/bluepad32/` idempotent an. Damit bleibt der Fremdcode ausserhalb des Projektquellcodes und der getestete Integrationsstand reproduzierbar.
+
+Der Patch `0001-switch2-pro-ble-support.patch` ist auf die bekannte Switch-2-Pro-Controller-Firmware beschränkt. Er enthält nur die für die Verbindung erforderlichen Erweiterungen:
+
+* Er akzeptiert die bekannte Controller-Adresse `A4:C1:E8:50:BC:2B` auch dann, wenn das BLE-Advertisement keine von Bluepad32 erwartete Gamepad-Appearance enthält.
+* Für dieses Gerät umgeht er den fehlschlagenden HIDS-Pfad und abonniert nach 250 ms die bestätigte Input-Characteristic mit Value-Handle `0x002e`.
+* Er aktiviert Notifications über den zugehörigen CCCD-Handle `0x002f` mit `0100` und übergibt gültige Rohreports an `ik_switch2_pro_ble_input_report()` in `main.cpp`.
+* Er stellt `uni_bt_le_switch2_pro_disconnect()` und `uni_bt_le_switch2_pro_is_connected()` für den kontrollierten Verbindungszustand bereit und entfernt den Notification-Listener beim Disconnect.
+
+Der Patch setzt ausserdem für den aktuellen Controller aktive BLE-Scans sowie LE Secure Connections ohne Bonding. Diese Einstellungen gelten momentan für den gesamten Bluepad32-BLE-Pfad und sind deshalb bei einer Erweiterung auf weitere Controller erneut zu prüfen.
+
+Nicht mehr Teil der produktiven Patch-Serie sind die Bring-up-Hilfen: GATT-Service- und Characteristic-Dumps, periodische Notification-Ausgaben, Advertisement-Speicherung und die REST-Ausgabe `bleAdvertisements` wurden entfernt. `GET /api/controller/debug` liefert weiterhin Controller- und Bewegungsdiagnose, aber keine BLE-Scan-Historie.
+
+Für einen frischen Arbeitsbaum lautet die Initialisierung:
+
+```bash
+git submodule update --init
+scripts/bootstrap.sh
+```
 
 ### MotionOrchestrator und ControllerHandler
 

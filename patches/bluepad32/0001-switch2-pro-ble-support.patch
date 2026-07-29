@@ -1,0 +1,212 @@
+diff --git a/src/components/bluepad32/bt/uni_bt_le.c b/src/components/bluepad32/bt/uni_bt_le.c
+index dee7c00..5dd0efd 100644
+--- a/src/components/bluepad32/bt/uni_bt_le.c
++++ b/src/components/bluepad32/bt/uni_bt_le.c
+@@ -76,11 +76,117 @@
+ 
+ static bool is_scanning;
+ static bool ble_enabled;
++static btstack_timer_source_t switch2_pro_setup_timer;
++static hci_con_handle_t switch2_pro_con_handle = UNI_BT_CONN_HANDLE_INVALID;
++static gatt_client_characteristic_t switch2_pro_input_characteristic;
++static gatt_client_notification_t switch2_pro_input_listener;
++static bool switch2_pro_input_listener_registered;
++
++#define SWITCH2_PRO_INPUT_VALUE_HANDLE 0x002e
++#define SWITCH2_PRO_INPUT_CCCD_HANDLE 0x002f
++#define SWITCH2_PRO_INPUT_REPORT_MIN_SIZE 63
+ 
+ // Temporal space for SDP in BLE
+ static uint8_t hid_descriptor_storage[HID_MAX_DESCRIPTOR_LEN * CONFIG_BLUEPAD32_MAX_DEVICES];
+ static btstack_packet_callback_registration_t sm_event_callback_registration;
+ 
++extern void ik_switch2_pro_ble_input_report(const uint8_t* report, uint16_t report_size);
++
++static bool is_switch2_pro_address(bd_addr_t addr) {
++    return strcmp(bd_addr_to_str(addr), "A4:C1:E8:50:BC:2B") == 0;
++}
++
++static void switch2_pro_input_notification_handler(uint8_t packet_type,
++                                                    uint16_t channel,
++                                                    uint8_t* packet,
++                                                    uint16_t size) {
++    ARG_UNUSED(packet_type);
++    ARG_UNUSED(channel);
++    ARG_UNUSED(size);
++
++    if (hci_event_packet_get_type(packet) != GATT_EVENT_NOTIFICATION)
++        return;
++
++    const uint16_t value_handle = gatt_event_notification_get_value_handle(packet);
++    const uint16_t value_len = gatt_event_notification_get_value_length(packet);
++    const uint8_t* value = gatt_event_notification_get_value(packet);
++    if (value_handle == SWITCH2_PRO_INPUT_VALUE_HANDLE && value_len >= SWITCH2_PRO_INPUT_REPORT_MIN_SIZE &&
++        value[1] == 0x20) {
++        ik_switch2_pro_ble_input_report(value, value_len);
++    }
++}
++
++static void switch2_pro_enable_notifications_handler(uint8_t packet_type,
++                                                      uint16_t channel,
++                                                      uint8_t* packet,
++                                                      uint16_t size) {
++    ARG_UNUSED(packet_type);
++    ARG_UNUSED(channel);
++    ARG_UNUSED(size);
++
++    if (hci_event_packet_get_type(packet) != GATT_EVENT_QUERY_COMPLETE)
++        return;
++
++    if (gatt_event_query_complete_get_att_status(packet) != ATT_ERROR_SUCCESS) {
++        loge("Switch 2 Pro input notification setup failed: ATT status 0x%02x\n",
++             gatt_event_query_complete_get_att_status(packet));
++    }
++}
++
++static void switch2_pro_setup_timer_handler(btstack_timer_source_t* ts) {
++    uint8_t status;
++    static uint8_t notification_enabled[] = {0x01, 0x00};
++
++    ARG_UNUSED(ts);
++
++    if (switch2_pro_con_handle == UNI_BT_CONN_HANDLE_INVALID)
++        return;
++
++    memset(&switch2_pro_input_characteristic, 0, sizeof(switch2_pro_input_characteristic));
++    switch2_pro_input_characteristic.value_handle = SWITCH2_PRO_INPUT_VALUE_HANDLE;
++    gatt_client_listen_for_characteristic_value_updates(&switch2_pro_input_listener,
++                                                         switch2_pro_input_notification_handler,
++                                                         switch2_pro_con_handle,
++                                                         &switch2_pro_input_characteristic);
++    switch2_pro_input_listener_registered = true;
++    status = gatt_client_write_characteristic_descriptor_using_descriptor_handle(
++        switch2_pro_enable_notifications_handler, switch2_pro_con_handle, SWITCH2_PRO_INPUT_CCCD_HANDLE,
++        sizeof(notification_enabled), notification_enabled);
++    if (status != ERROR_CODE_SUCCESS) {
++        gatt_client_stop_listening_for_characteristic_value_updates(&switch2_pro_input_listener);
++        switch2_pro_input_listener_registered = false;
++        loge("Switch 2 Pro input notification request failed: status 0x%02x\n", status);
++    }
++}
++
++static void switch2_pro_schedule_input_setup(hci_con_handle_t con_handle) {
++    switch2_pro_con_handle = con_handle;
++    btstack_run_loop_set_timer_context(&switch2_pro_setup_timer, NULL);
++    btstack_run_loop_set_timer_handler(&switch2_pro_setup_timer, switch2_pro_setup_timer_handler);
++    btstack_run_loop_set_timer(&switch2_pro_setup_timer, 250);
++    btstack_run_loop_add_timer(&switch2_pro_setup_timer);
++}
++
++void uni_bt_le_switch2_pro_disconnect(void) {
++    const hci_con_handle_t con_handle = switch2_pro_con_handle;
++    if (con_handle == UNI_BT_CONN_HANDLE_INVALID)
++        return;
++
++    btstack_run_loop_remove_timer(&switch2_pro_setup_timer);
++    if (switch2_pro_input_listener_registered) {
++        gatt_client_stop_listening_for_characteristic_value_updates(&switch2_pro_input_listener);
++        switch2_pro_input_listener_registered = false;
++    }
++    switch2_pro_con_handle = UNI_BT_CONN_HANDLE_INVALID;
++    if (gap_get_connection_type(con_handle) != GAP_CONNECTION_INVALID)
++        gap_disconnect(con_handle);
++}
++
++bool uni_bt_le_switch2_pro_is_connected(void) {
++    return switch2_pro_con_handle != UNI_BT_CONN_HANDLE_INVALID &&
++           gap_get_connection_type(switch2_pro_con_handle) != GAP_CONNECTION_INVALID;
++}
++
+ /**
+  * Connect to remote device but set timer for timeout
+  */
+@@ -701,6 +807,11 @@ void uni_bt_le_on_hci_event_le_meta(const uint8_t* packet, uint16_t size) {
+             logi("Using con_handle: %#x\n", con_handle);
+ 
+             uni_hid_device_set_connection_handle(device, con_handle);
++            if (is_switch2_pro_address(event_addr)) {
++                btstack_run_loop_remove_timer(&device->connection_timer);
++                switch2_pro_schedule_input_setup(con_handle);
++                break;
++            }
+             sm_request_pairing(con_handle);
+ 
+             // Resume scanning
+@@ -769,13 +880,17 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
+     adv_event_get_data(packet, &appearance, name);
+ 
+     if (appearance != UNI_BT_HID_APPEARANCE_GAMEPAD && appearance != UNI_BT_HID_APPEARANCE_JOYSTICK &&
+-        appearance != UNI_BT_HID_APPEARANCE_MOUSE && appearance != UNI_BT_HID_APPEARANCE_KEYBOARD) {
++        appearance != UNI_BT_HID_APPEARANCE_MOUSE && appearance != UNI_BT_HID_APPEARANCE_KEYBOARD &&
++        !is_switch2_pro_address(addr)) {
+         // Don't log it. There too many devices advertising themselves.
+         if (appearance != 0 || strlen(name) != 0)
+             logd("Not a HID controller, appearance: %#x, name =%s\n", appearance, name);
+         return;
+     }
+ 
++    if (is_switch2_pro_address(addr))
++        appearance = UNI_BT_HID_APPEARANCE_GAMEPAD;
++
+     switch (appearance) {
+         case UNI_BT_HID_APPEARANCE_MOUSE:
+             cod = UNI_BT_COD_MAJOR_PERIPHERAL | UNI_BT_COD_MINOR_MICE;
+@@ -822,10 +937,20 @@ void uni_bt_le_on_gap_event_advertising_report(const uint8_t* packet, uint16_t s
+ }
+ 
+ void uni_bt_le_on_hci_disconnection_complete(uint16_t channel, const uint8_t* packet, uint16_t size) {
++    const hci_con_handle_t con_handle = hci_event_disconnection_complete_get_connection_handle(packet);
++
+     ARG_UNUSED(channel);
+-    ARG_UNUSED(packet);
+     ARG_UNUSED(size);
+ 
++    if (con_handle == switch2_pro_con_handle) {
++        btstack_run_loop_remove_timer(&switch2_pro_setup_timer);
++        if (switch2_pro_input_listener_registered) {
++            gatt_client_stop_listening_for_characteristic_value_updates(&switch2_pro_input_listener);
++            switch2_pro_input_listener_registered = false;
++        }
++        switch2_pro_con_handle = UNI_BT_CONN_HANDLE_INVALID;
++    }
++
+     resume_scanning_hint();
+ }
+ 
+@@ -895,7 +1020,8 @@ void uni_bt_le_setup(void) {
+     // - Xbox 2 buttons: flaky, fails to connect or connects
+     // sm_set_authentication_requirements(0);
+ 
+-    sm_set_authentication_requirements(SM_AUTHREQ_BONDING);
++    sm_set_secure_connections_only_mode(true);
++    sm_set_authentication_requirements(SM_AUTHREQ_SECURE_CONNECTION);
+ 
+     // Secure connection + NO bonding in ESP32:
+     // - Stadia: Ok
+@@ -921,7 +1047,7 @@ void uni_bt_le_setup(void) {
+     // scan_parameters_service_client_init();
+     device_information_service_client_init();
+ 
+-    gap_set_scan_parameters(0 /* type: passive */, 48 /* interval */, 48 /* window */);
++    gap_set_scan_parameters(1 /* type: active */, 48 /* interval */, 48 /* window */);
+ }
+ 
+ void uni_bt_le_scan_start(void) {
+diff --git a/src/components/bluepad32/include/bt/uni_bt_le.h b/src/components/bluepad32/include/bt/uni_bt_le.h
+index c8cc960..d61e6bf 100644
+--- a/src/components/bluepad32/include/bt/uni_bt_le.h
++++ b/src/components/bluepad32/include/bt/uni_bt_le.h
+@@ -35,9 +35,11 @@ void uni_bt_le_setup(void);
+ 
+ void uni_bt_le_set_enabled(bool enabled);
+ bool uni_bt_le_is_enabled(void);
++void uni_bt_le_switch2_pro_disconnect(void);
++bool uni_bt_le_switch2_pro_is_connected(void);
+ 
+ #ifdef __cplusplus
+ }
+ #endif
+ 
+-#endif  // UNI_BT_LE_H
+\ No newline at end of file
++#endif  // UNI_BT_LE_H
