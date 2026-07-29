@@ -43,6 +43,24 @@ Das Systemkommando `/usr/bin/pio` ist in diesem Setup veraltet und soll nicht ve
 
 `esp32s3` ist die aktuelle Firmware-Standardumgebung. Die alte Arduino-Umgebung `esp32s3_arduino_native` bleibt als schlankerer Vergleichs- und Bring-up-Build erhalten, enthält aber nicht den vollständigen Bluepad32-Controller-Pfad.
 
+## Erstaufbau des ESP32-S3-Firmware-Builds
+
+Für einen neuen Checkout des Standardpfads `esp32s3` werden das Bluepad32-
+Submodule und die projektspezifische Patch-Serie vor dem ersten Build vorbereitet:
+
+```bash
+git clone <repository-url> ik
+cd ik
+./scripts/bootstrap.sh
+~/.platformio/penv/bin/pio run -e esp32s3
+```
+
+`scripts/bootstrap.sh` initialisiert das Bluepad32-Submodule und wendet die
+versionierten Patches an. Der erste ESP-IDF-Build lädt anschließend die in
+`src/idf_component.yml` definierten Abhängigkeiten nach `managed_components/`;
+dieser Ordner bleibt lokal generiert und wird nicht versioniert. Für Bootstrap
+und den ersten Build ist daher Netzwerkzugang erforderlich.
+
 ## Build-Konfigurationen
 
 Das Projekt behält nach Abschluss des PoC bewusst zwei ESP32-S3-Konfigurationen:
