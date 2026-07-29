@@ -157,11 +157,9 @@ Für die erste Hardwareplanung sind dabei folgende Punkte relevant:
 
 Für die Softwareseite wird vorläufig davon ausgegangen, dass eine etablierte PCA9685-Bibliothek verwendet wird. Auf der Produktseite wird dazu explizit die Adafruit PWM Servo Driver Library genannt.
 
-Noch offen beziehungsweise später zu verifizieren sind insbesondere:
-
-* konkrete PWM-Frequenz für die verwendeten Servos
-* exakte Zuordnung der sechs Achsen zu den PWM-Kanälen
-* elektrische Qualität der Servo-Versorgung unter Last
+Für den aktuellen Aufbau sind die PWM-Frequenz, die Kanalzuordnung und die
+Servo-Versorgung unter Last im Bring-up verifiziert. Maßgeblich sind die in
+`RobotSettings` hinterlegten Kalibrations- und Kanalwerte.
 
 ## Stromversorgung
 
@@ -262,7 +260,7 @@ Für die sichere Inbetriebnahme wird zusätzlich folgendes Vorgehen festgelegt:
 
 Damit wird die elektrische Zuordnung von Servo, Achse und Bewegungsrichtung schrittweise überprüft, bevor alle Aktoren gleichzeitig aktiv sind.
 
-Offen bleibt bewusst, wie die Software selbst erkennt oder nachweist, dass sich das System tatsächlich in dieser Initiallage befindet. Für die erste Ausbaustufe wird dieser Zustand nicht durch Sensorik oder Referenzfahrt verifiziert, sondern als manuell hergestellte Betriebsannahme behandelt.
+Die Initiallage wird vor dem Start manuell hergestellt und im Bring-up gegen die fachliche Initialposition geprüft. Eine automatische Erkennung durch Sensorik oder Referenzfahrt ist für die aktuelle Ausbaustufe nicht vorgesehen.
 
 ## Kalibration
 
@@ -292,19 +290,15 @@ Mechanische Anschläge werden durch die festgelegten maximalen Achsbereiche in `
 
 Die Firmware erzwingt die fachlichen Gelenkgrenzen bereits bei Motion- und Joint-Requests sowie die globale PWM-Spanne bei direkten PWM-Requests und beim Treiberzugriff. Dadurch werden nur zulässige Stellwerte an die Hardwareausgabe weitergegeben.
 
-## Offene Punkte und Annahmen
+## Verifizierter Hardwarestand
 
-Dieses Kapitel sammelt die zum aktuellen Zeitpunkt noch nicht abschliessend geklärten Hardwarefragen.
+Die elektrische Versorgung, die kalibrierten Servo-Stellbereiche und die
+Initialposition sind im Bring-up für den aktuellen Aufbau geprüft.
 
-* `230V -> 5V`-Netzteil: Hersteller, elektrische Daten und tatsächliche Belastbarkeit sind unbekannt und müssen für den realen Betrieb noch verifiziert werden.
-* Stromaufnahme unter Last: Die reale Last durch mehrere gleichzeitig bewegte Servos ist noch nicht gemessen und muss bei der Inbetriebnahme beobachtet werden.
-* tatsächlich nutzbarer Stellbereich der Servos: Die fachlich definierten Winkelbereiche sind festgelegt, die real sauber nutzbaren Bereiche ergeben sich jedoch erst aus der Kalibration.
-* Pinbelegung des `ESP32`: `SDA` ist auf `GPIO4`, `SCL` auf `GPIO5` und `OE` des PCA9685 auf `GPIO6` festgelegt; die serielle Diagnose ist noch festzulegen.
-* Servo-Kanalzuordnung auf dem `PCA9685`: Für den aktuellen Aufbau sind `d`, `s`, `e`, `hp`, `hr`, `g` fest den Kanälen `0`, `1`, `2`, `3`, `4`, `5` zugeordnet. Die PCA9685-Adresse ist `0x40`, die PWM-Frequenz `50 Hz`.
-* Umgang mit `OE`: Der `OE`-Pin des `PCA9685` liegt auf `GPIO6` des ESP32-S3. Das Signal ist active-low; `LOW` gibt die PWM-Ausgänge frei. Der Servo-Treiber sendet beim Begin einen PCA9685 Software Reset Call über die I2C-General-Call-Adresse, setzt `MODE2` einmalig auf `0x06` (`OUTDRV=1`, `INVRT=0`, `OUTNE[1:0]=10`), setzt die PWM-Frequenz, schreibt den initialen `JointPwmState` und legt `OE` anschließend auf aktiv. Die Firmware bietet bewusst keinen Laufzeit-Enable-/Disable-Pfad mehr an.
-* Beobachtetes `OE`-Verhalten im Bring-up: Das `OE`-Signal selbst verhält sich elektrisch wie erwartet (`HIGH` nach Reset, `LOW` nach Init). Trotzdem wurde an den PCA9685-Ausgängen bei `OE = HIGH` weiterhin eine Spannung von ungefähr `1.2V` gemessen, die zu zuvor gesetzten PWM-Werten passte. Die Ursache ist aktuell nicht geklärt. Bis zur Klärung darf `OE` daher nicht als vollständige Leistungs-, Spannungs- oder Hochohmig-Schaltung der Servo-Ausgänge verstanden werden.
-* Versorgung des `ESP32`: Es ist noch festzulegen, ob das Board dauerhaft über den externen `3.3V`-Wandler oder über seine eigene Board-Versorgung betrieben werden soll.
-* Initialzustand aus Sicht der Software: Offen bleibt, wie die Software erkennt oder absichert, dass die manuell eingestellte Startlage tatsächlich zur angenommenen Initialposition passt.
+* `SDA` liegt auf `GPIO4`, `SCL` auf `GPIO5` und `OE` auf `GPIO6`.
+* Die PCA9685-Adresse ist `0x40`; `d`, `s`, `e`, `hp`, `hr`, `g` liegen auf den Kanälen `0` bis `5` und die PWM-Frequenz beträgt `50 Hz`.
+* `OE` ist active-low. Der Treiber konfiguriert den PCA9685 beim Start und bietet bewusst keinen Laufzeit-Enable-/Disable-Pfad an.
+* Die Initiallage wird vor dem Start manuell hergestellt und gegen die dokumentierte Home Position geprüft; die aktuelle Architektur verwendet dafür keine Referenzsensorik.
 
 ## Anhang
 

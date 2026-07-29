@@ -8,6 +8,7 @@ Die API wird vom `RestApiServer` bereitgestellt. Er ist Transport- und Hardwarea
 
 - Protokoll: HTTP
 - Payload-Format: JSON
+- Authentisierung: im aktuellen Embedded-Firmware-Umfang bewusst nicht vorgesehen
 - Response-Header: `Content-Type: application/json` für JSON-Antworten
 - Cache-Header: `Cache-Control: no-store`
 - API-Name: `inverse_kinematic`
@@ -15,6 +16,8 @@ Die API wird vom `RestApiServer` bereitgestellt. Er ist Transport- und Hardwarea
 - Projekt-Hostname: `robot`
 
 Der Server ist nach erfolgreicher WLAN-Initialisierung über die IP-Adresse des ESP32 erreichbar. Wenn mDNS erfolgreich gestartet wurde, ist zusätzlich der lokale Hostname `http://robot.local` verfügbar.
+
+Die maschinenlesbare Beschreibung aller Routen und JSON-Nutzdaten liegt in [json-schema/openapi-v1.json](json-schema/openapi-v1.json).
 
 ## Übersicht
 
@@ -29,6 +32,7 @@ Der Server ist nach erfolgreicher WLAN-Initialisierung über die IP-Adresse des 
 | `POST` | `/api/servo-driver/init` | PCA9685-Servo-Treiber initialisieren und Ausgänge freigeben | `202` |
 | `POST` | `/api/joint-pwm-motion` | Direkten PWM-Zustand setzen und an initialisierte Hardware schreiben | `202` |
 | `POST` | `/api/motion` | Task-Space-Zielpose über Orchestrator planen und ausführen | `202` |
+| `POST` | `/api/forward-kinematics` | Gelenkzustand in Task-Space-Zielpose umrechnen | `200` |
 | `POST` | `/api/sequence/start` | Sequenz aus mehreren Task-Space-Schritten starten | `202` |
 | `POST` | `/api/sequence/stop` | Laufende Sequenz und aktiven Motion-Plan abbrechen | `202` |
 | `GET` | `/api/sequence/status` | Sequenzfortschritt und aktive Planposition abfragen | `200` |

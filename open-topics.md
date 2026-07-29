@@ -1,18 +1,6 @@
 # Offene Themen nach PoC-Abschluss
 
-Der PoC ist abgeschlossen. Diese Liste sammelt bewusst die nächsten Aufräum- und Designentscheidungen, bevor Controller-Eingaben echte Roboterbewegungen auslösen.
-
-## Nächster Cleanup-Schnitt
-
-* ~~Fremdcode-Strategie für Bluepad32 und `components/btstack/` entscheiden: vendored Code, Fork, Submodule oder Patch-Serie.~~ Vorläufige Strategie in [doc/sw/ble-design.md](doc/sw/ble-design.md) dokumentiert.
-* ~~PoC-Anpassungen in Bluepad32 identifizieren und dokumentieren.~~ Patch-Inventar in [doc/sw/ble-design.md](doc/sw/ble-design.md) ergänzt.
-* ~~Prüfen, ob `managed_components/` vollständig generiert bleibt und nicht versioniert werden muss.~~ Ist in `.gitignore` ausgeschlossen und bleibt generiert.
-* ~~Doku in [doc/sw/ble-design.md](doc/sw/ble-design.md) gegen den aktuellen Code gegenlesen.~~ Aktuelle Bestandsaufnahme ergänzt.
-* ~~Kapitel "Offene Punkte" in [doc/sw/ble-design.md](doc/sw/ble-design.md) nach dem Cleanup aktualisieren.~~ Offene Punkte nachgeschärft.
-
-## Controller-Design vor echter Bewegung
-
-* Festlegen, welche Controller-Inputs welche Achsen, Posen oder Aktionen steuern. Digitaler Jog-Zwischenstand in [doc/sw/controller.md](doc/sw/controller.md) dokumentiert.
+Der PoC ist abgeschlossen. Der digitale Controller-Jog, der Hardware-Build-up und die Fremdcode-Strategie sind für den aktuellen Aufbau umgesetzt und dokumentiert.
 
 ## Parkierte Punkte
 
@@ -20,6 +8,8 @@ Der PoC ist abgeschlossen. Diese Liste sammelt bewusst die nächsten Aufräum- u
 * Analogsticks für manuelle Steuerung bleiben vorerst bewusst ausserhalb des nächsten Schritts.
 * Ein zusätzliches Sicherheitsmodell für manuelle Steuerung wird bewusst nicht umgesetzt. Die Software begrenzt auf Achsen-Limits; der Benutzer bleibt für bewusst riskante Bewegungen verantwortlich.
 * Die feste Controller-MAC bleibt vorerst bewusst als PoC-/Debug-Annahme bestehen und wird nicht konfigurierbar gemacht.
-* Eine saubere Patch-Strategie für die Bluepad32/BTstack-Anpassungen wird später entschieden. Der aktuelle vendored Stand bleibt vorerst bestehen.
+* Authentisierung und Zugriffsschutz gehören nicht zum aktuellen Embedded-Firmware-Umfang. Falls sie erforderlich werden, werden sie in einer späteren Linux-basierten Systemarchitektur bewertet.
+* Alternative IK-Solver und kartesische Bahnplanung werden nicht umgesetzt. Die analytische IK und gelenkraumorientierte Bewegungsprofile sind für die aktuelle Hardware ausreichend; die Totzonen der Hardware rechtfertigen keine kartesische Stützpunktplanung.
+* Bewegungsprofil-Grenzen bleiben global konfiguriert und werden nicht pro `MotionRequest` übergeben.
 * `pio run -e esp32s3 -t metrics` bleibt wegen `esp-idf-size --ng` im PlatformIO-Fork unverändert. Für Firmware-Grössen `scripts/firmware_metrics.sh` verwenden.
 * ~~Wahre Events über WebSocket?~~ Aufwändig; für den nächsten Schritt nicht erforderlich.

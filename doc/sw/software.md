@@ -283,15 +283,6 @@ classDiagram
     class MotionRequest {
         +TargetPose target
         +MotionProfile profile
-        +IkSolverMode ik_solver
-        +bool has_wait
-        +uint32 wait_ms
-    }
-
-    class IkSolverMode {
-        +analytical
-        +ccd
-        +fabrik
     }
 
     class MotionResult {
@@ -370,7 +361,6 @@ classDiagram
 
     MotionRequest --> TargetPose
     MotionRequest --> MotionProfile
-    MotionRequest --> IkSolverMode
     MotionProfile --> MotionProfileType
     MotionResult --> JointState
     MotionPlan --> MotionProfile
@@ -445,28 +435,13 @@ classDiagram
     class MotionRequest {
         +TargetPose target
         +MotionProfile profile
-        +IkSolverMode ik_solver
-        +bool has_wait
-        +uint32 wait_ms
-    }
-
-    class IkSolverMode {
-        +analytical
-        +ccd
-        +fabrik
     }
 ```
 
-Für die erweiterte Ausbaustufe enthält dieses Modell mindestens:
+Das Modell enthält:
 
 * ein fachliches Bewegungsziel als `TargetPose`
 * ein gewünschtes Bewegungsprofil als `MotionProfile`
-* einen expliziten gewünschten IK-Solver als `IkSolverMode`
-* eine optionale Wartezeit nach der Zielverarbeitung
-
-Für die erste Implementierung ist `analytical` der Standardwert, wenn kein Solver angegeben wird. Ein eigener `automatic`-Modus wird bewusst noch nicht eingeführt. Ob eine automatische Solver-Policy sinnvoll ist, soll erst entschieden werden, nachdem analytische IK, CCD und FABRIK praktisch vergleichbar implementiert sind.
-
-Spätere Erweiterungen wie LED-Aktionen, Roboter-Aktionen oder Prioritäten können auf diesem Modell aufbauen.
 
 ### MotionProfile
 
@@ -790,14 +765,7 @@ Diese Endpunkte sind ausdrücklich als Low-Level- und Inbetriebnahme-Pfad zu ver
 
 Für die weitere Architektur ist wichtig, dass die REST-Schnittstelle dieselben fachlichen Kernmodelle verwendet wie die `Run Engine`. Dadurch bleibt offen, ob Bewegungsanforderungen aus einem vordefinierten Ablauf, aus einem Test-HMI oder aus einer anderen externen Quelle stammen.
 
-Noch nicht Teil dieses Dokuments sind:
-
-* ein vollständiges API-Design für den regulären `MotionRequest`-Pfad
-* vollständige JSON-Schemata
-* Authentisierung oder Zugriffsschutz
-* Details einer Browser-HMI
-
-Die Architektur soll dabei so offen bleiben, dass der ESP32 zunächst ein kleines REST API und später zusätzlich eine kleine statische HMI-Seite über dieselbe Netzwerkschnittstelle anbieten kann.
+Bewusst ausgeklammert sind Authentisierung und ein allgemeines Zugriffsschutzmodell. Sie würden für den aktuellen Embedded-Firmware-Umfang unverhältnismässig viel zusätzliche Komplexität schaffen; ein Bedarf dafür wird bei einer späteren Linux-basierten Systemarchitektur neu bewertet. Die aktuelle Schnittstelle ist über [json-schema/openapi-v1.json](json-schema/openapi-v1.json) formal beschrieben. Dilbert bleibt die vorhandene Browser-Bedienoberfläche; eine zweite generische HMI ist nicht geplant.
 
 ### Manuelle Controller-Bedienung
 
@@ -892,24 +860,14 @@ Eingaben und Ausgaben:
 
 ### Kinematics
 
-`Kinematics` berechnet aus einer gültigen Zielbeschreibung und einem explizit ausgewählten IK-Solver einen fachlichen Gelenkzustand.
+`Kinematics` berechnet aus einer gültigen Zielbeschreibung mit analytischer IK einen fachlichen Gelenkzustand.
 
-Für die inverse Kinematik darf diese Komponente intern sowohl analytische als auch iterative Lösungsverfahren kapseln. Insbesondere Verfahren wie `CCD` oder `FABRIK` werden hier als interne Iterationslogik verstanden und nicht als Aufgabe des `Orchestrator`.
-
-Die aktuell vorgesehenen Solver-Modi sind `analytical`, `ccd` und `fabrik`. Für den ersten Implementationsstand ist `analytical` der Default, wenn ein `MotionRequest` keinen Solver vorgibt. Ein automatischer Auswahlmodus wird bewusst nicht modelliert, solange die drei Solver noch nicht praktisch vergleichbar implementiert sind.
+Für den aktuellen Produktstand wird ausschließlich die analytische IK verwendet. Alternative Solver wie `ccd` und `fabrik` sowie eine automatische Solver-Auswahl werden bewusst nicht umgesetzt, weil die analytische Lösung den benötigten Funktionsumfang abdeckt.
 
 Eingaben und Ausgaben:
 
 * Eingabe einer `OffsetTargetPose`
-* Eingabe eines `IkSolverMode`
 * Rückgabe eines `JointState`
-
-Bei iterativen Verfahren umfasst die Verantwortung von `Kinematics` insbesondere:
-
-* Wahl oder Übernahme eines geeigneten Startzustands
-* wiederholte Berechnung von Iterationsschritten bis zur Zielannäherung
-* Prüfung von Toleranz, Konvergenz und Abbruchbedingungen
-* Rückmeldung, ob eine Lösung gefunden wurde oder ob beispielsweise Iterationsgrenzen beziehungsweise Nichterreichbarkeit vorlagen
 
 `Kinematics` kennt dabei:
 
@@ -1050,7 +1008,7 @@ Ein typischer Ablauf ist wie folgt aufgebaut:
 2. Aus diesem Schritt wird ein `MotionRequest` mit einer fachlichen `TargetPose` erzeugt.
 3. Der `Orchestrator` stößt die Vorprüfung dieser `TargetPose` über `Validation` an.
 4. Bei positiver Vorprüfung wird die Zielbeschreibung mithilfe von `RobotModelOffset` in eine `OffsetTargetPose` überführt.
-5. `Kinematics` berechnet daraus mit dem im `MotionRequest` gewählten `IkSolverMode` einen `JointState` oder meldet zurück, dass keine geeignete Lösung gefunden wurde.
+5. `Kinematics` berechnet daraus mit analytischer IK einen `JointState` oder meldet zurück, dass keine geeignete Lösung gefunden wurde.
 6. Der berechnete `JointState` wird durch `Validation` fachlich geprüft und freigegeben oder abgelehnt.
 7. Der `Orchestrator` bestimmt den aktuellen Start-`JointState` aus dem zuletzt angenommenen Systemzustand beziehungsweise aus der `Init Position`, falls noch keine reguläre Bewegung ausgeführt wurde.
 8. Aus diesem Startzustand, dem freigegebenen Zielzustand und dem im `MotionRequest` hinterlegten `MotionProfile` wird ein `MotionPlan` mit berechneter Gesamtdauer `T` erzeugt.
@@ -1254,7 +1212,6 @@ Fachliche Ablehnungen entstehen dann, wenn eine Bewegungsanforderung zwar formal
 Davon zu unterscheiden ist die Nichterreichbarkeit oder rechnerische Nichtlösbarkeit. Diese liegt beispielsweise vor, wenn:
 
 * `Kinematics` keine Lösung für die angeforderte Pose findet
-* ein iteratives Verfahren wie `CCD` oder `FABRIK` innerhalb seiner Grenzen nicht konvergiert
 * eine Zielbeschreibung rechnerisch ausserhalb des bearbeitbaren Arbeitsraums liegt
 
 Beide Fälle führen in der ersten Ausbaustufe dazu, dass keine Weitergabe an die `Hardware Abstraction` erfolgt. Der Unterschied ist jedoch für Diagnose, Tests und spätere Strategien wichtig und sollte deshalb im `ResultCode` erhalten bleiben.
@@ -1406,7 +1363,7 @@ Diese letzte Regel ist besonders wichtig, weil viele spätere Inkonsistenzen nic
 > * Eine erste Näherung mit konstanter Geschwindigkeit passt direkt in dieses Modell.
 > * Eine zweite Näherung mit konstanter Beschleunigung passt ebenfalls hinein und benötigt keine fundamentale Architekturänderung.
 > * Für sanftes Losfahren und Abbremsen wird derselbe Baustein lediglich um ein drittes Profilschema erweitert.
-> * Offen bleibt nur, ob die Profilgrenzen global konfiguriert oder pro `MotionRequest` übergeben werden sollen.
+> * Die Profilgrenzen werden global konfiguriert. Eine Übergabe pro `MotionRequest` ist bewusst nicht vorgesehen.
 > 
 > #### Euler Winkel
 > * Macht es Sinn, wenn wir für meinen 5-Achsen plus Greifer Robotter für das Welt-Koordinatensystem Euler Winkel einführen?
@@ -1430,7 +1387,6 @@ Diese letzte Regel ist besonders wichtig, weil viele spätere Inkonsistenzen nic
 | --- | --- |
 | HardwareResult | Technisches Rückgabemodell der Hardwareseite an den `Orchestrator`. Es beschreibt, ob eine hardwarenahe Ausgabe technisch erfolgreich verarbeitet wurde oder ein Fehler vorliegt. |
 | ControllerHandler | Zustandsbehaftete Orchestrierungskomponente für kontinuierliche, geräteunabhängige Jog-Befehle. Sie erzeugt unmittelbare Gelenk-Sollwerte, jedoch keinen MotionPlan. |
-| IkSolverMode | Explizite Auswahl des IK-Lösungsverfahrens für einen `MotionRequest`. Vorgesehen sind `analytical`, `ccd` und `fabrik`; ein automatischer Auswahlmodus ist vorerst bewusst nicht Teil des Modells. |
 | JointPwmState | PWM-bezogenes Ausgabemodell mit den vorbereiteten Stellwerten pro Aktor zwischen `Hardware Abstraction` und `Hardware Driver`. |
 | JointStateResult | Fachliches Prüfergebnis zur Bewertung eines berechneten `JointState`. |
 | JogCommand | Geräteunabhängiger kontinuierlicher Bewegungsbefehl mit kartesischen Eingaben, Joint-Geschwindigkeiten und Weltroll-Lock-Toggle. |

@@ -129,7 +129,7 @@ Wichtige Dateien und Ordner:
 
 Die Bluepad32-Anbindung verwendet ein gepinntes Upstream-Submodule und eine versionierte Patch-Serie. `scripts/bootstrap.sh` initialisiert das Submodule und wendet die Patches an; die oberste `CMakeLists.txt` bindet anschließend die Komponente direkt aus dem Submodule über `EXTRA_COMPONENT_DIRS` ein.
 
-Für den nächsten Schritt bleibt der Fremdcode bewusst lokal versioniert, damit der hardwaregetestete BLE-Stand reproduzierbar bleibt. Vor grösseren funktionalen Erweiterungen soll daraus aber eine klarere Patch- oder Fork-Strategie entstehen.
+Der Fremdcode bleibt bewusst lokal versioniert, damit der hardwaregetestete BLE-Stand reproduzierbar bleibt. Bluepad32 ist als gepinntes Submodule mit versionierter Patch-Serie eingebunden; BTstack bleibt als lokal versionierte Abhängigkeit erhalten.
 
 ## Switch-2-Pro-Anpassungen im Fremdcode
 
@@ -365,26 +365,11 @@ Die wichtigsten Designentscheidungen für den PoC sind:
 * Die feste Controller-MAC bleibt vorerst bewusst als PoC-/Debug-Annahme bestehen.
 * Für manuelle Controller-Bedienung wird vorerst kein zusätzliches Sicherheitsmodell eingeführt; die relevante technische Grenze sind die gemeinsamen Achsen-Limits.
 * `L`, `ZL`, `R` und `ZR` sind digitale Buttons, keine analogen Trigger.
-* Der aktuelle Commit-Stand eignet sich als PoC-Checkpoint, aber noch nicht als bereinigte Dauerlösung für Fremdcode-Integration.
+* Die BLE-Anbindung, ihre Callback-Grenzen und die REST-Controller-Dokumentation sind für den aktuellen Stand bereinigt und dokumentiert.
 
-## Offene Punkte
-
-Vor einer bereinigten Weiterentwicklung sind insbesondere folgende Punkte offen:
-
-* Proprietäre UUIDs, Handles und Reportstruktur sauberer benennen.
-* Thread- beziehungsweise Kontextgrenzen zwischen BTstack-Callback und Anwendungsschicht prüfen.
-* REST-API-Dokumentation an das finale Controller-JSON anpassen.
-
-Bewusst ausgeklammert:
+## Bewusst ausgeklammert
 
 * Harte MAC-Adresse wird vorerst nicht ersetzt oder konfigurierbar gemacht.
 * Analogsticks werden vorerst nicht für manuelle Steuerung verwendet.
 * Ein separates Sicherheitsmodell für manuelle Steuerung wird vorerst nicht definiert; Achsen-Limits bleiben die relevante Softwaregrenze.
-* Eine finale Patch-Strategie für Bluepad32/BTstack wird vorerst nicht entschieden; der vendored Stand bleibt bestehen.
 * Der PlatformIO-Target `metrics` bleibt trotz `--ng`-Warnung unverändert; für Firmware-Grössen wird der projektlokale Workaround genutzt.
-
-## Nächster sinnvoller Schritt
-
-Der aktuelle Stand sollte als funktionierender PoC-Checkpoint festgehalten werden. Danach bietet sich ein Cleanup-Schritt an, der den heute gewachsenen Bring-up-Code von einer reproduzierbaren Debug-Lösung in eine klarere Projektstruktur überführt.
-
-Erst danach sollte die Controller-Eingabe auf echte Roboterbewegungen gemappt werden. Für diese nächste Ausbaustufe ist der aktuelle digitale Jog-Zwischenstand in [controller.md](controller.md) massgeblich; Analogsticks, MAC-Konfiguration und ein separates Sicherheitsmodell bleiben bewusst ausserhalb dieses Schnitts.

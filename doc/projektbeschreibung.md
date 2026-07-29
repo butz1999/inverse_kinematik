@@ -21,7 +21,7 @@ Die inverse Kinematik bildet damit die Grundlage, um einen Roboterarm nicht nur 
 
 Dieses Problem ist in der Praxis nicht immer eindeutig lösbar. Für dieselbe Greiferposition können mehrere Gelenkkonfigurationen existieren, beispielsweise eine "Ellenbogen-oben"- und eine "Ellenbogen-unten"-Lösung. Ebenso kann ein Ziel außerhalb des mechanisch erreichbaren Arbeitsraums liegen oder nur unter Verletzung von Gelenkgrenzen erreichbar sein. Eine IK-Implementierung muss daher nicht nur mathematisch eine Lösung finden, sondern auch Randbedingungen wie Servo-Limits, mechanische Offsets und stabile Bewegungsabläufe berücksichtigen.
 
-Für einfache Robotergeometrien lassen sich geschlossene, analytische Lösungen herleiten. Diese sind in der Regel schnell und deterministisch, setzen jedoch ein hinreichend ideales geometrisches Modell voraus. Sobald zusätzliche Offsets, Gelenkgrenzen oder komplexere Freiheitsgrade berücksichtigt werden sollen, sind iterative Verfahren häufig robuster und einfacher erweiterbar. Zwei bekannte Verfahren in diesem Bereich sind CCD (Cyclic Coordinate Descent) und FABRIK (Forward And Backward Reaching Inverse Kinematics). Beide arbeiten schrittweise auf eine Zielposition hin und sind deshalb für spätere Erweiterungen dieses Projekts besonders interessant.
+Für die vorhandene Robotergeometrie wird eine geschlossene, analytische Lösung verwendet. Sie ist schnell, deterministisch und deckt den benötigten Funktionsumfang ab. Iterative Verfahren wie CCD oder FABRIK werden bewusst nicht umgesetzt.
 
 Für den hier betrachteten Roboterarm bietet sich zunächst ein vereinfachtes Modell an, bei dem die Geometrie des Arms in Segmente und Gelenke zerlegt wird. Auf dieser Grundlage kann zunächst eine grundlegende IK für Position und einfache Orientierung implementiert werden. Anschließend kann das Modell schrittweise um reale mechanische Abweichungen ergänzt werden, sodass die inverse Kinematik zunehmend besser zum tatsächlichen Verhalten des Roboters passt.
 
@@ -125,7 +125,7 @@ Damit bleibt festzuhalten: Ohne Sensorik kann das ruckartige Anspringen nicht ma
 
 Da keine Referenzsensorik vorgesehen ist, bleibt diese Initialisierung auf eine manuell vorbereitete oder konstruktiv definierte Ausgangslage angewiesen. Die Projektbeschreibung sollte diesen Umstand explizit berücksichtigen, damit die Grenzen der Wiederholgenauigkeit und der sichere Systemstart von Anfang an fachlich eingeordnet sind.
 
-Offen bleibt dabei bewusst, wie die Software selbständig erkennt oder verifiziert, dass sich das System tatsächlich in diesem Initialzustand befindet. Für die erste Ausbaustufe wird diese Übereinstimmung nicht technisch nachgewiesen, sondern als Betriebsannahme vorausgesetzt.
+Die Initiallage wird vor dem Start manuell hergestellt und im Bring-up gegen die fachliche Initialposition geprüft. Für die erste Ausbaustufe ist keine automatische Verifikation durch Sensorik oder Referenzfahrt vorgesehen.
 
 ### Erreichbarkeitsprüfung
 
@@ -197,7 +197,7 @@ Langfristig sind unterschiedliche Strategien denkbar:
 
 Eine wichtige mögliche Erweiterung ist ein expliziter Modus für gerade Bewegungen im kartesischen Raum. Das aktuelle Verhalten plant eine Bewegung im Gelenkraum: Aus Start- und Zielpose werden passende Gelenkzustände berechnet, anschließend werden die Gelenkwinkel zwischen diesen Zuständen interpoliert. Dadurch kann eine Bewegung entstehen, die mechanisch sinnvoll und kurz ist, im kartesischen Raum aber nicht als gerade Linie verläuft. Ein typisches Beispiel sind zwei Zielposen mit gleicher Höhe und gleichem Abstand zur Arm-Ebene, aber entgegengesetztem `x`-Wert. Wenn Schulter, Ellenbogen und Handgelenk für Start und Ziel nahezu dieselben Winkel benötigen, trägt der Drehteller die Bewegung fast allein, obwohl der Greifer im Raum eigentlich eine seitliche Strecke beschreibt.
 
-Für einen geraden kartesischen Move müsste die Bahnplanung deshalb vor der IK zusätzliche Stützpunkte entlang der gewünschten Linie erzeugen, beispielsweise in festen Abständen von einigen Millimetern. Für jeden Stützpunkt würde anschließend wie bisher eine IK-Lösung berechnet und daraus ein Bewegungsplan im Gelenkraum abgeleitet. Eine solche Erweiterung erfordert daher nicht zwingend sofort ein anderes IK-Verfahren wie FABRIK oder CCD. Sie kann zunächst auf der analytischen IK aufbauen und als eigener Bewegungsmodus neben dem bestehenden Gelenkraum-Move eingeführt werden. Iterative IK-Verfahren bleiben für spätere Ausbaustufen interessant, etwa wenn mehrere mögliche Lösungen gezielt nach Gelenknähe, Limitabstand oder besonders stetigem Verlauf ausgewählt werden sollen.
+Eine kartesische Bahnplanung mit zusätzlichen Stützpunkten wird bewusst nicht umgesetzt. Die mechanischen Totzonen der aktuellen Hardware würden daraus keine ausreichend flüssige reale Bewegung erzeugen. Der bestehende Bewegungsplan bleibt deshalb ein gelenkraumorientierter Übergang zur berechneten Zielpose; die analytische IK bleibt der einzige verwendete Solver.
 
 Die konkrete Ausführung eines Bewegungsübergangs beeinflusst nicht nur die mechanische Belastung, sondern auch die Qualität von Demonstrationsabläufen, die Wiederholbarkeit des Systems und die praktische Nutzbarkeit der Run Engine. Auch wenn in der ersten Ausbaustufe noch keine vollständige Bahnplanung vorgesehen ist, sollte daher festgehalten werden, dass zwischen Zielpunkten eine kontrollierte Übergangslogik erforderlich ist.
 
@@ -311,7 +311,7 @@ Zu den Aufgaben der Run Engine gehören insbesondere:
 
 Die Kinematikkomponente (`Kinematics`) stellt die mathematischen Berechnungsverfahren des Systems bereit. Dazu gehören insbesondere die inverse Kinematik zur Berechnung von Gelenksollwerten aus einem Endeffektorziel sowie gegebenenfalls die Vorwärtskinematik zur Analyse oder Plausibilisierung von Gelenkkonfigurationen. Sie arbeitet auf Basis des Robotermodells (`Robot Model`) und bleibt von hardwarebezogenen Details unabhängig.
 
-Werden im Projekt iterative IK-Verfahren wie `CCD` oder `FABRIK` eingesetzt, so gehört auch die dazugehörige Iterationslogik in diese Komponente. Dazu zählen insbesondere die Wahl eines Startzustands, die wiederholte Annäherung an das Ziel, die Prüfung von Toleranzen sowie der Abbruch bei Konvergenz, maximaler Iterationszahl oder erkannter Nichterreichbarkeit. Der Orchestrator stößt die Berechnung nur an und bewertet deren Ergebnis, führt die eigentlichen Iterationsschritte jedoch nicht selbst aus.
+Die aktuelle Kinematikkomponente verwendet ausschließlich die analytische IK. Iterative Solver und ihre Konvergenzlogik gehören nicht zum aktuellen Produktumfang.
 
 #### Prüfkomponente
 
@@ -345,7 +345,7 @@ Aus einer Controller-Eingabe kann die Anwendungsschicht je nach aktivem Bedienmo
 
 #### Bewegungsanforderung
 
-Die [Bewegungsanforderung](#motion-request) (`Motion Request`) ist das fachliche Übergabeobjekt zwischen Anwendungsschicht beziehungsweise [Run Engine](#run-engine) und Orchestrator. In der einfachsten Form enthält sie genau einen auszuführenden [Ablaufschritt](#sequence-step) (`Sequence Step`) oder eine daraus abgeleitete [Zielpose](#target-description) (`Target Pose`). Zusätzlich kann sie den explizit gewünschten IK-Solver festlegen, zunächst `analytical` und später `ccd` oder `fabrik`. Wird kein Solver angegeben, gilt für die erste Ausbaustufe `analytical` als Default. Ein automatischer Auswahlmodus wird bewusst erst erneut betrachtet, wenn alle drei Solver praktisch vergleichbar implementiert sind. Dadurch wird klar zwischen der internen Struktur eines Bewegungsprogramms und der einzelnen fachlichen Anforderung unterschieden, welche der Orchestrator konkret verarbeitet.
+Die [Bewegungsanforderung](#motion-request) (`Motion Request`) ist das fachliche Übergabeobjekt zwischen Anwendungsschicht beziehungsweise [Run Engine](#run-engine) und Orchestrator. Sie enthält eine [Zielpose](#target-description) (`Target Pose`) und ein Bewegungsprofil. Der Orchestrator verarbeitet jede Anforderung mit der analytischen IK.
 
 #### Ablaufdefinition
 
@@ -441,7 +441,6 @@ Ein typischer Ablauf innerhalb der Softwarearchitektur kann unabhängig von eine
 
 Die Architektur soll bewusst offen für spätere Erweiterungen bleiben. Dazu gehören insbesondere:
 
-* Austausch oder Vergleich verschiedener IK-Verfahren wie analytische Lösungen, CCD oder FABRIK
 * Einführung von Kalibrierungsdaten für den realen **Roboterarm**
 * Unterstützung für Bewegungsprofile anstelle sprunghafter Sollwertänderungen
 * Protokollierung und Diagnose von Zielvorgaben, Berechnungsergebnissen und Servozuständen
@@ -527,7 +526,6 @@ flowchart LR
         B6[MotionProfileGenerator]
         B7[MotionPlan]
         B8[TimedJointState]
-        B9[IkSolverMode]
         B10[ControllerHandler]
         B11[JogCommand]
         B12[RestCommand]
@@ -535,9 +533,7 @@ flowchart LR
         B12 -->|triggers| B2
         B2 -->|is handled by| B1
         B2 -.->|contains| B5
-        B2 -.->|contains| B9
         B1 -->|uses| B5
-        B1 -->|passes| B9
         B1 -->|requests plan from| B6
         B6 -->|produces| B7
         B7 -->|contains| B8
@@ -562,16 +558,12 @@ flowchart LR
         C8[MathUtilities]
         C9[SegmentLengths,\nOffsets,\nJointLimits]
         C10[AnalyticalIK]
-        C11[CCD Solver]
-        C12[FABRIK Solver]
 
         C1 -.->|uses| C3
         C4 -->|produces| C7
         C1 -.->|receives| C7
         C1 -.->|uses| C8
         C1 -->|may delegate to| C10
-        C1 -.->|future solver| C11
-        C1 -.->|future solver| C12
         C2 -.->|uses| C3
         C2 -.->|considers| C5
         C3 -->|contains| C9
@@ -630,11 +622,9 @@ flowchart LR
         E11[MotionProfile]
         E12[MotionPlan]
         E13[TimedJointState]
-        E14[IkSolverMode]
 
         E2 -->|contains or references| E1
         E2 -->|contains| E11
-        E2 -->|contains| E14
         E4 -->|refers to| E2
         E4 -->|may contain| E3
         E6 -->|refers to| E1
@@ -755,7 +745,7 @@ Ein typischer Laufzeitablauf ist wie folgt aufgebaut:
 * Aus diesem Schritt wird eine Bewegungsanforderung an den Orchestrator übergeben.
 * Der Orchestrator stößt zunächst eine fachliche Vorprüfung der Zielpose an.
 * Nur bei positiver Vorprüfung wird über den `Robot Model Offset` eine modellkorrigierte Zwischenrepräsentation (`Offset Target Pose`) für die Kinematik erzeugt.
-* Die Kinematik berechnet daraus mit dem im `MotionRequest` gewählten `IkSolverMode` einen `Joint State`. Innerhalb von `Kinematics` kann dieser Schritt zunächst analytisch und später über alternative Solver wie CCD oder FABRIK erfolgen.
+* Die Kinematik berechnet daraus mit analytischer IK einen `Joint State`.
 * Der berechnete Gelenkzustand wird fachlich validiert.
 * Der Orchestrator bestimmt den angenommenen aktuellen Startzustand und übergibt Startzustand, Zielzustand und Bewegungsprofil an den `Motion Profile Generator`.
 * Der `Motion Profile Generator` erzeugt daraus einen `MotionPlan` mit zeitlich markierten `TimedJointState`-Zwischenzuständen.
@@ -806,7 +796,7 @@ Ein schwergewichtiges C++-Testframework mit umfangreicher Mocking-Unterstützung
 
 Eine SBOM (Software Bill of Materials) ist sinnvoll, um eingesetzte Bibliotheken und externe Abhängigkeiten nachvollziehbar zu dokumentieren. Das unterstützt Transparenz, Wartbarkeit und spätere Sicherheitsbetrachtungen.
 
-Für die Erstellung einer solchen SBOM bietet sich `Syft` als leichtgewichtiges Werkzeug an. Es kann das Projektverzeichnis analysieren und die enthaltenen Komponenten in etablierten SBOM-Formaten wie SPDX oder CycloneDX ausgeben. Auch wenn die konkrete Umsetzung im Projektverlauf noch offen ist, bleibt der Einsatz eines solchen Werkzeugs in der Projektbeschreibung sinnvoll, um den Aspekt der Abhängigkeits- und Herkunftstransparenz früh zu berücksichtigen.
+Die SBOM wird mit `Syft` erzeugt. `scripts/generate-sbom.sh` analysiert das Projektverzeichnis und schreibt die versionierte CycloneDX-Datei `sbom.cyclonedx.json`. Dadurch bleiben verwendete Komponenten und Abhängigkeiten nachvollziehbar.
 
 ## Methoden
 
@@ -958,7 +948,6 @@ Dieses Kapitel kann im Projektverlauf schrittweise mit konkreten Resultaten erg�
 | <a id="hardware-driver"></a>Hardware Driver | Konkrete hardwarenahe Komponente zur Kommunikation mit Ausgabebausteinen wie dem PCA9685. |
 | <a id="home-position"></a>Home Position | Definierte Ausgangslage des Roboterarms, die aus dem stromlosen Zustand reproduzierbar erreicht werden kann und als fachliche Referenz für Initialisierung und Aufstartverhalten dient. |
 | IK | Inverse Kinematik. Berechnung von Gelenkwinkeln aus einer gewünschten Position und Orientierung des Endeffektors. |
-| IkSolverMode | Explizite Auswahl des IK-Lösungsverfahrens für eine Bewegungsanforderung. Vorgesehen sind `analytical`, `ccd` und `fabrik`; ein automatischer Auswahlmodus wird erst nach praktischer Bewertung der drei Solver erneut betrachtet. |
 | Joint Space | Darstellung des Roboterzustands im Gelenkraum. Beschrieben werden dabei die Winkel `d`, `s`, `e`, `hp`, `hr` sowie die Greiferöffnung `g`. |
 | Joint PWM State | PWM-bezogenes Ausgabemodell mit den vorbereiteten Stellwerten pro Aktor zwischen `Hardware Abstraction` und `Hardware Driver`. |
 | Joint State Result | Fachliches Prüfergebnis zur Bewertung eines berechneten `Joint State`. |

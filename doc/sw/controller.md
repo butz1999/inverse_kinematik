@@ -1,6 +1,6 @@
 # Controller-Bedienung
 
-Dieses Dokument hält den aktuellen Zwischenstand für die Controller-Bedienung fest. Es beschreibt noch keine freigegebene manuelle Robotersteuerung, sondern die Visualisierung und die aktuell testbare digitale Jog-Zuordnung.
+Dieses Dokument beschreibt die für den aktuellen Aufbau verifizierte manuelle Controller-Bedienung, ihre Visualisierung und die digitale Jog-Zuordnung.
 
 ## Visualisierung
 
@@ -20,7 +20,7 @@ Dieses Dokument hält den aktuellen Zwischenstand für die Controller-Bedienung 
 
 ## Aktuelle digitale Jog-Zuordnung
 
-Die aktuelle Default-Zuordnung liegt in `src/application/ControllerJog.h`. Sie ist Native-getestet, aber noch nicht als sichere reale Robotersteuerung freigegeben.
+Die aktuelle Default-Zuordnung liegt in `src/application/ControllerJog.h`. Sie ist Native-getestet und im aktuellen Aufbau für die reale Robotersteuerung verifiziert.
 
 | Eingabe | Achse | Richtung | Geschwindigkeit |
 | --- | --- | ---: | ---: |
