@@ -4,8 +4,8 @@
   «Was wurde implementiert?»
 * Code / Architektur Reviews nach dem Commit:  
   «Was wurde geändert?»
-* Fehlersuche von Stack-overflows 🪳
-  * BTW: KI verursacht...
+* Fehlersuche von Stack-overflows 🪲
+  * KI code...
   * Serial-Log Output → Copy/Paste → Bugfix
 * Nach 2.5 Wochen plötzlich Unit-Tests für's Frontend eingeführt.
 * Programmieren mit ’Best Buddy‘ der ~~alles~~ vieles weiss 🤓

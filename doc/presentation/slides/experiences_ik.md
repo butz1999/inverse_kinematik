@@ -7,10 +7,10 @@
 * Praxis
   * sehen wir später... 😜
 
-An dieser Stelle hat mir die KI diverese wirre Formeln an den Kopf geworfen. Das tat nicht weh, verstanden hab ich's trotzdem nicht. Visualisieren hilfe (mir) da sehr. 
+An dieser Stelle hat mir die KI diverese wirre Formeln an den Kopf geworfen. Das tat nicht weh, verstanden hab ich's trotzdem nicht. Visualisieren hilft (mir) da sehr.
 
 > [!tip]
-> #### Intermezzo 1: Profile-calculation
+> #### Intermezzo 1: Profile-calculation in der SW Achitektur anschauen
 >
 > [Mögliche Abzweigung](../../sw/profile_calculation.md#denkmuster) ⏳
 > 

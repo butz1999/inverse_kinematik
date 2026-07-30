@@ -1,0 +1,1 @@
+# Danke für's Zuhören 💛 <span style="float: right">[⬅️](praxis-transfer.md) [⬆️](../slides.md)</span>

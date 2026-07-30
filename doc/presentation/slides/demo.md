@@ -1,4 +1,4 @@
-# Fragen & Demo<span style="float: right">[⬅️](experiences_ki_neg.md) [⬆️](../slides.md) [➡️](praxis-transfer.md)</span>
+# Fragen & Demo<span style="float: right">[⬅️](experiences_ik.md) [⬆️](../slides.md) [➡️](praxis-transfer.md)</span>
 
 <img src="../../datasheet/roboter/Robot02-1.png" width="25%"/>
 
