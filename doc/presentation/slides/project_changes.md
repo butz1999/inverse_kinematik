@@ -3,7 +3,7 @@
 * Clang-format
 * mDNS
 * REST
-* TinyFS und Webserver (wozu nur!?)
+* SPIFFS und Webserver (wozu nur!?)
 
 #### REST Calls mit `curl`?
   ```

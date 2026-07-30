@@ -2,7 +2,7 @@
 
 
 <div style="float: right; width: 255px; background-color: #666; border-radius: 50%;">
-  <img src="../dilbert-head-favicon-512.png" style="width: 100%; display: block;">
+  <img src="../../../web/favicon.ico" style="width: 100%; display: block;">
 </div>
 
 
