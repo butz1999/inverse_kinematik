@@ -4,7 +4,6 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Dilbert</title>
-    <link rel="stylesheet" href="dilbert.css" />
   </head>
   <body>
     <main>
@@ -15,11 +14,13 @@
       <h2>Basics</h2>
       <section class="toolbar">
         <button id="init-button" type="button">Init</button>
-        <input id="base-url" type="url" value="http://robot.local" list="base-url-options" aria-label="Base URL" />
-        <datalist id="base-url-options">
-          <option value="http://robot.local"></option>
-          <option value="http://robot.fritz.box"></option>
-        </datalist>
+        <div id="base-url-control">
+          <input id="base-url" type="url" value="http://robot.local" list="base-url-options" aria-label="Base URL" />
+          <datalist id="base-url-options">
+            <option value="http://robot.local"></option>
+            <option value="http://robot.fritz.box"></option>
+          </datalist>
+        </div>
       </section>
 
       <details>
@@ -337,7 +338,72 @@
       </details>
     </main>
 
-    <script src="controller-reporting.js"></script>
-    <script src="dilbert.js"></script>
+    <script>
+      const assetVersion = "20260730.3";
+      const assetRetryCount = 3;
+
+      const assetUrl = (path, attempt) => `${path}?v=${assetVersion}&attempt=${attempt}`;
+      const wait = (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+      const loadStylesheet = (href) => new Promise((resolve, reject) => {
+        const stylesheet = document.createElement("link");
+        stylesheet.rel = "stylesheet";
+        stylesheet.href = href;
+        stylesheet.addEventListener("load", resolve, { once: true });
+        stylesheet.addEventListener("error", reject, { once: true });
+        document.head.append(stylesheet);
+      });
+
+      const loadScript = (src) => new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.addEventListener("load", resolve, { once: true });
+        script.addEventListener("error", reject, { once: true });
+        document.body.append(script);
+      });
+
+      const loadWithRetry = async (loader, path) => {
+        let lastError;
+        for (let attempt = 0; attempt < assetRetryCount; attempt += 1) {
+          try {
+            await loader(assetUrl(path, attempt));
+            return;
+          } catch (error) {
+            lastError = error;
+            await wait(100 * (attempt + 1));
+          }
+        }
+        throw lastError;
+      };
+
+      const loadFavicons = () => {
+        const icons = [
+          { rel: "icon", type: "image/x-icon", path: "favicon.ico" },
+          { rel: "icon", type: "image/png", sizes: "16x16", path: "favicon-16x16.png" },
+          { rel: "icon", type: "image/png", sizes: "32x32", path: "favicon-32x32.png" },
+          { rel: "icon", type: "image/png", sizes: "48x48", path: "favicon-48x48.png" },
+          { rel: "icon", type: "image/png", sizes: "96x96", path: "favicon-96x96.png" },
+          { rel: "apple-touch-icon", type: "image/png", sizes: "180x180", path: "apple-touch-icon.png" },
+        ];
+
+        for (const icon of icons) {
+          const link = document.createElement("link");
+          link.rel = icon.rel;
+          link.type = icon.type;
+          link.href = assetUrl(icon.path, 0);
+          if (icon.sizes) {
+            link.sizes = icon.sizes;
+          }
+          document.head.append(link);
+        }
+      };
+
+      (async () => {
+        await loadWithRetry(loadStylesheet, "dilbert.css");
+        await loadWithRetry(loadScript, "controller-reporting.js");
+        await loadWithRetry(loadScript, "dilbert.js");
+        loadFavicons();
+      })().catch((error) => console.error("UI assets could not be loaded.", error));
+    </script>
   </body>
 </html>

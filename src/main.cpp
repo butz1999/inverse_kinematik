@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <ESPmDNS.h>
+#include <SPIFFS.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <Wire.h>
@@ -53,7 +54,7 @@ hardware::SerialLogger logger(Serial, kSerialBaudrate);
 hardware::StatusLed statusLed(kRgbLedPin, kRgbBrightness);
 WebServer webServer(kHttpPort);
 hardware::Pca9685ServoDriver servoDriver;
-application::RestApiServer restApi(webServer, servoDriver, statusLed, logger);
+application::RestApiServer restApi(webServer, SPIFFS, servoDriver, statusLed, logger);
 
 extern "C" void ik_switch2_pro_ble_input_report(const uint8_t *report, uint16_t report_size)
 {
@@ -215,6 +216,16 @@ void setup()
   }
   statusLed.set(color);
   delay(250);
+  // Mount static web assets without formatting a failed filesystem.
+  if (SPIFFS.begin(false))
+  {
+    logger.println("[BOOT] SPIFFS static web assets mounted");
+  }
+  else
+  {
+    logger.println("[BOOT] SPIFFS mount failed; static web UI is unavailable");
+    color = hardware::StatusLed::Color::Cyan;
+  }
   // Register REST API
   restApi.init();
   logger.println("[BOOT] REST API endpoints registered");

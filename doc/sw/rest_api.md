@@ -40,7 +40,7 @@ Die maschinenlesbare Beschreibung aller Routen und JSON-Nutzdaten liegt in [json
 | `POST` | `/api/controller/disconnect` | Controller-Verbindungspfad zurücksetzen | `202` |
 | `GET` | `/api/controller/status` | Controller-Status abfragen | `200` |
 | `GET` | `/api/controller/debug` | Controller-Status, letzte Eingabewerte und Bewegungsdiagnose abfragen | `200` |
-| `GET` | `/favicon.ico` | Browser-Favicon unterdrücken | `204` |
+| `GET` | `/favicon.ico` | Favicon aus SPIFFS ausliefern, sofern vorhanden | `200` |
 | alle | sonstige Pfade | Unbekannter Pfad | `404` |
 
 ## Ablauf

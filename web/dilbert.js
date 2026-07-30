@@ -9,6 +9,7 @@ const poseForm = document.querySelector("#pose-form");
 const jointForm = document.querySelector("#joint-form");
 const pwmForm = document.querySelector("#pwm-form");
 const statusBox = document.querySelector("#status");
+const baseUrlControl = document.querySelector("#base-url-control");
 const baseUrlInput = document.querySelector("#base-url");
 const initButton = document.querySelector("#init-button");
 const addPoseHistoryButton = document.querySelector("#add-pose-history-button");
@@ -78,6 +79,10 @@ const controllerConnectedPollMs = 200;
 const controllerFormUpdateIntervalMs = 500;
 const guiMotionFormSyncQuietPeriodMs = 1000;
 const controllerStickAxisMax = 2048;
+const isRobotHost = window.location.hostname === "robot.local" ||
+  window.location.hostname === "robot.fritz.box" ||
+  /^(?:\d{1,3}\.){3}\d{1,3}$/.test(window.location.hostname);
+const usesSameOriginApi = (window.location.protocol === "http:" || window.location.protocol === "https:") && isRobotHost;
 const controllerButtonBits = {
   b: 1 << 0,
   a: 1 << 1,
@@ -209,8 +214,12 @@ function saveBaseUrl() {
 }
 
 baseUrlInput.value = loadBaseUrl();
+baseUrlControl.hidden = usesSameOriginApi;
 
 function apiUrl(path) {
+  if (usesSameOriginApi) {
+    return path;
+  }
   const baseUrl = baseUrlInput.value.replace(/\/+$/, "");
   return `${baseUrl}${path}`;
 }

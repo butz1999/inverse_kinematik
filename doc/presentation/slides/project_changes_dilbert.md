@@ -1,4 +1,10 @@
-#  Projekt Änderungen: Dilbert 🥳<span style="float: right">[⬅️](project_changes.md) [⬆️](../slides.md) [➡️](experiences_ki_pos.md)</span>
+#  Projekt Änderungen: Dilbert <span style="float: right">[⬅️](project_changes.md) [⬆️](../slides.md) [➡️](experiences_ki_pos.md)</span>
+
+
+<div style="float: right; width: 255px; background-color: #666; border-radius: 50%;">
+  <img src="../dilbert-head-favicon-512.png" style="width: 100%; display: block;">
+</div>
+
 
 #### Dann kam `<dilbert>` ins Spiel
   1. Inbetriebnahme der Servos (Kalibration: PWM → °, %)
@@ -16,7 +22,6 @@
   10. Mehr in der Demo 🎁
 
 #### Abgrenzung
-  * Nicht vom ESP serviert
   * CORS Preflight erlauben (<u>C</u>ross <u>O</u>rigin <u>R</u>essource <u>S</u>haring)
   * Funktioniert! 👍
   * Mögliche Erweiterung: Web Serial API, Browser → UART 💡

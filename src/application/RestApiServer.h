@@ -3,6 +3,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <FS.h>
 #include <WebServer.h>
 
 #include "application/ApiContracts.h"
@@ -25,8 +26,8 @@ namespace application
 class RestApiServer
 {
  public:
-  RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver, hardware::StatusLed &status_led,
-                const hardware::Logger &logger);
+  RestApiServer(WebServer &server, fs::FS &asset_file_system, hardware::Pca9685ServoDriver &servo_driver,
+                hardware::StatusLed &status_led, const hardware::Logger &logger);
 
   void init();
   void handleClient();
@@ -51,8 +52,10 @@ class RestApiServer
   void handleControllerStatus();
   void handleControllerDebug();
   void handleCorsPreflight();
-  void handleFavicon();
+  void handleRoot();
   void handleNotFound();
+  bool serveStaticAsset(const String &requested_path);
+  bool writeStaticAssetBytes(const uint8_t *data, std::size_t size);
   bool hasActiveMotionPlan() const;
   void startMotionPlan(const common::MotionPlan &plan, const common::JointState &target_joint_state);
   void serviceActiveMotionPlan();
@@ -67,6 +70,7 @@ class RestApiServer
   void sendJson(int status_code, const String &body);
 
   WebServer &server_;
+  fs::FS &asset_file_system_;
   hardware::Pca9685ServoDriver &servo_driver_;
   hardware::StatusLed &status_led_;
   const hardware::Logger &logger_;

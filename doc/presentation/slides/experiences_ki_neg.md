@@ -11,7 +11,7 @@
   * Dilbert weil Hilfsmittel
   * Gewisse IK Berechnungen weil Mathematik
 * Berücksichtigung der [’agents.md‘](../../../) 🫩
-* **Wieviel Igrnoranz ist vertretbar?**
+* **Wieviel Ignoranz ist vertretbar?**
 * **Kein Kunden-Code ohne Code-Review**
 
 > [!tip]

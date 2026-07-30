@@ -39,6 +39,24 @@ CLI-Aufrufe sollen in diesem Projekt über den vorbereiteten PlatformIO-Interpre
 ~/.platformio/penv/bin/pio run -e esp32s3 -t upload
 ```
 
+## Weboberfläche auf den ESP32 laden
+
+Die versionierten Dateien unter `web/` werden als SPIFFS-Dateisystemabbild
+gebaut. Nach einem Firmware-Upload werden sie separat auf die vorhandene
+`storage`-Partition des ESP32-S3 geladen:
+
+```bash
+~/.platformio/penv/bin/pio run -e esp32s3 -t upload
+~/.platformio/penv/bin/pio run -e esp32s3 -t uploadfs
+```
+
+Danach ist die Oberfläche unter `http://robot.local/` erreichbar; bei nicht
+verfügbarem mDNS die beim Start protokollierte IP-Adresse verwenden. Der zweite
+Befehl überschreibt nur den Inhalt der SPIFFS-Partition, nicht die Firmware.
+Die Versionskennung `assetVersion` in `web/dilbert.html` muss bei jeder Änderung
+an CSS, JavaScript oder Favicon erhöht werden, damit Browser nach `uploadfs`
+garantiert die neue Asset-Version laden.
+
 Das Systemkommando `/usr/bin/pio` ist in diesem Setup veraltet und soll nicht verwendet werden.
 
 `esp32s3` ist die aktuelle Firmware-Standardumgebung. Die alte Arduino-Umgebung `esp32s3_arduino_native` bleibt als schlankerer Vergleichs- und Bring-up-Build erhalten, enthält aber nicht den vollständigen Bluepad32-Controller-Pfad.

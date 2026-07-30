@@ -5,7 +5,14 @@
 #include <ArduinoJson.h>
 
 #include <algorithm>
+#include <array>
+#include <cerrno>
 #include <cmath>
+#include <cstdio>
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <lwip/sockets.h>
 
 #include "application/ApiJson.h"
 #include "config/RobotSettings.h"
@@ -22,7 +29,14 @@ namespace
 {
 
 constexpr std::size_t kRestJsonCapacity = 4096;
+constexpr std::size_t kStaticAssetBufferSize = 1024;
+constexpr uint32_t kStaticAssetWriteTimeoutMs = 5000;
 using RestJsonDocument = StaticJsonDocument<kRestJsonCapacity>;
+
+void allowNetworkTaskToTransmit()
+{
+  vTaskDelay(pdMS_TO_TICKS(1));
+}
 
 RestJsonDocument &sequenceResponseJsonDocument()
 {
@@ -233,9 +247,11 @@ void setControllerStateJson(JsonObject object, const ControllerDebugState &state
 
 }  // namespace
 
-RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &servo_driver,
-                             hardware::StatusLed &status_led, const hardware::Logger &logger)
+RestApiServer::RestApiServer(WebServer &server, fs::FS &asset_file_system,
+                             hardware::Pca9685ServoDriver &servo_driver, hardware::StatusLed &status_led,
+                             const hardware::Logger &logger)
     : server_(server),
+      asset_file_system_(asset_file_system),
       servo_driver_(servo_driver),
       status_led_(status_led),
       logger_(logger),
@@ -262,6 +278,11 @@ RestApiServer::RestApiServer(WebServer &server, hardware::Pca9685ServoDriver &se
 
 void RestApiServer::init()
 {
+  server_.on("/", HTTP_GET,
+             [this]()
+             {
+               handleRoot();
+             });
   server_.on(kHealthPath, HTTP_GET,
              [this]()
              {
@@ -391,11 +412,6 @@ void RestApiServer::init()
              [this]()
              {
                handleControllerDebug();
-             });
-  server_.on("/favicon.ico", HTTP_GET,
-             [this]()
-             {
-               handleFavicon();
              });
   server_.onNotFound(
       [this]()
@@ -1290,15 +1306,22 @@ void RestApiServer::handleCorsPreflight()
   server_.send(204);
 }
 
-void RestApiServer::handleFavicon()
+void RestApiServer::handleRoot()
 {
-  sendCorsHeaders();
-  server_.sendHeader("Cache-Control", "no-store");
-  server_.send(204);
+  logRequest("GET", "/");
+  if (!serveStaticAsset("/dilbert.html"))
+  {
+    handleNotFound();
+  }
 }
 
 void RestApiServer::handleNotFound()
 {
+  if (server_.method() == HTTP_GET && serveStaticAsset(server_.uri()))
+  {
+    return;
+  }
+
   logRequest(server_.method() == HTTP_POST ? "POST" : "HTTP", server_.uri().c_str());
 
   RestJsonDocument doc;
@@ -1307,6 +1330,112 @@ void RestApiServer::handleNotFound()
   doc["path"] = server_.uri();
 
   sendJson(404, jsonBody(doc));
+}
+
+bool RestApiServer::serveStaticAsset(const String &requested_path)
+{
+  const auto query_start = requested_path.indexOf('?');
+  const auto path = query_start >= 0 ? requested_path.substring(0, query_start) : requested_path;
+  if (!path.startsWith("/") || path.indexOf("..") >= 0 || path.indexOf('\\') >= 0)
+  {
+    return false;
+  }
+
+  auto file = asset_file_system_.open(path, FILE_READ);
+  if (!file || file.isDirectory())
+  {
+    return false;
+  }
+
+  const char *content_type = "application/octet-stream";
+  if (path.endsWith(".html"))
+  {
+    content_type = "text/html";
+  }
+  else if (path.endsWith(".css"))
+  {
+    content_type = "text/css";
+  }
+  else if (path.endsWith(".js"))
+  {
+    content_type = "application/javascript";
+  }
+  else if (path.endsWith(".json"))
+  {
+    content_type = "application/json";
+  }
+  else if (path.endsWith(".svg"))
+  {
+    content_type = "image/svg+xml";
+  }
+  else if (path.endsWith(".png"))
+  {
+    content_type = "image/png";
+  }
+  else if (path.endsWith(".ico"))
+  {
+    content_type = "image/x-icon";
+  }
+
+  const auto expected_size = file.size();
+  server_.sendHeader("Cache-Control", path.endsWith(".html") ? "no-store" : "public, max-age=31536000, immutable");
+  server_.setContentLength(expected_size);
+  server_.send(200, content_type, "");
+
+  std::array<uint8_t, kStaticAssetBufferSize> buffer{};
+  std::size_t transferred_size = 0U;
+  bool transfer_failed = false;
+  while (file.available() > 0)
+  {
+    const auto read_size = file.read(buffer.data(), buffer.size());
+    if (read_size == 0U || !writeStaticAssetBytes(buffer.data(), read_size))
+    {
+      transfer_failed = true;
+      break;
+    }
+    transferred_size += read_size;
+  }
+  file.close();
+
+  if (transfer_failed || transferred_size != expected_size)
+  {
+    char message[128]{};
+    std::snprintf(message, sizeof(message), "[REST] Static asset transfer incomplete: %s sent=%u expected=%u",
+                  path.c_str(), static_cast<unsigned>(transferred_size), static_cast<unsigned>(expected_size));
+    logger_.println(message);
+  }
+  return true;
+}
+
+bool RestApiServer::writeStaticAssetBytes(const uint8_t *data, std::size_t size)
+{
+  const auto socket_fd = server_.client().fd();
+  if (socket_fd < 0)
+  {
+    return false;
+  }
+
+  std::size_t offset = 0U;
+  const auto started_at_ms = millis();
+  while (offset < size)
+  {
+    const auto written_size = send(socket_fd, data + offset, size - offset, MSG_DONTWAIT);
+    if (written_size > 0)
+    {
+      offset += static_cast<std::size_t>(written_size);
+      status_led_.updateOutput(millis());
+      allowNetworkTaskToTransmit();
+      continue;
+    }
+
+    if (written_size == 0 || (errno != EAGAIN && errno != EWOULDBLOCK) ||
+        millis() - started_at_ms >= kStaticAssetWriteTimeoutMs)
+    {
+      return false;
+    }
+    allowNetworkTaskToTransmit();
+  }
+  return true;
 }
 
 void RestApiServer::logRequest(const char *method, const char *path) const

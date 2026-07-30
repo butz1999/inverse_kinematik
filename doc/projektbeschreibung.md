@@ -839,6 +839,13 @@ Zusätzlich zu den fachlichen Funktionen muss das System verschiedene qualitativ
 * Die Architektur soll spätere Erweiterungen um neue IK-Verfahren oder zusätzliche Prüfregeln unterstützen.
 * Die Implementierung soll auf die Ressourcen und Echtzeitanforderungen eines ESP32 abgestimmt sein.
 * Die Dokumentation soll die fachlichen Modelle, Datenflüsse und Grenzen der Steuerung verständlich beschreiben.
+* Die lokale Browser-Bedienoberfläche und REST-Schnittstelle müssen auch bei begrenzter TCP-Pufferung des ESP32 zuverlässig nutzbar bleiben.
+
+### HTTP-Bedienoberfläche
+
+Die Browser-Bedienoberfläche wird vom ESP32 selbst ausgeliefert und verwendet dieselbe HTTP-Origin wie die REST-Schnittstelle. Dadurch funktionieren Aufrufe über `robot.local` ebenso wie über die konkrete IP-Adresse ohne manuell konfigurierte Ziel-URL. Die technische Auslieferung bleibt bewusst schlank: Statische Assets liegen in der Flash-Dateisystempartition, während REST-Anfragen weiterhin nur fachliche Eingaben und Statusdaten transportieren.
+
+Da der aktuelle ESP32-HTTP-Server synchron im selben Laufzeitpfad wie Bewegungs- und Ablaufservices arbeitet, darf die HMI keine große Zahl paralleler Asset- und Statusanfragen erzeugen. Die Browser-Oberfläche lädt ihre Dateien daher nacheinander, verwendet wiederholbare Asset-Versionen und versucht fehlgeschlagene Asset-Transfers erneut. Diese Maßnahmen sind eine bewusste Begrenzung für die erste Ausbaustufe; bei mehreren gleichzeitigen Clients, großen Assets oder kontinuierlicher Telemetrie ist ein vollständig asynchroner HTTP-Server erforderlich. Die konkrete technische Begründung und die Deployment-Regeln stehen in [http-server.md](sw/http-server.md).
 
 ### Randbedingungen und Annahmen
 

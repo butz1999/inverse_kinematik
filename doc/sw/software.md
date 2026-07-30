@@ -728,6 +728,7 @@ Die Anwendung kennt dabei nicht:
 Neben der `Run Engine` gehört auch eine externe REST-Schnittstelle zur vorgesehenen Anwendungsschicht. Diese Schnittstelle ist im aktuellen Dokument noch kein detailliert ausgearbeitetes API-Design, wird aber für die frühe Implementationsphase bereits als kleiner erster Software-Slice ausdrücklich vorgesehen.
 
 Die konkrete HTTP/JSON-Schnittstelle des aktuellen Stands ist im separaten Dokument [rest_api.md](./rest_api.md) beschrieben.
+Die Transport-, Browser- und Laufzeit-Constraints des Servers sind in [http-server.md](./http-server.md) festgehalten.
 
 Die REST-Schnittstelle hat dabei insbesondere folgende Aufgaben:
 
