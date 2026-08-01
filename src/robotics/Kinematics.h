@@ -11,11 +11,6 @@ namespace robotics
 
 struct ForwardKinematicsResult
 {
-  // Vectors are modeling the 3D point in space where the current joint is placed.
-  Vector3 d_mm;
-  Vector3 s_mm;
-  Vector3 e_mm;
-  Vector3 h_mm;
   Vector3 g_mm;
   // Tool-frame orientation in world coordinates.
   Orientation3 tool_orientation;
@@ -31,7 +26,6 @@ enum class KinematicsStatus
   InvalidRobotModel,
   UnreachableTarget,
   JointLimitViolation,
-  UnsupportedOffset,
 };
 
 struct InverseKinematicsResult
@@ -42,11 +36,7 @@ struct InverseKinematicsResult
   const char *message;
 };
 
-ForwardKinematicsResult forwardKinematics(const common::JointState &state, const RobotModel &model);
 ForwardKinematicsResult forwardKinematics(const common::JointState &state, const RobotModel &model,
-                                          const RobotModelOffset &offset);
-InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model);
-InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model,
                                           const RobotModelOffset &offset);
 InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model,
                                           const RobotModelOffset &offset,

@@ -96,16 +96,14 @@ float jointDistanceSquared(const common::JointState &candidate, const common::Jo
          square(candidate.hr_deg - reference.hr_deg);
 }
 
-bool isBetterCandidate(const CandidateScore &candidate, const CandidateScore &best,
-                       const common::JointState *reference_joint_state)
+bool isBetterCandidate(const CandidateScore &candidate, const CandidateScore &best)
 {
   if (candidate.pose_error < best.pose_error - kPoseErrorTieTolerance)
   {
     return true;
   }
 
-  return reference_joint_state != nullptr &&
-         std::fabs(candidate.pose_error - best.pose_error) <= kPoseErrorTieTolerance &&
+  return std::fabs(candidate.pose_error - best.pose_error) <= kPoseErrorTieTolerance &&
          candidate.reference_distance < best.reference_distance;
 }
 
@@ -167,12 +165,7 @@ float localRadialForTurntableDeg(const OffsetTargetPose &pose, float d_deg)
 
 static InverseKinematicsResult inverseKinematicsImpl(const OffsetTargetPose &pose, const RobotModel &model,
                                                      const RobotModelOffset &offset,
-                                                     const common::JointState *reference_joint_state);
-
-ForwardKinematicsResult forwardKinematics(const common::JointState &state, const RobotModel &model)
-{
-  return forwardKinematics(state, model, defaultRobotModelOffset());
-}
+                                                     const common::JointState &reference_joint_state);
 
 ForwardKinematicsResult forwardKinematics(const common::JointState &state, const RobotModel &model,
                                           const RobotModelOffset &offset)
@@ -181,8 +174,7 @@ ForwardKinematicsResult forwardKinematics(const common::JointState &state, const
   const auto e_angle_deg = s_angle_deg + state.e_deg;
   const auto hp_angle_deg = e_angle_deg + state.hp_deg;
 
-  const auto d_point = kOrigin;
-  const auto s_point = add(d_point, vectorFromTurntableLocal(offset.d_s_offset_x_mm, offset.d_s_offset_y_mm,
+  const auto s_point = add(kOrigin, vectorFromTurntableLocal(offset.d_s_offset_x_mm, offset.d_s_offset_y_mm,
                                                              offset.d_s_offset_z_mm, state.d_deg));
   const auto e_point = add(s_point, segmentVector(model.segments.s_e_length_mm, s_angle_deg, state.d_deg));
   const auto h_point = add(e_point, segmentVector(model.segments.e_hp_length_mm, e_angle_deg, state.d_deg));
@@ -190,11 +182,7 @@ ForwardKinematicsResult forwardKinematics(const common::JointState &state, const
   const auto g_point = add(hr_point, segmentVector(model.segments.hr_g_length_mm, hp_angle_deg, state.d_deg));
 
   // clang-format off
-  return ForwardKinematicsResult{d_point,
-                                 s_point,
-                                 e_point,
-                                 h_point,
-                                 g_point,
+  return ForwardKinematicsResult{g_point,
                                  toolOrientationFromWorldAngles(state.d_deg, hp_angle_deg, state.hr_deg),
                                  hp_angle_deg,
                                  state.hr_deg,
@@ -202,27 +190,16 @@ ForwardKinematicsResult forwardKinematics(const common::JointState &state, const
   // clang-format on
 }
 
-InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model)
-{
-  return inverseKinematics(pose, model, defaultRobotModelOffset());
-}
-
-InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model,
-                                          const RobotModelOffset &offset)
-{
-  return inverseKinematicsImpl(pose, model, offset, nullptr);
-}
-
 InverseKinematicsResult inverseKinematics(const OffsetTargetPose &pose, const RobotModel &model,
                                           const RobotModelOffset &offset,
                                           const common::JointState &reference_joint_state)
 {
-  return inverseKinematicsImpl(pose, model, offset, &reference_joint_state);
+  return inverseKinematicsImpl(pose, model, offset, reference_joint_state);
 }
 
 static InverseKinematicsResult inverseKinematicsImpl(const OffsetTargetPose &pose, const RobotModel &model,
                                                      const RobotModelOffset &offset,
-                                                     const common::JointState *reference_joint_state)
+                                                     const common::JointState &reference_joint_state)
 {
   if (!isValidRobotModel(model))
   {
@@ -296,10 +273,8 @@ static InverseKinematicsResult inverseKinematicsImpl(const OffsetTargetPose &pos
       }
 
       const CandidateScore candidate{joint_state, poseErrorSquared(pose, fk),
-                                     reference_joint_state != nullptr
-                                         ? jointDistanceSquared(joint_state, *reference_joint_state)
-                                         : std::numeric_limits<float>::max()};
-      if (!had_verified_solution || isBetterCandidate(candidate, best_candidate, reference_joint_state))
+                                     jointDistanceSquared(joint_state, reference_joint_state)};
+      if (!had_verified_solution || isBetterCandidate(candidate, best_candidate))
       {
         best_candidate = candidate;
         had_verified_solution = true;
@@ -332,8 +307,6 @@ const char *toString(KinematicsStatus status)
       return "unreachable_target";
     case KinematicsStatus::JointLimitViolation:
       return "joint_limit_violation";
-    case KinematicsStatus::UnsupportedOffset:
-      return "unsupported_offset";
   }
 
   return "unreachable_target";

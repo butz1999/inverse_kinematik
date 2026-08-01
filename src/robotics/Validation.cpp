@@ -101,8 +101,6 @@ const char *toString(ValidationStatus status)
       return "invalid_robot_model";
     case ValidationStatus::InvalidTargetPose:
       return "invalid_target_pose";
-    case ValidationStatus::TargetPoseOutOfWorkspace:
-      return "target_pose_out_of_workspace";
     case ValidationStatus::JointLimitViolation:
       return "joint_limit_violation";
   }

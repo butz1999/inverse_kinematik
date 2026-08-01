@@ -5,31 +5,24 @@
 namespace application
 {
 
-enum class ApiCapabilityStatus
-{
-  Available,
-  NotAvailable,
-};
-
 enum class ApiResultCode
 {
   Ok,
   InvalidJson,
   MissingField,
   InvalidTargetPose,
-  TargetPoseOutOfWorkspace,
   JointLimitViolation,
   JointPwmLimitViolation,
   KinematicsFailure,
   HardwareDriverFailure,
   SequenceBusy,
-  OrchestratorUnavailable,
   UnknownRoute,
 };
 
 // clang-format off
 constexpr const char *kApiName =               "inverse_kinematic";
 constexpr const char *kApiVersion =            "v1";
+constexpr const char *kApiCapabilityAvailable = "available";
 constexpr const char *kHealthPath =            "/api/health";
 constexpr const char *kStatusPath =            "/api/status";
 constexpr const char *kMotionLimitsPath =      "/api/settings/motion-limits";
@@ -49,7 +42,6 @@ constexpr const char *kControllerStatusPath =  "/api/controller/status";
 constexpr const char *kControllerDebugPath =   "/api/controller/debug";
 // clang-format on
 
-const char *toString(ApiCapabilityStatus status);
 const char *toString(ApiResultCode code);
 
 }  // namespace application

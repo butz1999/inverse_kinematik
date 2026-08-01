@@ -3,16 +3,15 @@
 #include "application/RestApiServer.h"
 
 #include <ArduinoJson.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <lwip/sockets.h>
 
 #include <algorithm>
 #include <array>
 #include <cerrno>
 #include <cmath>
 #include <cstdio>
-
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <lwip/sockets.h>
 
 #include "application/ApiJson.h"
 #include "config/RobotSettings.h"
@@ -247,9 +246,8 @@ void setControllerStateJson(JsonObject object, const ControllerDebugState &state
 
 }  // namespace
 
-RestApiServer::RestApiServer(WebServer &server, fs::FS &asset_file_system,
-                             hardware::Pca9685ServoDriver &servo_driver, hardware::StatusLed &status_led,
-                             const hardware::Logger &logger)
+RestApiServer::RestApiServer(WebServer &server, fs::FS &asset_file_system, hardware::Pca9685ServoDriver &servo_driver,
+                             hardware::StatusLed &status_led, const hardware::Logger &logger)
     : server_(server),
       asset_file_system_(asset_file_system),
       servo_driver_(servo_driver),
@@ -622,7 +620,7 @@ void RestApiServer::handleHealth()
   doc["service"] = kApiName;
   doc["apiVersion"] = kApiVersion;
   doc["status"] = toString(ApiResultCode::Ok);
-  doc["orchestrator"] = toString(ApiCapabilityStatus::Available);
+  doc["orchestrator"] = kApiCapabilityAvailable;
   doc["uptimeMs"] = millis();
 
   sendJson(200, jsonBody(doc));
@@ -633,20 +631,20 @@ void RestApiServer::handleStatus()
   logRequest("GET", kStatusPath);
 
   RestJsonDocument doc;
-  doc["restApi"] = toString(ApiCapabilityStatus::Available);
-  doc["orchestrator"] = toString(ApiCapabilityStatus::Available);
-  doc["jointStateEndpoint"] = toString(ApiCapabilityStatus::Available);
-  doc["jointMotionEndpoint"] = toString(ApiCapabilityStatus::Available);
-  doc["jointPwmStateEndpoint"] = toString(ApiCapabilityStatus::Available);
-  doc["servoDriverInitEndpoint"] = toString(ApiCapabilityStatus::Available);
-  doc["jointPwmMotionEndpoint"] = toString(ApiCapabilityStatus::Available);
-  doc["forwardKinematicsEndpoint"] = toString(ApiCapabilityStatus::Available);
-  doc["jointPwmHardwareOutput"] = toString(ApiCapabilityStatus::Available);
+  doc["restApi"] = kApiCapabilityAvailable;
+  doc["orchestrator"] = kApiCapabilityAvailable;
+  doc["jointStateEndpoint"] = kApiCapabilityAvailable;
+  doc["jointMotionEndpoint"] = kApiCapabilityAvailable;
+  doc["jointPwmStateEndpoint"] = kApiCapabilityAvailable;
+  doc["servoDriverInitEndpoint"] = kApiCapabilityAvailable;
+  doc["jointPwmMotionEndpoint"] = kApiCapabilityAvailable;
+  doc["forwardKinematicsEndpoint"] = kApiCapabilityAvailable;
+  doc["jointPwmHardwareOutput"] = kApiCapabilityAvailable;
   doc["jointPwmHardwareInitialized"] = servo_driver_.isInitialized();
-  doc["motionEndpoint"] = toString(ApiCapabilityStatus::Available);
-  doc["sequenceEndpoint"] = toString(ApiCapabilityStatus::Available);
-  doc["controllerEndpoint"] = toString(ApiCapabilityStatus::Available);
-  doc["motionLimitsEndpoint"] = toString(ApiCapabilityStatus::Available);
+  doc["motionEndpoint"] = kApiCapabilityAvailable;
+  doc["sequenceEndpoint"] = kApiCapabilityAvailable;
+  doc["controllerEndpoint"] = kApiCapabilityAvailable;
+  doc["motionLimitsEndpoint"] = kApiCapabilityAvailable;
   doc["motionPlanActive"] = hasActiveMotionPlan();
   doc["motionPlanSampleIndex"] = active_motion_sample_index_;
   doc["motionPlanSampleCount"] = active_motion_plan_.sample_count;
@@ -728,7 +726,7 @@ void RestApiServer::handleJointMotionRequest()
     doc["status"] = "hardware_not_initialized";
     doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
     doc["mode"] = "joint_space_calibrated";
-    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
     doc["message"] =
         "PCA9685 servo driver is not initialized; check the boot log or call POST /api/servo-driver/init for "
         "diagnostics.";
@@ -745,7 +743,7 @@ void RestApiServer::handleJointMotionRequest()
     doc["status"] = "hardware_failed";
     doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
     doc["mode"] = "joint_space_calibrated";
-    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
     setHardwareDriverResultJson(doc.createNestedObject("driver"), write_result);
     sendJson(503, jsonBody(doc));
     return;
@@ -763,7 +761,7 @@ void RestApiServer::handleJointMotionRequest()
   doc["status"] = "accepted";
   doc["code"] = toString(ApiResultCode::Ok);
   doc["mode"] = "joint_space_calibrated";
-  doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
   setHardwareDriverResultJson(doc.createNestedObject("driver"), write_result);
   setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
   setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
@@ -838,7 +836,7 @@ void RestApiServer::handleServoDriverInitRequest()
     RestJsonDocument doc;
     doc["status"] = "hardware_failed";
     doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
-    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
     setHardwareDriverResultJson(doc.createNestedObject("driver"), init_result);
     sendJson(503, jsonBody(doc));
     return;
@@ -851,7 +849,7 @@ void RestApiServer::handleServoDriverInitRequest()
   RestJsonDocument doc;
   doc["status"] = "accepted";
   doc["code"] = toString(ApiResultCode::Ok);
-  doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
   setHardwareDriverResultJson(doc.createNestedObject("driver"), init_result);
   setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
   setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
@@ -887,7 +885,7 @@ void RestApiServer::handleJointPwmMotionRequest()
     doc["status"] = "hardware_not_initialized";
     doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
     doc["mode"] = "joint_pwm_direct";
-    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
     doc["message"] =
         "PCA9685 servo driver is not initialized; check the boot log or call POST /api/servo-driver/init for "
         "diagnostics.";
@@ -903,7 +901,7 @@ void RestApiServer::handleJointPwmMotionRequest()
     doc["status"] = "hardware_failed";
     doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
     doc["mode"] = "joint_pwm_direct";
-    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
     setHardwareDriverResultJson(doc.createNestedObject("driver"), write_result);
     sendJson(503, jsonBody(doc));
     return;
@@ -916,7 +914,7 @@ void RestApiServer::handleJointPwmMotionRequest()
   doc["status"] = "accepted";
   doc["code"] = toString(ApiResultCode::Ok);
   doc["mode"] = "joint_pwm_direct";
-  doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
   setHardwareDriverResultJson(doc.createNestedObject("driver"), write_result);
   setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
   sendJson(202, jsonBody(doc));
@@ -951,7 +949,7 @@ void RestApiServer::handleMotionRequest()
     doc["status"] = "busy";
     doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
     doc["mode"] = "task_space_ik";
-    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
     doc["message"] = "A motion plan is already active.";
     setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
     setMotionPlanSummaryJson(doc.createNestedObject("activeMotionPlan"), active_motion_plan_);
@@ -966,7 +964,7 @@ void RestApiServer::handleMotionRequest()
     doc["status"] = "busy";
     doc["code"] = toString(ApiResultCode::SequenceBusy);
     doc["mode"] = "task_space_ik";
-    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
     doc["message"] = "A sequence is already active.";
     setSequenceStateJson(doc.createNestedObject("sequence"), run_engine_.state(), millis());
     sendJson(409, jsonBody(doc));
@@ -980,9 +978,7 @@ void RestApiServer::handleMotionRequest()
   {
     RestJsonDocument doc;
     doc["status"] = "rejected";
-    doc["code"] = motion_result.target_validation_status == robotics::ValidationStatus::TargetPoseOutOfWorkspace
-                      ? toString(ApiResultCode::TargetPoseOutOfWorkspace)
-                      : toString(ApiResultCode::InvalidTargetPose);
+    doc["code"] = toString(ApiResultCode::InvalidTargetPose);
     if (motion_result.field_name[0] != '\0')
     {
       doc["field"] = motion_result.field_name;
@@ -1064,7 +1060,7 @@ void RestApiServer::handleMotionRequest()
     doc["status"] = "hardware_not_initialized";
     doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
     doc["mode"] = "task_space_ik";
-    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
     doc["message"] =
         "PCA9685 servo driver is not initialized; check the boot log or call POST /api/servo-driver/init for "
         "diagnostics.";
@@ -1085,7 +1081,7 @@ void RestApiServer::handleMotionRequest()
   doc["status"] = "accepted";
   doc["code"] = toString(ApiResultCode::Ok);
   doc["mode"] = "task_space_ik";
-  doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
   doc["execution"] = hasActiveMotionPlan() ? "motion_plan_active" : "motion_plan_completed";
   setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
   setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), motion_result.offset_target_pose);
@@ -1136,7 +1132,7 @@ void RestApiServer::handleSequenceStartRequest()
     auto &doc = sequenceResponseJsonDocument();
     doc["status"] = "hardware_not_initialized";
     doc["code"] = toString(ApiResultCode::HardwareDriverFailure);
-    doc["hardware"] = toString(ApiCapabilityStatus::Available);
+    doc["hardware"] = kApiCapabilityAvailable;
     doc["message"] =
         "PCA9685 servo driver is not initialized; check the boot log or call POST /api/servo-driver/init for "
         "diagnostics.";

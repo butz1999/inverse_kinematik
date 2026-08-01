@@ -14,7 +14,6 @@ enum class ValidationStatus
   Ok,
   InvalidRobotModel,
   InvalidTargetPose,
-  TargetPoseOutOfWorkspace,
   JointLimitViolation,
 };
 

@@ -39,11 +39,6 @@ inline Vector3 add(const Vector3 &left, const Vector3 &right)
   return Vector3{left.x_mm + right.x_mm, left.y_mm + right.y_mm, left.z_mm + right.z_mm};
 }
 
-inline Vector3 subtract(const Vector3 &left, const Vector3 &right)
-{
-  return Vector3{left.x_mm - right.x_mm, left.y_mm - right.y_mm, left.z_mm - right.z_mm};
-}
-
 inline Vector3 scale(const Vector3 &vector, float factor)
 {
   return Vector3{vector.x_mm * factor, vector.y_mm * factor, vector.z_mm * factor};
