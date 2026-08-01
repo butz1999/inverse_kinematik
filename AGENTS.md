@@ -52,6 +52,7 @@ Wenn diese Quellen einander widersprechen, weise explizit darauf hin und triff k
 
 ## 6. Verifikation
 * Behaupte nicht, dass Code kompiliert, getestet oder auf Hardware lauffähig ist, wenn dies nicht tatsächlich geprüft wurde.
+* Führe nach jeder Implementierung als letzten Bearbeitungsschritt `clang-format -i` auf allen geänderten C/C++-Quell- und Headerdateien aus. Verwende dabei die Konfiguration aus `.clang-format` im Projekt-Root und berichte, falls `clang-format` nicht verfügbar ist.
 * Führe nach Möglichkeit passende Verifikation aus, mindestens Build oder Tests.
 * Wenn Verifikation in WSL, durch Tooling-Probleme oder wegen fehlender Hardware nicht möglich ist, benenne das explizit.
 

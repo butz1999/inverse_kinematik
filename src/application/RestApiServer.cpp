@@ -761,7 +761,7 @@ void RestApiServer::handleJointMotionRequest()
   doc["status"] = "accepted";
   doc["code"] = toString(ApiResultCode::Ok);
   doc["mode"] = "joint_space_calibrated";
-    doc["hardware"] = kApiCapabilityAvailable;
+  doc["hardware"] = kApiCapabilityAvailable;
   setHardwareDriverResultJson(doc.createNestedObject("driver"), write_result);
   setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
   setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
@@ -849,7 +849,7 @@ void RestApiServer::handleServoDriverInitRequest()
   RestJsonDocument doc;
   doc["status"] = "accepted";
   doc["code"] = toString(ApiResultCode::Ok);
-    doc["hardware"] = kApiCapabilityAvailable;
+  doc["hardware"] = kApiCapabilityAvailable;
   setHardwareDriverResultJson(doc.createNestedObject("driver"), init_result);
   setJointStateJson(doc.createNestedObject("jointState"), current_joint_state_);
   setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
@@ -914,7 +914,7 @@ void RestApiServer::handleJointPwmMotionRequest()
   doc["status"] = "accepted";
   doc["code"] = toString(ApiResultCode::Ok);
   doc["mode"] = "joint_pwm_direct";
-    doc["hardware"] = kApiCapabilityAvailable;
+  doc["hardware"] = kApiCapabilityAvailable;
   setHardwareDriverResultJson(doc.createNestedObject("driver"), write_result);
   setJointPwmStateJson(doc.createNestedObject("jointPwmState"), current_joint_pwm_state_);
   sendJson(202, jsonBody(doc));
@@ -1081,7 +1081,7 @@ void RestApiServer::handleMotionRequest()
   doc["status"] = "accepted";
   doc["code"] = toString(ApiResultCode::Ok);
   doc["mode"] = "task_space_ik";
-    doc["hardware"] = kApiCapabilityAvailable;
+  doc["hardware"] = kApiCapabilityAvailable;
   doc["execution"] = hasActiveMotionPlan() ? "motion_plan_active" : "motion_plan_completed";
   setTargetPoseJson(doc.createNestedObject("targetPose"), parsed.target_pose);
   setOffsetTargetPoseJson(doc.createNestedObject("offsetTargetPose"), motion_result.offset_target_pose);

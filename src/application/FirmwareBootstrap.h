@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include <cstdint>
-
 #include <SPIFFS.h>
+
+#include <cstdint>
 
 #include "application/RestApiServer.h"
 #include "hardware/Logger.h"

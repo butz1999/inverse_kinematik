@@ -52,8 +52,8 @@ hardware::StatusLed statusLed(kRgbLedPin, kRgbBrightness);
 WebServer webServer(kHttpPort);
 hardware::Pca9685ServoDriver servoDriver;
 application::RestApiServer restApi(webServer, SPIFFS, servoDriver, statusLed, logger);
-const application::FirmwareBootstrapConfig bootstrapConfig{
-    kWifiSsid, kWifiPassword, kNetworkHostname, kHttpPort, kWifiConnectTimeoutMs, kStatusBlinkIntervalMs};
+const application::FirmwareBootstrapConfig bootstrapConfig{kWifiSsid, kWifiPassword,         kNetworkHostname,
+                                                           kHttpPort, kWifiConnectTimeoutMs, kStatusBlinkIntervalMs};
 application::FirmwareBootstrap firmwareBootstrap(bootstrapConfig, SPIFFS, restApi, statusLed, logger);
 
 extern "C" void ik_switch2_pro_ble_input_report(const uint8_t *report, uint16_t report_size)
