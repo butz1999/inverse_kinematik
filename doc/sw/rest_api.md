@@ -222,7 +222,7 @@ Das `input`-Objekt enthält zunächst normalisierte Rohwerte:
 
 ## Endpunkte
 
-Die Beispiele verwenden für Linux und macOS normales `curl` mit dem mDNS-Namen `robot.local`. In WSL funktioniert mDNS je nach Netzwerksetup nicht zuverlässig; die WSL-Beispiele verwenden deshalb den FritzBox-DNS-Namen `robot.fritz.box`. Für PowerShell wird explizit `curl.exe` verwendet, damit nicht versehentlich der PowerShell-Alias `curl` für `Invoke-WebRequest` greift.
+Die Beispiele verwenden für Linux, macOS und WSL normales `curl` mit dem mDNS-Namen `robot.local`. Damit WSL mDNS auflösen kann, muss WSL im Mirrored-Netzwerkmodus laufen und `libnss-mdns` installiert sein. Für PowerShell wird explizit `curl.exe` verwendet, damit nicht versehentlich der PowerShell-Alias `curl` für `Invoke-WebRequest` greift.
 
 Für WSL gibt es zusätzlich ein ausführbares Sammelskript:
 
@@ -247,7 +247,7 @@ curl http://robot.local/api/health
 WSL:
 
 ```sh
-curl http://robot.fritz.box/api/health
+curl http://robot.local/api/health
 ```
 
 PowerShell:
@@ -287,7 +287,7 @@ curl http://robot.local/api/status
 WSL:
 
 ```sh
-curl http://robot.fritz.box/api/status
+curl http://robot.local/api/status
 ```
 
 PowerShell:
@@ -339,7 +339,7 @@ curl http://robot.local/api/joint-state
 WSL:
 
 ```sh
-curl http://robot.fritz.box/api/joint-state
+curl http://robot.local/api/joint-state
 ```
 
 PowerShell:
@@ -400,7 +400,7 @@ curl -X POST http://robot.local/api/joint-motion \
 WSL:
 
 ```sh
-curl -X POST http://robot.fritz.box/api/joint-motion \
+curl -X POST http://robot.local/api/joint-motion \
   -H 'Content-Type: application/json' \
   -d '{"d_deg":0,"s_deg":15,"e_deg":-20,"hp_deg":-45,"hr_deg":0,"g_pct":50}'
 ```
@@ -464,7 +464,7 @@ curl http://robot.local/api/joint-pwm-state
 WSL:
 
 ```sh
-curl http://robot.fritz.box/api/joint-pwm-state
+curl http://robot.local/api/joint-pwm-state
 ```
 
 PowerShell:
@@ -510,7 +510,7 @@ curl -X POST http://robot.local/api/servo-driver/init
 WSL:
 
 ```sh
-curl -X POST http://robot.fritz.box/api/servo-driver/init
+curl -X POST http://robot.local/api/servo-driver/init
 ```
 
 PowerShell:
@@ -674,7 +674,7 @@ curl -X POST http://robot.local/api/joint-pwm-motion \
 WSL:
 
 ```sh
-curl -X POST http://robot.fritz.box/api/joint-pwm-motion \
+curl -X POST http://robot.local/api/joint-pwm-motion \
   -H 'Content-Type: application/json' \
   -d '{"d_pwm":307,"s_pwm":307,"e_pwm":307,"hp_pwm":307,"hr_pwm":307,"g_pwm":307}'
 ```
@@ -818,7 +818,7 @@ curl -X POST http://robot.local/api/motion \
 WSL:
 
 ```sh
-curl -X POST http://robot.fritz.box/api/motion \
+curl -X POST http://robot.local/api/motion \
   -H "Content-Type: application/json" \
   -d '{"x_mm":-20,"y_mm":50,"z_mm":30,"p_deg":-90,"r_deg":0,"g_pct":50,"motionProfile":{"type":"smooth_start_stop"}}'
 ```
@@ -875,7 +875,7 @@ curl http://robot.local/api/unknown
 WSL:
 
 ```sh
-curl http://robot.fritz.box/api/unknown
+curl http://robot.local/api/unknown
 ```
 
 PowerShell:
@@ -915,7 +915,7 @@ curl -X POST http://robot.local/api/joint-motion \
 WSL:
 
 ```sh
-curl -X POST http://robot.fritz.box/api/joint-motion \
+curl -X POST http://robot.local/api/joint-motion \
   -H 'Content-Type: application/json' \
   -d '{"d_deg":0,"e_deg":-20,"hp_deg":-45,"hr_deg":0,"g_pct":50}'
 ```
@@ -954,7 +954,7 @@ curl -X POST http://robot.local/api/joint-pwm-motion \
 WSL:
 
 ```sh
-curl -X POST http://robot.fritz.box/api/joint-pwm-motion \
+curl -X POST http://robot.local/api/joint-pwm-motion \
   -H 'Content-Type: application/json' \
   -d '{"d_pwm":4096,"s_pwm":307,"e_pwm":307,"hp_pwm":307,"hr_pwm":307,"g_pwm":307}'
 ```

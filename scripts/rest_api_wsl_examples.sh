@@ -2,7 +2,7 @@
 
 set -u
 
-BASE_URL="${BASE_URL:-http://robot.fritz.box}"
+BASE_URL="${BASE_URL:-http://robot.local}"
 
 printf '\n== GET /api/health ==\n'
 curl --max-time 5 -i "$BASE_URL/api/health"

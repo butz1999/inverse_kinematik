@@ -8,14 +8,15 @@
     * [Umsetzung und Hindernisse](./slides/project_implementation.md)
     * [Änderungen](./slides/project_changes.md)
     * Erfahrungen:
-        * [KI ➕](./slides/experiences_ki_pos.md)
-        * [KI ➖](./slides/experiences_ki_neg.md)
+        * [KI](./slides/experiences_ki_pos.md)
         * [Inverse Kinematik](./slides/experiences_ik.md)
+        * [Netzwerk](./slides/experiences_network.md)
 * [Fragen & Demo](./slides/demo.md)
 * [Praxis Transfer](./slides/praxis-transfer.md)
 
 > [!tip]
 > Verständnisfragen sofort stellen.  
 > Interaktivität erwünscht.  
-> Demos nach Bedarf.  
-> 12 Folien, 3' pro Folie → 36' Vortrag (ohne Demo und Beispiele)
+> Demos und Intermezzi nach Zeitfortschritt & Bedarf.  
+> 13 Folien → 3' pro Folie → 39' Vortrag (ohne Demo und Beispiele)  
+> Feedbackrunde am Schluss?

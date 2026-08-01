@@ -464,6 +464,8 @@ flowchart LR
     B[Orchestration]
     C[Robotics]
     D[Hardware]
+    E[Settings]
+    F[Common]
 
     A -->|Programmdefinition / Bedienung| B
     B -->|Bewegungsanforderungen| C

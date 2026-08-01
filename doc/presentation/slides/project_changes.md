@@ -3,9 +3,11 @@
 * Clang-format
 * mDNS
 * REST
-* SPIFFS und Webserver (wozu nur!?)
+* SBOM
+* SPI Flash File System (SPIFFS) und Webserver (wozu nur!?)
 
 #### REST Calls mit `curl`?
+
   ```
   export BASE_URL="${BASE_URL:-http://robot.local}"
 
@@ -16,8 +18,8 @@
   ```
 
 #### REST Calls mit Shell Skripten
-* Optionale Demo:  
-* [init.sh](../../../scripts/init.sh): `./scripts/init.sh`
-* [rest_api_wsl_examples.sh](../../../scripts/rest_api_wsl_examples.sh): `./scripts/rest_api_wsl_examples.sh`
+* Demo:  
+  * [init.sh](../../../scripts/init.sh): `./scripts/init.sh`
+  * [rest_api_wsl_examples.sh](../../../scripts/rest_api_wsl_examples.sh): `./scripts/rest_api_wsl_examples.sh`
 
-<p style="color: gold"><b><i>«Das isch alles chli müesam! Was jetzt!?»</i></b></p>
+<p style="color: orange"><b><i>«Das isch alles chli müesam! Was jetzt!?»</i></b></p>
