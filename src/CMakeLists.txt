@@ -3,6 +3,7 @@ set(srcs
     "main.cpp"
     "application/ApiContracts.cpp"
     "application/ApiJson.cpp"
+    "application/FirmwareBootstrap.cpp"
     "application/RestApiServer.cpp"
     "application/RunEngine.cpp"
     "config/RobotSettings.cpp"

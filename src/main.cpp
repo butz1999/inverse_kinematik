@@ -1,12 +1,11 @@
 // Firmware entry point.
 
 #include <Arduino.h>
-#include <ESPmDNS.h>
 #include <SPIFFS.h>
 #include <WebServer.h>
-#include <WiFi.h>
 #include <Wire.h>
 
+#include "application/FirmwareBootstrap.h"
 #include "application/RestApiServer.h"
 #include "hardware/Pca9685ServoDriver.h"
 #include "hardware/Pin.h"
@@ -32,7 +31,7 @@ constexpr uint8_t kRgbBrightness = 15;
 constexpr uint32_t kStatusBlinkIntervalMs = 500;
 // Debug console
 constexpr unsigned long kSerialBaudrate = 115200;
-constexpr unsigned long kWifiConnectTimeoutMs = 15000;
+constexpr uint32_t kWifiConnectTimeoutMs = 15000U;
 constexpr const char *kDebugSerialName = "Serial";
 // I2C bus
 constexpr uint8_t kI2cSdaPin = 4;
@@ -46,8 +45,6 @@ constexpr const char *kNetworkHostname = "robot";
 constexpr const char *kWifiSsid = IK_WIFI_SSID;
 constexpr const char *kWifiPassword = IK_WIFI_PASSWORD;
 
-hardware::StatusColor color = hardware::StatusColor::Off;
-
 // Create Components
 hardware::Pin<kPca9685OePin> pinPcaOe;
 hardware::SerialLogger logger(Serial, kSerialBaudrate);
@@ -55,80 +52,13 @@ hardware::StatusLed statusLed(kRgbLedPin, kRgbBrightness);
 WebServer webServer(kHttpPort);
 hardware::Pca9685ServoDriver servoDriver;
 application::RestApiServer restApi(webServer, SPIFFS, servoDriver, statusLed, logger);
+const application::FirmwareBootstrapConfig bootstrapConfig{
+    kWifiSsid, kWifiPassword, kNetworkHostname, kHttpPort, kWifiConnectTimeoutMs, kStatusBlinkIntervalMs};
+application::FirmwareBootstrap firmwareBootstrap(bootstrapConfig, SPIFFS, restApi, statusLed, logger);
 
 extern "C" void ik_switch2_pro_ble_input_report(const uint8_t *report, uint16_t report_size)
 {
   restApi.ingestSwitch2ProBleInputReport(report, report_size, millis());
-}
-
-bool isConfigured(const char *value)
-{
-  return value != nullptr && value[0] != '\0';
-}
-
-bool connectWifi()
-{
-  // Check valid SSID
-  if (!isConfigured(kWifiSsid))
-  {
-    logger.println("[BOOT] WiFi STA not configured: IK_WIFI_SSID is empty");
-    return false;
-  }
-
-  WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);
-  WiFi.setHostname(kNetworkHostname);
-  logger.print("[BOOT] Connecting to WiFi SSID: ");
-  logger.println(kWifiSsid);
-
-  // Check valid password, start with or without password
-  if (isConfigured(kWifiPassword))
-  {
-    WiFi.begin(kWifiSsid, kWifiPassword);
-  }
-  else
-  {
-    WiFi.begin(kWifiSsid);
-  }
-  // Start WiFi with connection timeout
-  const auto startedAtMs = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - startedAtMs < kWifiConnectTimeoutMs)
-  {
-    delay(250);
-  }
-  // Abort if connection failed
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    logger.println("[BOOT] WiFi STA connection failed");
-    return false;
-  }
-  // Otherwise log success
-  logger.print("[BOOT] WiFi connected, IP address: ");
-  logger.println(WiFi.localIP().toString().c_str());
-
-  return true;
-}
-
-bool startMdns()
-{
-  // Register mDNS
-  if (!MDNS.begin(kNetworkHostname))
-  {
-    logger.println("[BOOT] mDNS responder failed to start");
-    return false;
-  }
-  // Register mDNS services
-  if (!MDNS.addService("http", "tcp", kHttpPort))
-  {
-    logger.println("[BOOT] mDNS service registration failed");
-    return false;
-  }
-  // Report success
-  logger.print("[BOOT] mDNS responder available at http://");
-  logger.print(kNetworkHostname);
-  logger.println(".local");
-
-  return true;
 }
 
 }  // namespace
@@ -137,12 +67,10 @@ void setup()
 {
   // Start logger
   logger.init();
-  delay(300);
   logger.println();
   logger.println("[BOOT] Firmware setup entered");
-  color = hardware::StatusLed::Color::Yellow;
   logger.println("[BOOT] Setting initial status LED");
-  statusLed.set(color);
+  statusLed.set(hardware::StatusLed::Color::Yellow);
   // Report success
   logger.println("[BOOT] Firmware setup reached");
   logger.print("[BOOT] Debug serial ready on ");
@@ -161,7 +89,7 @@ void setup()
   logger.println(kI2cSclPin);
   // Start servo driver
   const auto servo_driver_init_result = servoDriver.init();
-  const bool servoDriverInitialized = servo_driver_init_result.status == hardware::HardwareDriverStatus::Ok;
+  const auto servoDriverInitialized = servo_driver_init_result.status == hardware::HardwareDriverStatus::Ok;
   if (servoDriverInitialized)
   {
     logger.println("[BOOT] PCA9685 servo driver initialized");
@@ -174,69 +102,20 @@ void setup()
   {
     logger.print("[BOOT] PCA9685 servo driver initialization failed: ");
     logger.println(servo_driver_init_result.message);
-    color = hardware::StatusLed::Color::Orange;
-    statusLed.set(color);
+    statusLed.set(hardware::StatusLed::Color::Orange);
   }
-  delay(250);
-  // Connect Wifi
-  color = hardware::StatusLed::Color::Blue;
-  statusLed.set(color);
-  const auto wifiConnected = connectWifi();
-  if (wifiConnected)
-  {
-    // Report success
-    logger.print("[BOOT] REST API listening on http://");
-    logger.print(WiFi.localIP().toString().c_str());
-    logger.println("/api/health");
-    // Start mDNS
-    const auto mdnsStarted = startMdns();
-    if (mdnsStarted)
-    {
-      // Report success
-      logger.println("[BOOT] or use its hostname");
-      logger.print("[BOOT] REST API listening on http://");
-      logger.print(kNetworkHostname);
-      logger.println(".local/api/status");
-      color = hardware::StatusLed::Color::Green;
-    }
-    else
-    {
-      logger.println("[BOOT] mDNS not started");
-      color = hardware::StatusLed::Color::Yellow;
-    }
-  }
-  else
-  {
-    logger.println("[BOOT] Wifi not started");
-    color = hardware::StatusLed::Color::Red;
-  }
-  if (!servoDriverInitialized && wifiConnected)
-  {
-    color = hardware::StatusLed::Color::Orange;
-  }
-  statusLed.set(color);
-  delay(250);
-  // Mount static web assets without formatting a failed filesystem.
-  if (SPIFFS.begin(false))
-  {
-    logger.println("[BOOT] SPIFFS static web assets mounted");
-  }
-  else
-  {
-    logger.println("[BOOT] SPIFFS mount failed; static web UI is unavailable");
-    color = hardware::StatusLed::Color::Cyan;
-  }
-  // Register REST API
-  restApi.init();
-  logger.println("[BOOT] REST API endpoints registered");
-  statusLed.set(color, hardware::StatusLed::Mode::Pulsing, kStatusBlinkIntervalMs);
-  delay(250);
-  logger.println("[BOOT] setup() finished, entering loop()");
+  firmwareBootstrap.begin(millis(), servoDriverInitialized);
 }
 
 void loop()
 {
   const auto now = millis();
+  if (!firmwareBootstrap.isFinished())
+  {
+    firmwareBootstrap.update(now);
+    return;
+  }
+
   restApi.handleClient();
   statusLed.updateOutput(now);
 }
