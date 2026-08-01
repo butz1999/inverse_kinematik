@@ -9,6 +9,10 @@
 #### REST Calls mit `curl`?
 
   ```
+  > ping robot.local
+  
+  $ sudo nano /etc/hosts
+  
   export BASE_URL="${BASE_URL:-http://robot.local}"
 
   curl --max-time 5 -i \

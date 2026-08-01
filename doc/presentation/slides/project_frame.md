@@ -12,4 +12,4 @@
 * Architektur vor Code 😇
 * Möglichst viel KI-Code verstehen 🙈
 * Doku und Code synchron halten
-* Sandbox in WSL
+* Sandbox in WSL 🐦‍⬛
