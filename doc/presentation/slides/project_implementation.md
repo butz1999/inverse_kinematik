@@ -12,10 +12,11 @@
 * Welt-Koordinatensystem  
   Pose [mm] [°] [%]
 * IK Ansätze:
-  * Analytische IK Lösungen
-  * FABRIK (<ins>F</ins>orward <ins>A</ins>nd <ins>B</ins>ackward <ins>R</ins>eaching <ins>I</ins>nverse <ins>K</ins>inematics) ❌
+  * Analytische IK Lösungen  
+    <img src="../youtube.svg" style="height:1em; background-color: #888"> [Inverse or Forward kinematics Explained under 3 minutes](https://youtu.be/b1arysUSlzo?si=fs7BbtusYuqY-aba)
+  * FABRIK (<ins>F</ins>orward <ins>A</ins>nd <ins>B</ins>ackward <ins>R</ins>eaching <ins>I</ins>nverse <ins>K</ins>inematics) ❌  
+    <img src="../youtube.svg" style="height:1em; background-color: #888"> [Programming Chaos](https://youtu.be/NfuO66wsuRg?si=a5t_cy8z0aZeiHL4)
   * CCD (<ins>C</ins>yclic <ins>C</ins>oordinate <ins>D</ins>escent) ❌
-  * <img src="../youtube.svg" style="height:1em; background-color: #888"> [Inverse or Forward kinematics Explained under 3 minutes](https://youtu.be/b1arysUSlzo?si=fs7BbtusYuqY-aba)
 
 #### [PlatformIO](https://platformio.org/)
 * µC Entwicklung in VSCode
